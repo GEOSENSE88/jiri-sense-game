@@ -96,6 +96,10 @@ const farName = Object.entries(window.eval('MUNIS')).reduce((best,[n,m])=>{
 document.querySelector(`#map-svg .muni[data-name="${farName}"]`)
   .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check(window.eval('G.combo') === 0, '먼 시·군 탭 → 오답 처리(콤보 0)');
+{
+  const badLabels=[...document.querySelectorAll('#map-svg .loc-label.bad')];
+  check(badLabels.length===1 && badLabels[0].textContent===farName.replace(/\(.+\)$/,''), '오답 시 탭한 시·군 이름 라벨 표시');
+}
 
 console.log('\n=== 지역 판독 ===');
 window.eval("startGame('muniname')");

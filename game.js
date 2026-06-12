@@ -280,11 +280,12 @@ function initMapGestures(){
     } else if(ptrs.size===1 && panStart){
       const dx=(e.clientX-panStart.x), dy=(e.clientY-panStart.y);
       if(Math.abs(dx)+Math.abs(dy)>10){ moved=true; suppressTap=true; }
-      if(moved && view.w<VIEW0.w-1){      // 확대 상태에서만 팬
+      if(moved){                          // 확대 여부와 무관하게 항상 팬 (페이지 스크롤과 분리)
         view.x=panStart.vx-dx*scale; view.y=panStart.vy-dy*scale;
         clampView(); applyView();
       }
     }
+    if(moved || ptrs.size===2){ try { e.preventDefault(); } catch(err){} }
   });
   const up=e=>{
     // 탭(이동 없음)이면 터치 지점에 물결 효과
@@ -327,11 +328,16 @@ function addDot(x, y, r, cls){
   c.setAttribute('class',cls);
   $('map-svg').appendChild(c); return c;
 }
-function addLabel(x, y, text){
+function addLabel(x, y, text, cls){
   const t=document.createElementNS('http://www.w3.org/2000/svg','text');
   t.setAttribute('x',x); t.setAttribute('y',y);
-  t.setAttribute('text-anchor','middle'); t.setAttribute('class','loc-label');
+  t.setAttribute('text-anchor','middle'); t.setAttribute('class','loc-label'+(cls?' '+cls:''));
   t.textContent=text; $('map-svg').appendChild(t); return t;
+}
+// 오답으로 탭한 시·군에 빨간 이름 라벨
+function labelWrongMuni(name){
+  const m=MUNIS[name];
+  if(m) addLabel(m.cx, m.cy+4, name.replace(/\(.+\)$/,''), 'bad');
 }
 function dimOtherRegions(region){
   if(region==='전체') return;
@@ -606,8 +612,8 @@ function askLocation(loc){
     let correct=false, base=0, head='';
     const baseFull = descForm ? 140 : 120;            // 설명형은 더 높은 점수
     if(loc.accept.includes(tapped)){ correct=true; base=baseFull; head='🎯 정확해요!'; }
-    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
-    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
+    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
+    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
     reveal();
     const pts=award(correct,base);
     recordStat(loc.region,correct);
@@ -690,8 +696,8 @@ function askDetective(loc){
     const baseFull=Math.max(60, BASE-(revealed-1)*HINT_COST);
     let correct=false, base=0, head='';
     if(loc.accept.includes(tapped)){ correct=true; base=baseFull; head=`🕵️ 명추리! (힌트 ${revealed}개)`; }
-    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
-    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
+    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
+    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
     reveal();
     const pts=award(correct,base);
     recordStat(loc.region,correct);
