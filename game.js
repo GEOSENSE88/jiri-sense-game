@@ -255,29 +255,36 @@ function initMapGestures(){
     ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptrs.size===1){ panStart={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; moved=false; }
     else if(ptrs.size===2){
+      // 핀치 시작: 시작 시점의 뷰와 손가락 중점 아래의 지도 좌표(앵커)를 고정
+      if(viewAnimId){ cancelAnimationFrame(viewAnimId); viewAnimId=null; }
       const [a,b]=[...ptrs.values()];
-      pinch0={d:Math.hypot(a.x-b.x,a.y-b.y), w:view.w, h:view.h,
-              cx:(a.x+b.x)/2, cy:(a.y+b.y)/2};
+      const rect=svg.getBoundingClientRect();
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      pinch0={d:Math.hypot(a.x-b.x,a.y-b.y), v:{...view},
+              ax:view.x+(mx-rect.left)/rect.width*view.w,
+              ay:view.y+(my-rect.top)/rect.height*view.h};
+      panStart=null;
     }
   });
   svg.addEventListener('pointermove',e=>{
     if(!ptrs.has(e.pointerId)) return;
     ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     const rect=svg.getBoundingClientRect();
-    const scale=view.w/rect.width;
     if(ptrs.size===2 && pinch0){
       const [a,b]=[...ptrs.values()];
       const d=Math.hypot(a.x-b.x,a.y-b.y);
-      if(Math.abs(d-pinch0.d)>6){
-        moved=true; suppressTap=true;
-        const target=svgPoint(pinch0.cx,pinch0.cy);
-        const nw=Math.min(VIEW0.w, Math.max(VIEW0.w/8, pinch0.w*(pinch0.d/d)));
-        const kk=nw/view.w;
-        view.x=target.x-(target.x-view.x)*kk; view.y=target.y-(target.y-view.y)*kk;
-        view.w=nw; view.h=pinch0.h*(nw/pinch0.w);
+      if(Math.abs(d-pinch0.d)>6) { moved=true; suppressTap=true; }
+      if(moved){
+        // 시작 상태 기준으로만 계산 → 드리프트 없음. 앵커가 항상 손가락 중점 아래에 유지
+        const nw=Math.min(VIEW0.w, Math.max(VIEW0.w/8, pinch0.v.w*(pinch0.d/d)));
+        const nh=pinch0.v.h*(nw/pinch0.v.w);
+        const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+        view={x:pinch0.ax-(mx-rect.left)/rect.width*nw,
+              y:pinch0.ay-(my-rect.top)/rect.height*nh, w:nw, h:nh};
         clampView(); applyView();
       }
     } else if(ptrs.size===1 && panStart){
+      const scale=panStart.vw!==undefined?panStart.vw/rect.width:view.w/rect.width;
       const dx=(e.clientX-panStart.x), dy=(e.clientY-panStart.y);
       if(Math.abs(dx)+Math.abs(dy)>10){ moved=true; suppressTap=true; }
       if(moved){                          // 확대 여부와 무관하게 항상 팬 (페이지 스크롤과 분리)
@@ -294,6 +301,11 @@ function initMapGestures(){
     }
     ptrs.delete(e.pointerId);
     if(ptrs.size<2) pinch0=null;
+    if(ptrs.size===1){
+      // 핀치 → 한 손가락 전환: 남은 손가락 기준으로 팬 기준점 재설정 (점프 방지)
+      const [rest]=[...ptrs.values()];
+      panStart={x:rest.x, y:rest.y, vx:view.x, vy:view.y, vw:view.w};
+    }
     if(ptrs.size===0){ panStart=null; setTimeout(()=>{ suppressTap=false; },50); }
   };
   svg.addEventListener('pointerup',up);
@@ -512,6 +524,9 @@ function nextQuestion(){
   $('feedback-box').classList.add('hidden');
   $('btn-next').classList.add('hidden');
   clearMapExtras();
+  // 문제 전환 시 지도를 즉시 원위치 (비교 모드는 이후 자체적으로 자동 확대)
+  if(viewAnimId){ cancelAnimationFrame(viewAnimId); viewAnimId=null; }
+  view={...VIEW0}; applyView();
 
   if(G.mode==='ox'){
     if(Date.now()>=G.oxEnd || G.idx>=G.queue.length) return endGame();
@@ -1492,7 +1507,7 @@ function conquestMapSVG(){
 }
 function updateGachaUI(){
   if($('coin-cnt')) $('coin-cnt').innerHTML=`🪙 <b>${coins}</b>`;
-  if($('coll-progress')) $('coll-progress').textContent=`(${Object.keys(cards).length}/${LOCATIONS.length})`;
+  if($('coll-progress')) $('coll-progress').textContent=`수집 ${Object.keys(cards).length}/${LOCATIONS.length} — 백지도 채우는 중!`;
   if($('btn-draw')) $('btn-draw').disabled = coins<DRAW_COST;
 }
 function drawCard(){
@@ -1664,6 +1679,7 @@ $('btn-gacha-close').onclick=()=>{
   if($('screen-cards').classList.contains('active')) openCollection(); else initHome();
 };
 $('btn-collection').onclick=openCollection;
+$('btn-explore').onclick=()=>startGame('explore');
 $('btn-cards-back').onclick=()=>{ initHome(); show('screen-home'); };
 
 // ---------- 시작 ----------

@@ -74,6 +74,19 @@ window.eval('zoomAt(380,400,0.5)');
 check(window.eval('view.w') < 776, '줌인 시 viewBox 축소');
 window.eval('resetView()');
 check(window.eval('view.w') === 776, '줌 리셋');
+// 문제 전환 시 지도 원위치
+window.eval("startGame('mcq'); zoomAt(380,400,0.4);");
+check(window.eval('view.w') < 776, '문제 중 확대 상태');
+window.eval('G.idx=0; nextQuestion();');
+check(window.eval('view.w') === 776, '문제 전환 시 지도 자동 원위치');
+
+console.log('\n=== 홈 재배치 (캐러셀·학습 분리) ===');
+check(document.getElementById('mode-carousel') !== null, '게임 모드 캐러셀 존재');
+check(document.querySelectorAll('#mode-carousel .mode-card').length === 8, '캐러셀에 게임 8종');
+check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
+check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
+check(document.querySelector('.hero-stats #rank-badge') !== null, '히어로 스탯 바(계급)');
+check(document.querySelector('.hero-stats #coin-cnt') !== null, '히어로 스탯 바(코인)');
 
 console.log('\n=== 위치 사냥 (시·군 탭) ===');
 window.eval("startGame('location')");

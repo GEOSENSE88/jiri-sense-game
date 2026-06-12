@@ -21,47 +21,72 @@
     <img src="icon-192.png" alt="지리SENSE" class="app-logo">
     <h1>지리SENSE GAME</h1>
     <p class="subtitle">수능특강 · 수능완성 · 5개년 기출 빈도 기반 — 한국지리 백지도 경쟁 퀴즈</p>
+    <!-- 게임 HUD 스타일 스탯 바 -->
+    <div class="hero-stats">
+      <div id="rank-badge" class="hero-chip rank-badge"></div>
+      <div class="hero-chip coin-chip"><span id="coin-cnt" class="coin-cnt">🪙 0</span></div>
+    </div>
+    <div class="hero-xp">
+      <div id="xp-bar-wrap" class="xp-bar-wrap"><div id="xp-bar"></div></div>
+      <div id="xp-text" class="xp-text"></div>
+    </div>
   </header>
 
   <div class="home-grid">
     <section class="panel modes-panel">
-      <h2>게임 모드</h2>
-      <div class="mode-cards">
-        <button class="mode-card" data-mode="explore">
-          <span class="mode-icon">🔍</span><span class="mode-name">백지도 탐색</span>
-          <span class="mode-desc">시·도와 100개 지점을 지도에서 익히는 학습 모드</span>
+      <h2>📖 학습 · 수집</h2>
+      <div class="learn-row">
+        <button class="learn-btn" id="btn-explore">
+          <span class="mode-icon">🔍</span>
+          <span><b>백지도 탐색</b><small>시·군 경계와 133개 지점을 자유롭게 학습</small></span>
         </button>
-        <button class="mode-card" data-mode="location">
+        <button class="learn-btn" id="btn-collection">
+          <span class="mode-icon">🏞️</span>
+          <span><b>카드 컬렉션</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
+        </button>
+      </div>
+
+      <h2 style="margin-top:20px">🎮 게임 모드 <span class="swipe-hint">← 밀어서 선택 →</span></h2>
+      <div class="mode-carousel" id="mode-carousel">
+        <button class="mode-card" data-mode="location" style="--mc:#1278C2">
           <span class="mode-icon">📍</span><span class="mode-name">위치 사냥</span>
-          <span class="mode-desc">지역 이름 또는 설명(특산물·축제·마스코트…)을 보고 지도에서 탭!</span>
+          <span class="mode-desc">이름 또는 설명(특산물·축제·마스코트)을 보고 백지도에서 탭!</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="muniname">
+        <button class="mode-card" data-mode="muniname" style="--mc:#2FA34F">
           <span class="mode-icon">🔎</span><span class="mode-name">지역 판독</span>
-          <span class="mode-desc">지도에 표시된 시·군의 이름을 맞혀라</span>
+          <span class="mode-desc">지도에 깜빡이는 시·군의 이름을 맞혀라</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="detective">
+        <button class="mode-card" data-mode="detective" style="--mc:#6A5ACD">
           <span class="mode-icon">🕵️</span><span class="mode-name">지역 추리</span>
-          <span class="mode-desc">힌트를 하나씩 열며 지역을 추리! 힌트를 아낄수록 고득점</span>
+          <span class="mode-desc">힌트를 하나씩 열며 추리! 힌트를 아낄수록 고득점</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="climate">
+        <button class="mode-card" data-mode="climate" style="--mc:#E8740C">
           <span class="mode-icon">🌡️</span><span class="mode-name">기후 비교</span>
-          <span class="mode-desc">두 지역 빠른 비교 — 기후 그래프·도표·산점도가 매번 바뀜</span>
+          <span class="mode-desc">두 지역 상대 비교 — 그래프·도표가 매번 바뀜</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="stats">
+        <button class="mode-card" data-mode="stats" style="--mc:#C77F00">
           <span class="mode-icon">📊</span><span class="mode-name">통계 비교</span>
-          <span class="mode-desc">두 시·도 통계 대결 — "(가)를 탭" 또는 "옳은 것은?" 진술형</span>
+          <span class="mode-desc">두 시·도 통계 대결 — 탭 또는 진술형</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="mcq">
+        <button class="mode-card" data-mode="mcq" style="--mc:#1B4F8F">
           <span class="mode-icon">📝</span><span class="mode-name">개념 퀴즈</span>
-          <span class="mode-desc">수능특강+수능완성 4지선다 (150여 문항)</span>
+          <span class="mode-desc">수능특강+수능완성 4지선다 170여 문항</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card" data-mode="ox">
+        <button class="mode-card" data-mode="ox" style="--mc:#D8554A">
           <span class="mode-icon">⚡</span><span class="mode-name">스피드 OX</span>
           <span class="mode-desc">60초 타임어택! 빠르게 O/X 판단</span>
+          <span class="mode-play">PLAY ▶</span>
         </button>
-        <button class="mode-card battle" data-mode="battle">
+        <button class="mode-card battle" data-mode="battle" style="--mc:#E2574C">
           <span class="mode-icon">⚔️</span><span class="mode-name">1:1 배틀</span>
           <span class="mode-desc">친구와 번갈아 풀며 점수 대결 (혼합 출제)</span>
+          <span class="mode-play">BATTLE ▶</span>
         </button>
       </div>
 
@@ -73,19 +98,11 @@
 
     <section class="panel side-panel">
       <div class="gacha-box">
-        <h2>🏞️ 지역 카드</h2>
+        <h2>🏞️ 카드 뽑기</h2>
         <div class="gacha-row">
-          <span id="coin-cnt" class="coin-cnt"></span>
           <button id="btn-draw" class="primary-btn draw-btn">카드 뽑기 <small>5🪙</small></button>
         </div>
-        <button id="btn-collection" class="ghost-btn coll-btn">컬렉션 보기 <span id="coll-progress"></span></button>
-        <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 적립 — 전국 지역 카드를 모아 보세요! (★전설은 기출 최다 빈출 지역)</p>
-      </div>
-      <div class="profile-box">
-        <h2>내 계급</h2>
-        <div id="rank-badge" class="rank-badge"></div>
-        <div id="xp-bar-wrap" class="xp-bar-wrap"><div id="xp-bar"></div></div>
-        <div id="xp-text" class="xp-text"></div>
+        <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 — 전국 지역 카드를 모아 보세요! (★전설 = 기출 최다 빈출 지역)</p>
       </div>
       <div class="mastery-box">
         <h2>지역별 숙련도</h2>
