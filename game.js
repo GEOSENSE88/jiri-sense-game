@@ -33,16 +33,40 @@ const G = {
 
 const MODE_INFO = {
   explore:  {title:'🔍 백지도 탐색', useMap:true},
-  location: {title:'📍 위치 사냥', useMap:true, n:12, time:18},
+  location: {title:'📍 위치 사냥', useMap:true, n:12, time:20},
   muniname: {title:'🔎 지역 판독', useMap:true, n:12, time:15},
-  mascot:   {title:'🐯 마스코트 찾기', useMap:true, n:10, time:18},
+  detective:{title:'🕵️ 지역 추리', useMap:true, n:8, time:40},
   climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:30},
   stats:    {title:'📊 통계 비교', useMap:true, n:8, time:30},
-  province: {title:'🧩 시·도 클릭', useMap:true, n:10, time:14},
   mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:25},
   ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
   battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:15},
 };
+
+// 마스코트는 위치 사냥의 '설명형' 문제로 흡수
+let LOC_POOL=null;
+function locPool(){
+  if(LOC_POOL) return LOC_POOL;
+  const mascotLocs=MASCOTS.map(m=>{
+    const mu=MUNIS[m.accept[0]];
+    return {name:m.accept[0].replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:m.region, accept:m.accept,
+            fact:`마스코트 ‘${m.name}’의 고장 — ${m.desc}`, descOnly:true,
+            desc:`마스코트 ‘${m.name}’ — ${m.desc}`};
+  });
+  LOC_POOL=LOCATIONS.concat(mascotLocs);
+  return LOC_POOL;
+}
+// 설명문에서 지역 이름 가리기
+function maskName(text, loc){
+  let t=text;
+  const names=[loc.name, ...loc.accept];
+  names.forEach(n=>{
+    const base=n.replace(/\(.+\)$/,'');
+    const stem=base.replace(/[시군구]$/,'');
+    [base, stem].forEach(s=>{ if(s && s.length>=2) t=t.split(s).join('◯◯'); });
+  });
+  return t;
+}
 
 // ---------- 5개년 기출 빈도 ----------
 function freqOf(name){
@@ -291,17 +315,14 @@ function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.fl
 
 function pool(mode){
   const r=G.region;
-  if(mode==='location'){
-    let L=LOCATIONS.filter(l=>r==='전체'||l.region===r);
-    return L.length>=4?L:LOCATIONS;
+  if(mode==='location'||mode==='detective'){
+    const base=locPool();
+    let L=base.filter(l=>r==='전체'||l.region===r);
+    return L.length>=4?L:base;
   }
   if(mode==='muniname'){
     let M=Object.keys(MUNIS).filter(n=>r==='전체'||MUNIS[n].region===r);
     return M.length>=4?M:Object.keys(MUNIS);
-  }
-  if(mode==='mascot'){
-    let M=MASCOTS.filter(m=>r==='전체'||m.region===r);
-    return M.length>=3?M:MASCOTS;
   }
   if(mode==='climate'){
     const stReg=n=>CLIMATE.find(c=>c.name===n)?.region;
@@ -313,10 +334,6 @@ function pool(mode){
   if(mode==='stats'){
     let P=STAT_SETS.filter(s=>r==='전체'||s.sd.some(n=>PROVINCES[n]?.region===r));
     return P.length>=2?P:STAT_SETS;
-  }
-  if(mode==='province'){
-    let P=PROV_QUIZ.filter(q=>r==='전체'||(MAP_REGIONS.includes(r)&&PROVINCES[q.answer]?.region===r));
-    return P.length>=4?P:PROV_QUIZ;
   }
   if(mode==='mcq'){ const M=MCQ.filter(q=>r==='전체'||q.region===r); return M.length?M:MCQ; }
   if(mode==='ox'){ const O=OX.filter(q=>r==='전체'||q.region===r); return O.length?O:OX; }
@@ -344,7 +361,7 @@ function startGame(mode){
     G.queue=shuffle(pool('ox'));
     G.oxEnd=Date.now()+60000;
   } else if(mode==='battle'){
-    const types=['location','muniname','mascot','climate','stats','province','mcq','ox'];
+    const types=['location','muniname','detective','climate','stats','mcq','ox'];
     let q=[];
     for(let i=0;i<MODE_INFO.battle.n;i++){
       const t=types[Math.floor(Math.random()*types.length)];
@@ -355,12 +372,10 @@ function startGame(mode){
     const n1=prompt('플레이어 1 이름?','P1')||'P1';
     const n2=prompt('플레이어 2 이름?','P2')||'P2';
     G.battle={turn:1, scores:[0,0], combos:[0,0], correct:[0,0], names:[n1.slice(0,8),n2.slice(0,8)]};
-  } else if(mode==='location'){
-    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, l=>l.name);
+  } else if(mode==='location'||mode==='detective'){
+    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, l=>l.accept[0]);
   } else if(mode==='muniname'){
     G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
-  } else if(mode==='mascot'){
-    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, m=>m.accept[0]);
   } else {
     G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
   }
@@ -457,10 +472,9 @@ function nextQuestion(){
 
   if(type==='location') askLocation(item);
   else if(type==='muniname') askMuniName(item);
-  else if(type==='mascot') askMascot(item);
+  else if(type==='detective') askDetective(item);
   else if(type==='climate') askClimate(item);
   else if(type==='stats') askStats(item);
-  else if(type==='province') askProvince(item);
   else if(type==='mcq') askMCQ(item);
   else if(type==='ox') askOX(item);
 }
@@ -507,11 +521,20 @@ function feedback(correct, head, body, pts){
 // ============================================================
 // 모드별 출제
 // ============================================================
-// --- 위치 사냥: 제시된 지역이 속한 시·군을 탭 ---
+// --- 위치 사냥: 이름형 + 설명형(특징을 보고 추론) 혼합 ---
 function askLocation(loc){
   const info=MODE_INFO[G.mode];
-  $('question-box').innerHTML=
-    `<span class="q-region">${loc.region}</span> 백지도에서 <b style="color:var(--accent);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
+  // 설명형 비중 높게(약 65%) — 마스코트 항목은 항상 설명형
+  const descForm = loc.descOnly || (loc.fact && loc.fact.length>=18 && Math.random()<0.65);
+  if(descForm){
+    const descText = maskName(loc.desc || loc.fact, loc);
+    $('question-box').innerHTML=
+      `<span class="q-region">${loc.region}</span> 다음 설명에 해당하는 지역을 백지도에서 탭하세요!`+
+      `<div class="stat-card" style="font-weight:600">${descText}</div>`;
+  } else {
+    $('question-box').innerHTML=
+      `<span class="q-region">${loc.region}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
+  }
   $('choices-box').innerHTML='<div class="map-hint">💡 해당 시·군을 탭! 작으면 확대(핀치/＋) 후 탭하세요. 빗나가도 가까우면 절반 점수</div>';
   if(G.region!=='전체') dimOtherRegions(G.region);
 
@@ -526,8 +549,9 @@ function askLocation(loc){
     const p=svgPoint(e.clientX,e.clientY);
     const d=Math.hypot(p.x-loc.x, p.y-loc.y);
     let correct=false, base=0, head='';
-    if(loc.accept.includes(tapped)){ correct=true; base=120; head='🎯 정확해요!'; }
-    else if(d<=55){ correct=true; base=60; head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
+    const baseFull = descForm ? 140 : 120;            // 설명형은 더 높은 점수
+    if(loc.accept.includes(tapped)){ correct=true; base=baseFull; head='🎯 정확해요!'; }
+    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
     else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
     reveal();
     const pts=award(correct,base);
@@ -543,39 +567,79 @@ function askLocation(loc){
   });
 }
 
-// --- 마스코트 찾기: 마스코트 설명을 보고 그 고장(시·군)을 탭 ---
-function askMascot(ms){
+// --- 지역 추리: 힌트를 하나씩 열며 지역을 추리해 탭 (힌트를 아낄수록 고득점) ---
+function buildHints(loc){
+  const muniName=loc.accept[0].replace(/\(.+\)$/,'');
+  const kind=muniName.endsWith('군')?'군(郡)':muniName.match(/(광역시|특별시|특별자치시)$/)?'광역 도시':'도시';
+  const prov=MUNIS[loc.accept[0]]?.prov||'';
+  const h1=`${loc.region} 지방의 ${kind}`;
+  // 설명을 쉼표·가운뎃점 단위로 잘라 힌트 2~3개 구성
+  const masked=maskName(loc.desc||loc.fact, loc);
+  const parts=masked.split(/,\s*/).filter(s=>s.trim().length>=4);
+  let h2, h3;
+  if(parts.length>=2){
+    h2=parts[0]; h3=parts.slice(1).join(', ');
+  } else {
+    const half=Math.ceil(masked.length/2);
+    h2=masked.slice(0,half)+'…'; h3=masked;
+  }
+  return [h1, h2, h3+(prov?` (${prov})`:'')];
+}
+function askDetective(loc){
   const info=MODE_INFO[G.mode];
-  $('question-box').innerHTML=
-    `<span class="q-region">${ms.region} 마스코트</span> <b style="color:var(--warn);font-size:1.15em">‘${ms.name}’</b>의 고장을 탭하세요!<br>` +
-    `<span style="font-weight:400;font-size:.88em;color:var(--dim)">${ms.desc}</span>`;
-  $('choices-box').innerHTML='<div class="map-hint">💡 마스코트의 모티브(특산물·전설·축제)가 힌트! 확대 후 탭 가능</div>';
+  const hints=buildHints(loc);
+  let revealed=1;
+  const HINT_COST=40, BASE=170;
+  const renderQ=()=>{
+    $('question-box').innerHTML=
+      `<span class="q-region">지역 추리</span> 힌트로 지역을 추리해 지도에서 탭하세요! <span class="map-hint">힌트를 아낄수록 +점수</span>`+
+      `<ol class="hint-list">${hints.slice(0,revealed).map(h=>`<li>${h}</li>`).join('')}</ol>`;
+  };
+  renderQ();
+  const renderChoices=()=>{
+    $('choices-box').innerHTML='';
+    if(revealed<hints.length){
+      const b=document.createElement('button');
+      b.className='ghost-btn hint-btn';
+      b.textContent=`💡 힌트 ${revealed+1} 열기 (-${HINT_COST}점)`;
+      b.onclick=()=>{ if(G.locked) return; revealed++; renderQ(); renderChoices(); };
+      $('choices-box').appendChild(b);
+    } else {
+      $('choices-box').innerHTML='<div class="map-hint">모든 힌트 공개! 이제 지도를 탭하세요</div>';
+    }
+  };
+  renderChoices();
   if(G.region!=='전체') dimOtherRegions(G.region);
 
-  const tx=MUNIS[ms.accept[0]].cx, ty=MUNIS[ms.accept[0]].cy;
   const reveal=()=>{
-    ms.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
-    addLabel(tx,ty-8,ms.accept[0].replace(/\(.+\)$/,''));
+    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
+    addDot(loc.x,loc.y,5,'loc-dot target-reveal');
+    addLabel(loc.x,loc.y-10,loc.name);
   };
-  const off=onMuniTap((t,e)=>{
-    G.locked=true; stopTimer();
+  const expBody=()=>`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name.replace(/\(.+\)$/,''));
+  const handler=(e)=>{
+    if(suppressTap||G.locked) return;
+    const t=e.target.closest('.muni');
+    if(!t) return;
+    G.locked=true; clearMapTap(); stopTimer();
     const tapped=t.dataset.name;
     const p=svgPoint(e.clientX,e.clientY);
-    const d=Math.hypot(p.x-tx, p.y-ty);
+    const d=Math.hypot(p.x-loc.x, p.y-loc.y);
+    const baseFull=Math.max(60, BASE-(revealed-1)*HINT_COST);
     let correct=false, base=0, head='';
-    if(ms.accept.includes(tapped)){ correct=true; base=120; head='🎯 정확해요!'; }
-    else if(d<=55){ correct=true; base=60; head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
+    if(loc.accept.includes(tapped)){ correct=true; base=baseFull; head=`🕵️ 명추리! (힌트 ${revealed}개)`; }
+    else if(d<=55){ correct=true; base=Math.round(baseFull/2); head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
     else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
     reveal();
     const pts=award(correct,base);
-    recordStat(ms.region,correct);
-    feedback(correct,head,`<b>‘${ms.name}’</b> → ${ms.exp}`+studyExtra(ms.accept[0].replace(/\(.+\)$/,'')),pts);
+    recordStat(loc.region,correct);
+    feedback(correct,head,expBody(),pts);
     hudUpdate(); afterAnswer();
-  });
-  startTimer(info.time||18,()=>{ if(G.locked)return; G.locked=true; off();
-    reveal();
-    award(false,0); recordStat(ms.region,false);
-    feedback(false,'⏰ 시간 초과!',`<b>‘${ms.name}’</b> → ${ms.exp}`+studyExtra(ms.accept[0].replace(/\(.+\)$/,'')),0);
+  };
+  setMapTap(handler);
+  startTimer(info.time||40,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
+    reveal(); award(false,0); recordStat(loc.region,false);
+    feedback(false,'⏰ 시간 초과!',expBody(),0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -1014,36 +1078,6 @@ function askStats(set){
       hudUpdate(); afterAnswer();
     });
   }
-}
-
-// --- 시·도 클릭: 해당 시·도의 아무 시·군이나 탭 ---
-function askProvince(q){
-  const info=MODE_INFO[G.mode];
-  $('question-box').innerHTML=`<span class="q-region">시·도 찾기</span> ${q.q}`;
-  $('choices-box').innerHTML='<div class="map-hint">💡 지도에서 해당 시·도(아무 시·군이나)를 탭하세요</div>';
-
-  const revealProv=()=>{
-    document.querySelectorAll('#map-svg .muni').forEach(x=>{
-      if(x.dataset.prov===q.answer) x.classList.add('correct');
-    });
-  };
-  const off=onMuniTap((t)=>{
-    G.locked=true; stopTimer();
-    const prov=t.dataset.prov;
-    const correct=prov===q.answer;
-    if(!correct) t.classList.add('wrong');
-    revealProv();
-    const pts=award(correct,100);
-    recordStat(PROVINCES[q.answer]?.region,correct);
-    feedback(correct, correct?'⭕ 정답!':`❌ 오답! (탭: ${prov})`, `<b>${q.answer}</b> — ${q.exp}`, pts);
-    hudUpdate(); afterAnswer();
-  });
-  startTimer(info.time||14,()=>{ if(G.locked)return; G.locked=true; off();
-    revealProv();
-    award(false,0); recordStat(PROVINCES[q.answer]?.region,false);
-    feedback(false,'⏰ 시간 초과!',`<b>${q.answer}</b> — ${q.exp}`,0);
-    hudUpdate(); afterAnswer();
-  });
 }
 
 // --- 4지선다 ---

@@ -110,15 +110,21 @@ const sameProv = window.eval(`(function(){
 })()`);
 check(sameProv, '보기가 모두 실제 시·군');
 
-console.log('\n=== 마스코트 찾기 ===');
-window.eval("startGame('mascot')");
-const ms = window.eval('G.queue[0]');
-check(document.getElementById('question-box').textContent.includes(ms.name), '마스코트 이름 표시');
-check(!document.getElementById('question-box').textContent.includes(ms.accept[0].replace(/[시군]$/,'')), '문제에 정답 지역명 미노출');
-document.querySelector(`#map-svg .muni[data-name="${ms.accept[0]}"]`)
+console.log('\n=== 위치 사냥 (설명형) ===');
+window.eval("Math._rl=Math.random; Math.random=()=>0;");   // descForm 강제
+window.eval("startGame('location')");
+const dloc = window.eval('G.queue[0]');
+check(document.getElementById('question-box').textContent.includes('설명에 해당하는'), '설명형 발문');
+check(document.querySelector('#question-box .stat-card') !== null, '설명 카드 표시');
+{
+  const stem = dloc.name.replace(/\(.+\)$/,'').replace(/[시군구]$/,'');
+  check(stem.length<2 || !document.querySelector('#question-box .stat-card').textContent.includes(stem), '설명에서 지역명 가림(◯◯)');
+}
+document.querySelector(`#map-svg .muni[data-name="${dloc.accept[0]}"]`)
   .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-check(window.eval('G.score') > 0, '정답 시·군 탭 → 점수 부여');
-check(document.getElementById('feedback-box').textContent.includes(ms.name), '해설에 마스코트 정보 표시');
+check(window.eval('G.score') > 0, '정답 탭 → 점수(설명형 가산)');
+check(document.getElementById('feedback-box').textContent.includes(dloc.name.replace(/\(.+\)$/,'')), '해설에 정답 지역명 공개');
+window.eval("Math.random=Math._rl;");
 
 console.log('\n=== 기후 비교 (2지역 탭형) ===');
 // Math.random=0 → qtype 'tap', 차트 'dual'
@@ -181,14 +187,18 @@ check(document.querySelectorAll('#map-svg .muni.dim-region').length > 0, '비대
 }
 window.eval("Math.random=Math._r2;");
 
-console.log('\n=== 시·도 클릭 (시·군 탭 방식) ===');
-window.eval("startGame('province')");
-const pq = window.eval('G.queue[0]');
-const anyMuni = document.querySelector(`#map-svg .muni[data-prov="${pq.answer}"]`);
-anyMuni.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-check(window.eval('G.score') > 0, '해당 시·도의 시·군 탭 → 정답');
-const allHi = [...document.querySelectorAll(`#map-svg .muni[data-prov="${pq.answer}"]`)].every(m => m.classList.contains('correct'));
-check(allHi, '정답 시·도 전체 하이라이트');
+console.log('\n=== 지역 추리 (힌트 게임) ===');
+window.eval("startGame('detective')");
+const det = window.eval('G.queue[0]');
+check(document.querySelectorAll('#question-box .hint-list li').length === 1, '시작 시 힌트 1개');
+const hintBtn = document.querySelector('#choices-box .hint-btn');
+check(hintBtn !== null, '힌트 열기 버튼 표시');
+hintBtn.click();
+check(document.querySelectorAll('#question-box .hint-list li').length === 2, '힌트 버튼 → 힌트 2개');
+document.querySelector(`#map-svg .muni[data-name="${det.accept[0]}"]`)
+  .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check(window.eval('G.score') > 0, '정답 탭 → 점수(힌트 수만큼 차감)');
+check(document.getElementById('feedback-box').textContent.includes('힌트 2개') || document.getElementById('feedback-box').textContent.includes('명추리'), '명추리 피드백');
 
 console.log('\n=== 개념 퀴즈 / OX ===');
 window.eval("startGame('mcq')");

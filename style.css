@@ -294,6 +294,12 @@ button { font-family:inherit; }
 
 .explore-controls { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
 
+/* 지역 추리 */
+.hint-list { margin:10px 0 0; padding:12px 15px 12px 34px; background:#F7FCFF;
+  border:1.5px solid var(--line); border-radius:var(--r-md); font-size:.9rem; font-weight:600; line-height:1.8; }
+.hint-list li::marker { color:var(--sea-d); font-weight:800; }
+.hint-btn { width:100%; border-style:dashed; }
+
 /* ============ 결과 ============ */
 #screen-result { display:none; align-items:center; justify-content:center; padding:24px 0; }
 #screen-result.active { display:flex; }
