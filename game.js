@@ -1,0 +1,1054 @@
+// ============================================================
+// 한국지리 백지도 정복 — 게임 엔진 v2 (시·군 백지도 + 모바일 최적화)
+// ============================================================
+'use strict';
+
+const $ = id => document.getElementById(id);
+const REGIONS = ['전체','지역구분','북한','수도권','강원','충청','호남','영남','제주'];
+const MAP_REGIONS = ['수도권','강원','충청','호남','영남','제주'];
+
+// ---------- 저장소 ----------
+const store = {
+  load(key, def){ try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch(e){ return def; } },
+  save(key, v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch(e){ /* 저장 불가 환경에서도 게임은 계속 */ } },
+  remove(key){ try { localStorage.removeItem(key); } catch(e){} }
+};
+let stats = store.load('geo_stats', {});
+let xp    = store.load('geo_xp', 0);
+let board = store.load('geo_board', {});
+
+const RANKS = [
+  [0,'🌱 지리 새내기'],[300,'🧭 길눈 밝은 학생'],[800,'🚌 답사 견습생'],
+  [1600,'🗺️ 지도 읽는 자'],[2800,'⛰️ 대간 종주자'],[4500,'🚄 국토 순례자'],
+  [7000,'🏞️ 지역 전문가'],[10000,'🌏 백지도 마스터'],[15000,'👑 한국지리 그랜드마스터']
+];
+
+// ---------- 게임 상태 ----------
+const G = {
+  mode:null, region:'전체',
+  queue:[], idx:0, score:0, combo:0, maxCombo:0, correctCnt:0,
+  timer:null, timeLeft:0, timeMax:0, oxEnd:0,
+  battle:null, locked:false,
+};
+
+const MODE_INFO = {
+  explore:  {title:'🔍 백지도 탐색', useMap:true},
+  location: {title:'📍 위치 사냥', useMap:true, n:12, time:18},
+  muniname: {title:'🔎 지역 판독', useMap:true, n:12, time:15},
+  mascot:   {title:'🐯 마스코트 찾기', useMap:true, n:10, time:18},
+  climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:35},
+  stats:    {title:'📊 통계 비교', useMap:true, n:8, time:35},
+  province: {title:'🧩 시·도 클릭', useMap:true, n:10, time:14},
+  mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:25},
+  ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
+  battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:15},
+};
+
+// ---------- 5개년 기출 빈도 ----------
+function freqOf(name){
+  const f = FREQ[name] || FREQ[name + '시'] || FREQ[name + '군'];
+  return f ? f.count : 0;
+}
+function freqInfo(name){
+  return FREQ[name] || FREQ[name + '시'] || FREQ[name + '군'] || null;
+}
+function noteOf(name){
+  return REGION_NOTES[name] || REGION_NOTES[name + '시'] || REGION_NOTES[name + '군'] || null;
+}
+function imgSearchLink(keyword, extra){
+  const q = encodeURIComponent(keyword + ' ' + (extra || '지리'));
+  return `<a class="img-link" href="https://search.naver.com/search.naver?where=image&query=${q}" target="_blank" rel="noopener">📷 ${keyword} 이미지 자료</a>`;
+}
+// 빈출 지역 가중 무작위 추출 (비복원)
+function weightedSample(items, n, keyFn){
+  const pool = items.slice(), out = [];
+  while(out.length < n && pool.length){
+    const ws = pool.map(it => 1 + Math.min(freqOf(keyFn(it)), 40) / 6);
+    let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+    let i = 0;
+    for(; i < pool.length - 1; i++){ r -= ws[i]; if(r <= 0) break; }
+    out.push(pool.splice(i, 1)[0]);
+  }
+  return out;
+}
+
+// ============================================================
+// 홈 화면
+// ============================================================
+function initHome(){
+  const chips = $('region-chips'); chips.innerHTML='';
+  REGIONS.forEach(r=>{
+    const b=document.createElement('button');
+    b.className='chip'+(G.region===r?' on':''); b.textContent=r;
+    b.onclick=()=>{ G.region=r; initHome(); };
+    chips.appendChild(b);
+  });
+  let rank=RANKS[0], next=null;
+  for(const r of RANKS){ if(xp>=r[0]) rank=r; else { next=r; break; } }
+  $('rank-badge').textContent=rank[1];
+  $('xp-bar').style.width = next? Math.min(100,(xp-rank[0])/(next[0]-rank[0])*100)+'%' : '100%';
+  $('xp-text').textContent = next? `XP ${xp} / 다음 계급(${next[1]})까지 ${next[0]-xp}` : `XP ${xp} — 최고 계급 달성!`;
+  const ml=$('mastery-list'); ml.innerHTML='';
+  REGIONS.slice(1).forEach(r=>{
+    const s=stats[r]||{c:0,t:0};
+    const pct=s.t? Math.round(s.c/s.t*100):0;
+    ml.insertAdjacentHTML('beforeend',
+      `<div class="mastery-row"><span class="m-name">${r}</span>
+       <div class="m-bar"><div class="m-fill" style="width:${pct}%"></div></div>
+       <span class="m-val">${pct}% (${s.c}/${s.t})</span></div>`);
+  });
+  const hb=$('home-board'); hb.innerHTML='';
+  let any=false;
+  Object.keys(MODE_INFO).forEach(m=>{
+    const list=board[m]||[];
+    if(list.length){ any=true;
+      hb.insertAdjacentHTML('beforeend',
+        `<div class="board-row"><span>${list[0].name} — <b>${list[0].score}</b>점</span>
+         <span class="b-mode">${MODE_INFO[m].title.replace(/^[^\s]+\s/,'')}</span></div>`);
+    }
+  });
+  if(!any) hb.innerHTML='<div style="color:var(--dim);font-size:.83rem">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>';
+  // 빈출 지역 TOP 12
+  $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수 — 빈출 지역은 게임에서 더 자주 출제됩니다`;
+  const fl=$('freq-list'); fl.innerHTML='';
+  const top=Object.entries(FREQ).sort((a,b)=>b[1].count-a[1].count).slice(0,12);
+  const max=top[0][1].count;
+  top.forEach(([name,v],i)=>{
+    fl.insertAdjacentHTML('beforeend',
+      `<div class="freq-row"><span class="f-rank">${i+1}</span><span class="f-name">${name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')}</span>
+       <div class="f-bar"><div class="f-fill" style="width:${Math.round(v.count/max*100)}%"></div></div>
+       <span class="f-val">${v.count}회·${v.exams}개 시험</span></div>`);
+  });
+}
+
+document.querySelectorAll('.mode-card').forEach(c=>{ c.onclick=()=>startGame(c.dataset.mode); });
+$('reset-data').onclick=()=>{
+  if(confirm('모든 기록(점수·숙련도·랭킹)을 초기화할까요?')){
+    store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board');
+    stats={}; xp=0; board={}; initHome();
+  }
+};
+
+// ============================================================
+// 지도 렌더링 (시·군 단위 + 시·도 외곽선 오버레이)
+// ============================================================
+const VIEW0 = {x:-8, y:-8, w:776, h:822};
+let view = {...VIEW0};
+let svgBuilt=false;
+
+function buildMap(){
+  const svg=$('map-svg');
+  svg.innerHTML='';
+  applyView();
+  for(const [name,m] of Object.entries(MUNIS)){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',m.d);
+    path.setAttribute('class','muni');
+    path.dataset.name=name; path.dataset.prov=m.prov; path.dataset.region=m.region;
+    svg.appendChild(path);
+  }
+  for(const [name,p] of Object.entries(PROVINCES)){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',p.d);
+    path.setAttribute('class','prov-border');
+    svg.appendChild(path);
+  }
+  svgBuilt=true;
+}
+function applyView(){
+  $('map-svg').setAttribute('viewBox',`${view.x} ${view.y} ${view.w} ${view.h}`);
+}
+function resetView(){ view={...VIEW0}; applyView(); }
+function zoomAt(cx, cy, factor){
+  const nw=Math.min(VIEW0.w, Math.max(VIEW0.w/8, view.w*factor));
+  const k=nw/view.w;
+  view.x=cx-(cx-view.x)*k; view.y=cy-(cy-view.y)*k;
+  view.w=nw; view.h=view.h*k;
+  clampView(); applyView();
+}
+function clampView(){
+  view.x=Math.max(VIEW0.x-60, Math.min(view.x, VIEW0.x+VIEW0.w-view.w+60));
+  view.y=Math.max(VIEW0.y-60, Math.min(view.y, VIEW0.y+VIEW0.h-view.h+60));
+}
+function svgPoint(clientX, clientY){
+  const svg=$('map-svg');
+  const pt=svg.createSVGPoint(); pt.x=clientX; pt.y=clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+// ----- 터치 팬/핀치 줌 (탭과 구분) -----
+let suppressTap=false;
+function initMapGestures(){
+  const svg=$('map-svg');
+  const ptrs=new Map();
+  let panStart=null, pinch0=null, moved=false;
+  svg.addEventListener('pointerdown',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){ panStart={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; moved=false; }
+    else if(ptrs.size===2){
+      const [a,b]=[...ptrs.values()];
+      pinch0={d:Math.hypot(a.x-b.x,a.y-b.y), w:view.w, h:view.h,
+              cx:(a.x+b.x)/2, cy:(a.y+b.y)/2};
+    }
+  });
+  svg.addEventListener('pointermove',e=>{
+    if(!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const rect=svg.getBoundingClientRect();
+    const scale=view.w/rect.width;
+    if(ptrs.size===2 && pinch0){
+      const [a,b]=[...ptrs.values()];
+      const d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(Math.abs(d-pinch0.d)>6){
+        moved=true; suppressTap=true;
+        const target=svgPoint(pinch0.cx,pinch0.cy);
+        const nw=Math.min(VIEW0.w, Math.max(VIEW0.w/8, pinch0.w*(pinch0.d/d)));
+        const kk=nw/view.w;
+        view.x=target.x-(target.x-view.x)*kk; view.y=target.y-(target.y-view.y)*kk;
+        view.w=nw; view.h=pinch0.h*(nw/pinch0.w);
+        clampView(); applyView();
+      }
+    } else if(ptrs.size===1 && panStart){
+      const dx=(e.clientX-panStart.x), dy=(e.clientY-panStart.y);
+      if(Math.abs(dx)+Math.abs(dy)>10){ moved=true; suppressTap=true; }
+      if(moved && view.w<VIEW0.w-1){      // 확대 상태에서만 팬
+        view.x=panStart.vx-dx*scale; view.y=panStart.vy-dy*scale;
+        clampView(); applyView();
+      }
+    }
+  });
+  const up=e=>{
+    ptrs.delete(e.pointerId);
+    if(ptrs.size<2) pinch0=null;
+    if(ptrs.size===0){ panStart=null; setTimeout(()=>{ suppressTap=false; },50); }
+  };
+  svg.addEventListener('pointerup',up);
+  svg.addEventListener('pointercancel',up);
+  svg.addEventListener('wheel',e=>{   // 데스크톱 휠 줌
+    e.preventDefault();
+    const p=svgPoint(e.clientX,e.clientY);
+    zoomAt(p.x,p.y, e.deltaY>0?1.25:0.8);
+  },{passive:false});
+  $('zoom-in').onclick=()=>zoomAt(view.x+view.w/2, view.y+view.h/2, 0.7);
+  $('zoom-out').onclick=()=>zoomAt(view.x+view.w/2, view.y+view.h/2, 1.45);
+  $('zoom-reset').onclick=resetView;
+}
+
+function clearMapExtras(){
+  document.querySelectorAll('#map-svg .loc-dot, #map-svg .loc-label, #map-svg .click-mark, #map-svg .match-mark').forEach(e=>e.remove());
+  document.querySelectorAll('#map-svg .muni').forEach(p=>p.classList.remove('correct','wrong','flash','dim-region','pulse'));
+}
+function muniEl(name){ return document.querySelector(`#map-svg .muni[data-name="${name}"]`); }
+function addDot(x, y, r, cls){
+  const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',r);
+  c.setAttribute('class',cls);
+  $('map-svg').appendChild(c); return c;
+}
+function addLabel(x, y, text){
+  const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('x',x); t.setAttribute('y',y);
+  t.setAttribute('text-anchor','middle'); t.setAttribute('class','loc-label');
+  t.textContent=text; $('map-svg').appendChild(t); return t;
+}
+function dimOtherRegions(region){
+  if(region==='전체') return;
+  document.querySelectorAll('#map-svg .muni').forEach(p=>{
+    if(p.dataset.region!==region) p.classList.add('dim-region');
+  });
+}
+// 각 시·군 탭 핸들러 등록(1회성)
+function onMuniTap(fn){
+  const svg=$('map-svg');
+  const handler=(e)=>{
+    if(suppressTap || G.locked) return;
+    const t=e.target.closest('.muni');
+    if(!t) return;
+    svg.removeEventListener('click',handler);
+    fn(t, e);
+  };
+  svg.addEventListener('click',handler);
+  return ()=>svg.removeEventListener('click',handler);
+}
+
+// ============================================================
+// 공통 흐름
+// ============================================================
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function pool(mode){
+  const r=G.region;
+  if(mode==='location'){
+    let L=LOCATIONS.filter(l=>r==='전체'||l.region===r);
+    return L.length>=4?L:LOCATIONS;
+  }
+  if(mode==='muniname'){
+    let M=Object.keys(MUNIS).filter(n=>r==='전체'||MUNIS[n].region===r);
+    return M.length>=4?M:Object.keys(MUNIS);
+  }
+  if(mode==='mascot'){
+    let M=MASCOTS.filter(m=>r==='전체'||m.region===r);
+    return M.length>=3?M:MASCOTS;
+  }
+  if(mode==='climate'){
+    const stReg=n=>CLIMATE.find(c=>c.name===n)?.region;
+    let M=CLIMATE_SETS.filter(s=>r==='전체'||s.st.some(n=>stReg(n)===r)).map(s=>({kind:'match',set:s}));
+    let O=ORDER_SETS.filter(s=>r==='전체'||s.st.some(n=>stReg(n)===r)).map(s=>({kind:'order',set:s}));
+    const all=M.concat(O);
+    return all.length>=4?all:CLIMATE_SETS.map(s=>({kind:'match',set:s})).concat(ORDER_SETS.map(s=>({kind:'order',set:s})));
+  }
+  if(mode==='stats'){
+    let P=STAT_SETS.filter(s=>r==='전체'||s.sd.some(n=>PROVINCES[n]?.region===r));
+    return P.length>=2?P:STAT_SETS;
+  }
+  if(mode==='province'){
+    let P=PROV_QUIZ.filter(q=>r==='전체'||(MAP_REGIONS.includes(r)&&PROVINCES[q.answer]?.region===r));
+    return P.length>=4?P:PROV_QUIZ;
+  }
+  if(mode==='mcq'){ const M=MCQ.filter(q=>r==='전체'||q.region===r); return M.length?M:MCQ; }
+  if(mode==='ox'){ const O=OX.filter(q=>r==='전체'||q.region===r); return O.length?O:OX; }
+  return [];
+}
+
+function startGame(mode){
+  G.mode=mode; G.idx=0; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.locked=false;
+  G.battle=null;
+  if(!svgBuilt){ buildMap(); initMapGestures(); }
+  clearMapExtras(); resetView();
+  stopTimer();
+
+  const info=MODE_INFO[mode];
+  $('game-title').textContent=info.title+(G.region!=='전체'?` · ${G.region}`:'');
+  $('turn-indicator').classList.add('hidden');
+  $('map-pane').style.display=info.useMap?'block':'none';
+  $('game-body').classList.toggle('no-map', !info.useMap);
+  $('btn-next').classList.add('hidden');
+  $('feedback-box').classList.add('hidden');
+
+  if(mode==='explore') return startExplore();
+
+  if(mode==='ox'){
+    G.queue=shuffle(pool('ox'));
+    G.oxEnd=Date.now()+60000;
+  } else if(mode==='battle'){
+    const types=['location','muniname','mascot','climate','stats','province','mcq','ox'];
+    let q=[];
+    for(let i=0;i<MODE_INFO.battle.n;i++){
+      const t=types[Math.floor(Math.random()*types.length)];
+      const p=shuffle(pool(t));
+      q.push({btype:t, item:p[i%p.length]});
+    }
+    G.queue=q;
+    const n1=prompt('플레이어 1 이름?','P1')||'P1';
+    const n2=prompt('플레이어 2 이름?','P2')||'P2';
+    G.battle={turn:1, scores:[0,0], combos:[0,0], correct:[0,0], names:[n1.slice(0,8),n2.slice(0,8)]};
+  } else if(mode==='location'){
+    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, l=>l.name);
+  } else if(mode==='muniname'){
+    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
+  } else if(mode==='mascot'){
+    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, m=>m.accept[0]);
+  } else {
+    G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
+  }
+  show('screen-game');
+  nextQuestion();
+}
+
+function hudUpdate(){
+  const total = G.mode==='ox' ? '∞' : G.queue.length;
+  $('hud-qnum').textContent=Math.min(G.idx+1, G.queue.length);
+  $('hud-qtotal').textContent=total;
+  if(G.battle){
+    const b=G.battle;
+    $('hud-combo').textContent=b.combos[b.turn-1];
+    $('hud-score').textContent=`${b.names[0]} ${b.scores[0]} : ${b.scores[1]} ${b.names[1]}`;
+    const ti=$('turn-indicator');
+    ti.classList.remove('hidden','p1','p2');
+    ti.classList.add(b.turn===1?'p1':'p2');
+    ti.textContent=`▶ ${b.names[b.turn-1]} 차례`;
+  } else {
+    $('hud-combo').textContent=G.combo;
+    $('hud-score').textContent=G.score;
+  }
+}
+
+// ---------- 타이머 ----------
+function startTimer(sec, onTimeout){
+  stopTimer();
+  G.timeMax=sec; G.timeLeft=sec;
+  const bar=$('timer-bar');
+  bar.style.width='100%'; bar.classList.remove('danger');
+  G.timer=setInterval(()=>{
+    G.timeLeft-=0.1;
+    const pct=Math.max(0,G.timeLeft/G.timeMax*100);
+    bar.style.width=pct+'%';
+    if(pct<30) bar.classList.add('danger');
+    if(G.timeLeft<=0){ stopTimer(); onTimeout(); }
+  },100);
+}
+function stopTimer(){ if(G.timer){ clearInterval(G.timer); G.timer=null; } }
+function timeBonus(){ return Math.round(Math.max(0,G.timeLeft)/G.timeMax*50); }
+
+// ---------- 점수 ----------
+function award(correct, base){
+  let pts=0;
+  if(G.battle){
+    const i=G.battle.turn-1;
+    if(correct){
+      G.battle.combos[i]++; G.battle.correct[i]++;
+      pts=base+timeBonus()+G.battle.combos[i]*10;
+      G.battle.scores[i]+=pts;
+    } else G.battle.combos[i]=0;
+  } else {
+    if(correct){
+      G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.correctCnt++;
+      pts=base+timeBonus()+G.combo*10;
+      G.score+=pts;
+    } else G.combo=0;
+  }
+  return pts;
+}
+function recordStat(region, correct){
+  if(!region) return;
+  const s=stats[region]||(stats[region]={c:0,t:0});
+  s.t++; if(correct) s.c++;
+  store.save('geo_stats',stats);
+}
+
+// ---------- 진행 ----------
+function nextQuestion(){
+  G.locked=false;
+  $('feedback-box').classList.add('hidden');
+  $('btn-next').classList.add('hidden');
+  clearMapExtras();
+
+  if(G.mode==='ox'){
+    if(Date.now()>=G.oxEnd || G.idx>=G.queue.length) return endGame();
+  } else if(G.idx>=G.queue.length) return endGame();
+
+  hudUpdate();
+  let item=G.queue[G.idx], type=G.mode;
+  if(G.mode==='battle'){
+    type=item.btype; item=item.item;
+    const noMap=(type==='mcq'||type==='ox'||(type==='climate'&&item.kind==='order'));
+    $('map-pane').style.display=noMap?'none':'block';
+    $('game-body').classList.toggle('no-map', noMap);
+  }
+  if(G.mode==='climate'){   // 순서형은 지도 불필요
+    const noMap=item.kind==='order';
+    $('map-pane').style.display=noMap?'none':'block';
+    $('game-body').classList.toggle('no-map', noMap);
+  }
+
+  if(type==='location') askLocation(item);
+  else if(type==='muniname') askMuniName(item);
+  else if(type==='mascot') askMascot(item);
+  else if(type==='climate') askClimate(item);
+  else if(type==='stats') askStats(item);
+  else if(type==='province') askProvince(item);
+  else if(type==='mcq') askMCQ(item);
+  else if(type==='ox') askOX(item);
+}
+
+function afterAnswer(){
+  G.idx++;
+  if(G.battle) G.battle.turn = G.battle.turn===1?2:1;
+  if(G.mode==='ox'){ setTimeout(nextQuestion, 900); }
+  else $('btn-next').classList.remove('hidden');
+}
+$('btn-next').onclick=nextQuestion;
+
+// 학습 부가 정보: 기출 빈도 + 출제 경향 + 이미지 자료 링크
+function studyExtra(name){
+  const f=freqInfo(name), n=noteOf(name);
+  let h='';
+  if(f) h+=`<div class="fb-extra">🔥 최근 5개년 기출 <b>${f.count}회</b> 언급 (${f.exams}개 시험)</div>`;
+  if(n) h+=`<div class="fb-extra">📌 ${n}</div>`;
+  h+=`<div class="fb-extra">${imgSearchLink(name)}</div>`;
+  return h;
+}
+
+function feedback(correct, head, body, pts){
+  const fb=$('feedback-box');
+  fb.className='feedback-box '+(correct?'good':'bad');
+  fb.innerHTML=`<div class="fb-head">${head}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
+  fb.classList.remove('hidden'); fb.classList.add('pop');
+  setTimeout(()=>fb.classList.remove('pop'),400);
+}
+
+// ============================================================
+// 모드별 출제
+// ============================================================
+// --- 위치 사냥: 제시된 지역이 속한 시·군을 탭 ---
+function askLocation(loc){
+  const info=MODE_INFO[G.mode];
+  $('question-box').innerHTML=
+    `<span class="q-region">${loc.region}</span> 백지도에서 <b style="color:var(--accent);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
+  $('choices-box').innerHTML='<div class="map-hint">💡 해당 시·군을 탭! 작으면 확대(핀치/＋) 후 탭하세요. 빗나가도 가까우면 절반 점수</div>';
+  if(G.region!=='전체') dimOtherRegions(G.region);
+
+  const reveal=()=>{
+    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
+    addDot(loc.x,loc.y,5,'loc-dot target-reveal');
+    addLabel(loc.x,loc.y-10,loc.name);
+  };
+  const off=onMuniTap((t,e)=>{
+    G.locked=true; stopTimer();
+    const tapped=t.dataset.name;
+    const p=svgPoint(e.clientX,e.clientY);
+    const d=Math.hypot(p.x-loc.x, p.y-loc.y);
+    let correct=false, base=0, head='';
+    if(loc.accept.includes(tapped)){ correct=true; base=120; head='🎯 정확해요!'; }
+    else if(d<=55){ correct=true; base=60; head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
+    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
+    reveal();
+    const pts=award(correct,base);
+    recordStat(loc.region,correct);
+    feedback(correct,head,`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name),pts);
+    hudUpdate(); afterAnswer();
+  });
+  startTimer(info.time||18,()=>{ if(G.locked)return; G.locked=true; off();
+    reveal();
+    award(false,0); recordStat(loc.region,false);
+    feedback(false,'⏰ 시간 초과!',`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name),0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 마스코트 찾기: 마스코트 설명을 보고 그 고장(시·군)을 탭 ---
+function askMascot(ms){
+  const info=MODE_INFO[G.mode];
+  $('question-box').innerHTML=
+    `<span class="q-region">${ms.region} 마스코트</span> <b style="color:var(--warn);font-size:1.15em">‘${ms.name}’</b>의 고장을 탭하세요!<br>` +
+    `<span style="font-weight:400;font-size:.88em;color:var(--dim)">${ms.desc}</span>`;
+  $('choices-box').innerHTML='<div class="map-hint">💡 마스코트의 모티브(특산물·전설·축제)가 힌트! 확대 후 탭 가능</div>';
+  if(G.region!=='전체') dimOtherRegions(G.region);
+
+  const tx=MUNIS[ms.accept[0]].cx, ty=MUNIS[ms.accept[0]].cy;
+  const reveal=()=>{
+    ms.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
+    addLabel(tx,ty-8,ms.accept[0].replace(/\(.+\)$/,''));
+  };
+  const off=onMuniTap((t,e)=>{
+    G.locked=true; stopTimer();
+    const tapped=t.dataset.name;
+    const p=svgPoint(e.clientX,e.clientY);
+    const d=Math.hypot(p.x-tx, p.y-ty);
+    let correct=false, base=0, head='';
+    if(ms.accept.includes(tapped)){ correct=true; base=120; head='🎯 정확해요!'; }
+    else if(d<=55){ correct=true; base=60; head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); }
+    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); }
+    reveal();
+    const pts=award(correct,base);
+    recordStat(ms.region,correct);
+    feedback(correct,head,`<b>‘${ms.name}’</b> → ${ms.exp}`+studyExtra(ms.accept[0].replace(/\(.+\)$/,'')),pts);
+    hudUpdate(); afterAnswer();
+  });
+  startTimer(info.time||18,()=>{ if(G.locked)return; G.locked=true; off();
+    reveal();
+    award(false,0); recordStat(ms.region,false);
+    feedback(false,'⏰ 시간 초과!',`<b>‘${ms.name}’</b> → ${ms.exp}`+studyExtra(ms.accept[0].replace(/\(.+\)$/,'')),0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 지역 판독: 하이라이트된 시·군의 이름 맞히기 ---
+function askMuniName(name){
+  const info=MODE_INFO[G.mode];
+  const m=MUNIS[name];
+  $('question-box').innerHTML=
+    `<span class="q-region">${m.region}</span> 지도에 <b style="color:var(--accent)">깜빡이는 시·군</b>의 이름은? <span class="map-hint">(${m.prov})</span>`;
+  muniEl(name)?.classList.add('flash','pulse');
+  if(G.region!=='전체') dimOtherRegions(G.region);
+  // 같은 시·도 내에서 오답 3개
+  const sib=shuffle(Object.keys(MUNIS).filter(n=>n!==name&&MUNIS[n].prov===m.prov));
+  let opts=sib.slice(0,3);
+  if(opts.length<3) opts=opts.concat(shuffle(Object.keys(MUNIS).filter(n=>n!==name&&!opts.includes(n))).slice(0,3-opts.length));
+  const choices=shuffle([name,...opts]);
+
+  const box=$('choices-box'); box.innerHTML='<div class="choices-grid2"></div>';
+  const grid=box.firstChild;
+  choices.forEach(n=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=n.replace(/\(.+\)$/,'');
+    b.dataset.n=n;
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      grid.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const correct=n===name;
+      b.classList.add(correct?'correct':'wrong');
+      if(!correct) grid.querySelectorAll('button').forEach(x=>{ if(x.dataset.n===name) x.classList.add('correct'); });
+      muniEl(name)?.classList.remove('pulse');
+      muniEl(name)?.classList.add('correct');
+      const pts=award(correct,100);
+      recordStat(m.region,correct);
+      feedback(correct,correct?'⭕ 정답!':'❌ 오답!',`<b>${name}</b> (${m.prov})`+studyExtra(name.replace(/\(.+\)$/,'')),pts);
+      hudUpdate(); afterAnswer();
+    };
+    grid.appendChild(b);
+  });
+  startTimer(info.time||15,()=>{ if(G.locked)return; G.locked=true;
+    grid.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.n===name) x.classList.add('correct'); });
+    muniEl(name)?.classList.remove('pulse'); muniEl(name)?.classList.add('correct');
+    award(false,0); recordStat(m.region,false);
+    feedback(false,'⏰ 시간 초과!',`<b>${name}</b> (${m.prov})`,0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 기후 판별: 실제 평년값 그래프를 보고 지역 맞히기 ---
+function climateIndicators(st){
+  const tmin=Math.min(...st.t), tmax=Math.max(...st.t);
+  const total=st.p.reduce((a,b)=>a+b,0);
+  const summer=st.p[5]+st.p[6]+st.p[7];                 // 6~8월
+  const winter=st.p[11]+st.p[0]+st.p[1];                // 12~2월
+  return {tmin, tmax, range:+(tmax-tmin).toFixed(1), total:Math.round(total),
+          sRate:Math.round(summer/total*100), wRate:Math.round(winter/total*100)};
+}
+function renderClimateSVG(st){
+  const W=340, H=210, L=38, R=44, T=14, B=24;
+  const pw=W-L-R, ph=H-T-B;
+  const pMax=Math.max(450, Math.ceil(Math.max(...st.p)/50)*50);
+  const tLo=-30, tHi=30;
+  const x=i=>L+pw*(i+0.5)/12;
+  const yT=v=>T+ph*(1-(v-tLo)/(tHi-tLo));
+  const yP=v=>T+ph*(1-v/pMax);
+  let bars='', line='', dots='', gridT='';
+  st.p.forEach((v,i)=>{ const bw=pw/12*0.62;
+    bars+=`<rect x="${(x(i)-bw/2).toFixed(1)}" y="${yP(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-B-yP(v)).toFixed(1)}" fill="#38bdf8" opacity=".75"/>`; });
+  line='<polyline fill="none" stroke="#f87171" stroke-width="2" points="'+
+    st.t.map((v,i)=>`${x(i).toFixed(1)},${yT(v).toFixed(1)}`).join(' ')+'"/>';
+  st.t.forEach((v,i)=>{ dots+=`<circle cx="${x(i).toFixed(1)}" cy="${yT(v).toFixed(1)}" r="2.4" fill="#f87171"/>`; });
+  [-20,-10,0,10,20].forEach(v=>{ gridT+=`<line x1="${L}" y1="${yT(v)}" x2="${W-R}" y2="${yT(v)}" stroke="#334155" stroke-width="${v===0?1:0.5}"/>`+
+    `<text x="${L-5}" y="${yT(v)+3}" text-anchor="end" font-size="8" fill="#94a3b8">${v}</text>`; });
+  let gridP='';
+  for(let v=100; v<pMax; v+=100) gridP+=`<text x="${W-R+5}" y="${(yP(v)+3).toFixed(1)}" font-size="8" fill="#94a3b8">${v}</text>`;
+  const months=[1,3,5,7,9,11].map(m=>`<text x="${x(m-1).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="8" fill="#94a3b8">${m}월</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
+    ${gridT}${gridP}${bars}${line}${dots}${months}
+    <text x="${L-5}" y="${T-3}" font-size="8" fill="#f87171">기온(℃)</text>
+    <text x="${W-R+5}" y="${T-3}" font-size="8" fill="#38bdf8">강수량(mm)</text>
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#94a3b8" stroke-width="1"/>
+  </svg>`;
+}
+// ----- 매칭형 공통 유틸 -----
+const PERMS3=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+const MARK_L=['A','B','C'];
+function buildPermChoices(correct){
+  const others=shuffle(PERMS3.filter(p=>p.join()!==correct.join())).slice(0,4);
+  return shuffle([correct, ...others]);
+}
+function permText(perm){ return ['(가)','(나)','(다)'].map((g,i)=>`${g}-${MARK_L[perm[i]]}`).join(' · '); }
+function fitViewTo(pts, pad){
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  let x0=Math.min(...xs)-pad, y0=Math.min(...ys)-pad;
+  let w=Math.max(...xs)-Math.min(...xs)+pad*2, h=Math.max(...ys)-Math.min(...ys)+pad*2;
+  const s=Math.max(w,h,220);             // 너무 과한 확대 방지
+  view={x:x0-(s-w)/2, y:y0-(s-h)/2, w:s, h:s*VIEW0.h/VIEW0.w};
+  clampView(); applyView();
+}
+function addMatchMark(x, y, letter){
+  const svg=$('map-svg');
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','match-mark');
+  g.innerHTML=`<circle cx="${x}" cy="${y}" r="13" fill="#FF8F00" stroke="#131C22" stroke-width="2"/>`+
+    `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#131C22">${letter}</text>`;
+  svg.appendChild(g); return g;
+}
+// 산점도: 두 지표 평면에 (가)~(다) 점 표시 — 수능 자료 형식
+function renderScatterSVG(rows, m1, m2){
+  const W=320,H=230,L=52,R=16,T=18,B=40;
+  const xs=rows.map(r=>r.v1), ys=rows.map(r=>r.v2);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const px=v=>L+(W-L-R)*((v-x0)/((x1-x0)||1)*0.8+0.1);
+  const py=v=>T+(H-T-B)*(1-((v-y0)/((y1-y0)||1)*0.8+0.1));
+  let pts='';
+  rows.forEach((r,i)=>{
+    pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5" fill="#3282B8"/>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#BBE1FA">(${'가나다'[i]})</text>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#7d97ad">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#4a6884"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="#4a6884"/>
+    <text x="${(L+W-R)/2}" y="${H-12}" text-anchor="middle" font-size="10" fill="#9db4c8">${m1.label}(${m1.unit}) →</text>
+    <text x="14" y="${(T+H-B)/2}" font-size="10" fill="#9db4c8" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">${m2.label}(${m2.unit}) →</text>
+    ${pts}</svg>`;
+}
+
+// --- 기후 비교: 매칭형(지도 A~C ↔ 자료 가나다) / 순서형 ---
+function climVal(st, key){
+  const ind=climateIndicators(st);
+  return key==='tavg' ? +(st.t.reduce((a,b)=>a+b,0)/12).toFixed(1) : ind[key==='tmin'?'tmin':key==='tmax'?'tmax':key];
+}
+function askClimate(item){
+  if(item.kind==='order') return askClimateOrder(item.set);
+  return askClimateMatch(item.set);
+}
+function askClimateMatch(set){
+  const info=MODE_INFO[G.mode];
+  const sts=set.st.map(n=>CLIMATE.find(c=>c.name===n));
+  const markers=shuffle(sts);                       // 지도 A·B·C
+  const gOrder=shuffle([0,1,2]);                    // (가나다)→마커 index
+  const correct=gOrder;
+  const m1=CLIM_INDS[set.inds[0]], m2=CLIM_INDS[set.inds[1]];
+  const rows=gOrder.map(mi=>({v1:climVal(markers[mi],set.inds[0]), v2:climVal(markers[mi],set.inds[1])}));
+
+  markers.forEach((s,i)=>addMatchMark(s.x, s.y, MARK_L[i]));
+  fitViewTo(markers, 90);
+
+  $('question-box').innerHTML=
+    `<span class="q-region">기후 비교</span> 지도에 표시된 세 지역 A~C를 그래프의 (가)~(다)와 옳게 연결한 것은?`+
+    renderScatterSVG(rows, m1, m2)+
+    `<div class="map-hint">1991~2020년 평년값 · 위치(위도·해안/내륙·고도)를 근거로 상대 비교!</div>`;
+  const expBody=()=>`${gOrder.map((mi,i)=>`(${'가나다'[i]}) ${markers[mi].name}`).join(' · ')}<div class="fb-extra">📌 ${set.point}</div>`;
+  const revealNames=()=>{
+    document.querySelectorAll('#map-svg .match-mark').forEach(g=>g.remove());
+    markers.forEach(s=>{ addDot(s.x,s.y,5,'loc-dot target-reveal'); addLabel(s.x,s.y-10,s.name); });
+  };
+  const box=$('choices-box'); box.innerHTML='';
+  buildPermChoices(correct).forEach(perm=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=permText(perm); b.dataset.p=perm.join();
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      box.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const ok=perm.join()===correct.join();
+      b.classList.add(ok?'correct':'wrong');
+      if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+      revealNames();
+      const pts=award(ok,130);
+      sts.forEach(s=>recordStat(s.region,ok));
+      feedback(ok,ok?'정답':'오답',expBody(),pts);
+      hudUpdate(); afterAnswer();
+    };
+    box.appendChild(b);
+  });
+  startTimer(info.time||35,()=>{ if(G.locked)return; G.locked=true;
+    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+    revealNames();
+    award(false,0); sts.forEach(s=>recordStat(s.region,false));
+    feedback(false,'시간 초과',expBody(),0);
+    hudUpdate(); afterAnswer();
+  });
+}
+function askClimateOrder(set){
+  const sts=set.st.map(n=>CLIMATE.find(c=>c.name===n));
+  const m=CLIM_INDS[set.ind];
+  const sorted=sts.slice().sort((a,b)=>climVal(b,set.ind)-climVal(a,set.ind));
+  const correct=sorted.map(s=>s.name).join(' > ');
+  $('question-box').innerHTML=
+    `<span class="q-region">기후 비교</span> 다음 세 지역을 <b style="color:var(--accent-l)">${m.label}</b>이(가) 큰 지역부터 순서대로 옳게 나열한 것은?`+
+    `<div class="stat-card" style="text-align:center;font-weight:700">${shuffle(sts.slice()).map(s=>s.name).join(' · ')}</div>`+
+    `<div class="map-hint">위치(위도·내륙/해안·고도)를 떠올리며 상대 비교 — 절댓값 암기가 아닌 원리로!</div>`;
+  let perms=shuffle(PERMS3).slice(0,5);
+  if(!perms.some(p=>p.map(i=>sts[i].name).join(' > ')===correct)){
+    perms[0]=sorted.map(s=>sts.indexOf(s)); perms=shuffle(perms);   // 정답 보장 후 재섞기
+  }
+  const expBody=`${sorted.map(s=>`${s.name} ${climVal(s,set.ind)}${m.unit}`).join(' > ')}<div class="fb-extra">📌 ${set.point}</div>`;
+  const box=$('choices-box'); box.innerHTML='';
+  perms.forEach(p=>{
+    const txt=p.map(i=>sts[i].name).join(' > ');
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=txt; b.dataset.t=txt;
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      box.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const ok=txt===correct;
+      b.classList.add(ok?'correct':'wrong');
+      if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.t===correct) x.classList.add('correct'); });
+      const pts=award(ok,110);
+      sts.forEach(s=>recordStat(s.region,ok));
+      feedback(ok,ok?'정답':'오답',expBody,pts);
+      hudUpdate(); afterAnswer();
+    };
+    box.appendChild(b);
+  });
+  startTimer(MODE_INFO[G.mode].time||25,()=>{ if(G.locked)return; G.locked=true;
+    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.t===correct) x.classList.add('correct'); });
+    award(false,0); sts.forEach(s=>recordStat(s.region,false));
+    feedback(false,'시간 초과',expBody,0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 통계 비교: 지도에 표시된 세 시·도 A~C ↔ 통계 자료 (가)~(다) 매칭 ---
+let PROV_CENTER=null;
+function provCenter(name){
+  if(!PROV_CENTER){
+    PROV_CENTER={};
+    const acc={};
+    for(const [n,m] of Object.entries(MUNIS)){
+      (acc[m.prov]=acc[m.prov]||[]).push([m.cx,m.cy]);
+    }
+    for(const [p,pts] of Object.entries(acc)){
+      PROV_CENTER[p]={x:pts.reduce((a,b)=>a+b[0],0)/pts.length, y:pts.reduce((a,b)=>a+b[1],0)/pts.length};
+    }
+  }
+  return PROV_CENTER[name];
+}
+function statVal(sd, key){
+  if(key==='popGrow') return sd.pop1970 ? +(sd.pop2020/sd.pop1970).toFixed(1) : null;
+  const m=STAT_INDS[key];
+  return +(sd[key]*m.scale).toFixed(sd[key]*m.scale>=100?0:1);
+}
+function askStats(set){
+  const info=MODE_INFO[G.mode];
+  const sds=set.sd.map(n=>SIDO_STATS.find(s=>s.name===n));
+  const markers=shuffle(sds);
+  const gOrder=shuffle([0,1,2]);
+  const correct=gOrder;
+  const m1=STAT_INDS[set.inds[0]], m2=STAT_INDS[set.inds[1]];
+  const rows=gOrder.map(mi=>({v1:statVal(markers[mi],set.inds[0]), v2:statVal(markers[mi],set.inds[1])}));
+
+  // 지도: 세 시·도만 밝게 + 문자 마커
+  const target=new Set(set.sd);
+  document.querySelectorAll('#map-svg .muni').forEach(x=>{ if(!target.has(x.dataset.prov)) x.classList.add('dim-region'); });
+  markers.forEach((s,i)=>{ const c=provCenter(s.name); addMatchMark(c.x, c.y, MARK_L[i]); });
+
+  $('question-box').innerHTML=
+    `<span class="q-region">통계 비교</span> 지도에 표시된 세 시·도 A~C를 그래프의 (가)~(다)와 옳게 연결한 것은?`+
+    renderScatterSVG(rows, m1, m2)+
+    `<div class="map-hint">통계청 자료 — 산업 구조·인구 변화의 지역 차를 근거로 판단!</div>`;
+  const expBody=()=>`${gOrder.map((mi,i)=>`(${'가나다'[i]}) ${markers[mi].name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')}`).join(' · ')}<div class="fb-extra">📌 ${set.point}</div>`;
+  const revealNames=()=>{
+    document.querySelectorAll('#map-svg .match-mark').forEach(g=>g.remove());
+    markers.forEach(s=>{ const c=provCenter(s.name); addLabel(c.x, c.y+4, s.name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')); });
+  };
+  const box=$('choices-box'); box.innerHTML='';
+  buildPermChoices(correct).forEach(perm=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=permText(perm); b.dataset.p=perm.join();
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      box.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const ok=perm.join()===correct.join();
+      b.classList.add(ok?'correct':'wrong');
+      if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+      revealNames();
+      const pts=award(ok,130);
+      sds.forEach(s=>recordStat(PROVINCES[s.name]?.region,ok));
+      feedback(ok,ok?'정답':'오답',expBody(),pts);
+      hudUpdate(); afterAnswer();
+    };
+    box.appendChild(b);
+  });
+  startTimer(info.time||35,()=>{ if(G.locked)return; G.locked=true;
+    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+    revealNames();
+    award(false,0); sds.forEach(s=>recordStat(PROVINCES[s.name]?.region,false));
+    feedback(false,'시간 초과',expBody(),0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 시·도 클릭: 해당 시·도의 아무 시·군이나 탭 ---
+function askProvince(q){
+  const info=MODE_INFO[G.mode];
+  $('question-box').innerHTML=`<span class="q-region">시·도 찾기</span> ${q.q}`;
+  $('choices-box').innerHTML='<div class="map-hint">💡 지도에서 해당 시·도(아무 시·군이나)를 탭하세요</div>';
+
+  const revealProv=()=>{
+    document.querySelectorAll('#map-svg .muni').forEach(x=>{
+      if(x.dataset.prov===q.answer) x.classList.add('correct');
+    });
+  };
+  const off=onMuniTap((t)=>{
+    G.locked=true; stopTimer();
+    const prov=t.dataset.prov;
+    const correct=prov===q.answer;
+    if(!correct) t.classList.add('wrong');
+    revealProv();
+    const pts=award(correct,100);
+    recordStat(PROVINCES[q.answer]?.region,correct);
+    feedback(correct, correct?'⭕ 정답!':`❌ 오답! (탭: ${prov})`, `<b>${q.answer}</b> — ${q.exp}`, pts);
+    hudUpdate(); afterAnswer();
+  });
+  startTimer(info.time||14,()=>{ if(G.locked)return; G.locked=true; off();
+    revealProv();
+    award(false,0); recordStat(PROVINCES[q.answer]?.region,false);
+    feedback(false,'⏰ 시간 초과!',`<b>${q.answer}</b> — ${q.exp}`,0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 4지선다 ---
+function askMCQ(q){
+  const info=MODE_INFO[G.mode];
+  $('question-box').innerHTML=`<span class="q-region">${q.region}</span> ${q.q}`;
+  const box=$('choices-box'); box.innerHTML='';
+  const order=shuffle(q.choices.map((c,i)=>i));
+  order.forEach(i=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.innerHTML=q.choices[i];
+    b.dataset.i=i;
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      box.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const correct=i===q.answer;
+      b.classList.add(correct?'correct':'wrong');
+      if(!correct){ box.querySelectorAll('button').forEach(x=>{ if(x.dataset.i==q.answer) x.classList.add('correct'); }); }
+      const pts=award(correct,100);
+      recordStat(q.region,correct);
+      feedback(correct,correct?'⭕ 정답!':'❌ 오답!',`💡 ${q.exp}`,pts);
+      hudUpdate(); afterAnswer();
+    };
+    box.appendChild(b);
+  });
+  startTimer(info.time||25,()=>{ if(G.locked)return; G.locked=true;
+    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.i==q.answer) x.classList.add('correct'); });
+    award(false,0); recordStat(q.region,false);
+    feedback(false,'⏰ 시간 초과!',`💡 ${q.exp}`,0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- OX ---
+function askOX(q){
+  $('question-box').innerHTML=`<span class="q-region">${q.region}</span> ${q.q}`;
+  const box=$('choices-box');
+  box.innerHTML='<div class="ox-row"></div>';
+  const row=box.firstChild;
+  [['⭕',true],['❌',false]].forEach(([label,val])=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=label;
+    b.onclick=()=>{
+      if(G.locked) return; G.locked=true; stopTimer();
+      row.querySelectorAll('button').forEach(x=>x.disabled=true);
+      const correct=val===q.answer;
+      b.classList.add(correct?'correct':'wrong');
+      const pts=award(correct,70);
+      recordStat(q.region,correct);
+      feedback(correct,correct?'⭕ 정답!':'❌ 오답!',`정답: ${q.answer?'O':'X'} — ${q.exp}`,pts);
+      hudUpdate(); afterAnswer();
+    };
+    row.appendChild(b);
+  });
+  const sec = G.mode==='battle' ? 8 : Math.min(8,(G.oxEnd-Date.now())/1000);
+  startTimer(Math.max(1,sec),()=>{ if(G.locked)return; G.locked=true;
+    row.querySelectorAll('button').forEach(x=>x.disabled=true);
+    award(false,0); recordStat(q.region,false);
+    if(G.mode==='ox' && Date.now()>=G.oxEnd) return endGame();
+    feedback(false,'⏰ 시간 초과!',`정답: ${q.answer?'O':'X'} — ${q.exp}`,0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// ============================================================
+// 탐색(학습) 모드 — 탭 기반
+// ============================================================
+function startExplore(){
+  show('screen-game');
+  ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='hidden');
+  $('timer-bar').style.width='0%';
+
+  $('question-box').innerHTML='<span class="q-region">학습 모드</span> 시·군이나 파란 점을 탭하면 정보가 표시됩니다.';
+  const box=$('choices-box');
+  box.innerHTML='<div class="explore-controls" id="exp-chips"></div><div id="exp-info" style="color:var(--dim);font-size:.9rem;line-height:1.6">아직 선택된 지역이 없습니다.</div>';
+  const chipBox=$('exp-chips');
+  ['전체',...MAP_REGIONS].forEach(r=>{
+    const b=document.createElement('button');
+    b.className='chip'+(r==='전체'?' on':''); b.textContent=r;
+    b.onclick=()=>{ chipBox.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); b.classList.add('on'); renderExploreDots(r); };
+    chipBox.appendChild(b);
+  });
+  renderExploreDots('전체');
+
+  // 시·군 탭 → 정보 표시 (상시 리스너)
+  const svg=$('map-svg');
+  svg.onclick=(e)=>{
+    if(suppressTap) return;
+    const dot=e.target.closest('.loc-dot');
+    if(dot){ showLocInfo(dot.dataset.name); return; }
+    const t=e.target.closest('.muni');
+    if(!t) return;
+    document.querySelectorAll('#map-svg .muni').forEach(x=>x.classList.remove('flash'));
+    t.classList.add('flash');
+    const name=t.dataset.name;
+    const inside=LOCATIONS.filter(l=>l.accept.includes(name));
+    $('exp-info').innerHTML=
+      `<b style="color:var(--accent);font-size:1.08rem">${name}</b> <span class="q-region" style="margin-left:6px">${t.dataset.prov}</span>`+
+      (inside.length? inside.map(l=>`<div style="margin-top:7px"><b>📍 ${l.name}</b><br>${l.fact}</div>`).join('')
+        : '<div style="margin-top:7px">등록된 수능 포인트가 없는 지역입니다. 경계와 위치만 눈에 익혀 두세요!</div>')+
+      studyExtra(name.replace(/\(.+\)$/,''));
+  };
+}
+function showLocInfo(name){
+  const l=LOCATIONS.find(x=>x.name===name);
+  if(!l) return;
+  $('exp-info').innerHTML=`<b style="color:var(--accent);font-size:1.08rem">📍 ${l.name}</b> <span class="q-region" style="margin-left:6px">${l.region}</span><div style="margin-top:7px">${l.fact}</div>`+studyExtra(l.name);
+}
+function renderExploreDots(region){
+  clearMapExtras();
+  dimOtherRegions(region==='전체'?'전체':region);
+  const tip=$('map-tooltip');
+  LOCATIONS.filter(l=>region==='전체'||l.region===region).forEach(l=>{
+    const d=addDot(l.x,l.y,4.5+Math.min(freqOf(l.name),30)*0.12,'loc-dot');  // 빈출 지역일수록 큰 점
+    d.dataset.name=l.name;
+    d.onmousemove=(e)=>{ if(matchMedia('(hover:hover)').matches){ tip.classList.remove('hidden'); tip.innerHTML=`<b>${l.name}</b><br>${l.fact}`; positionTip(e,tip); } };
+    d.onmouseleave=()=>tip.classList.add('hidden');
+  });
+}
+function positionTip(e,tip){
+  const rect=$('map-pane').getBoundingClientRect();
+  tip.style.left=Math.max(4, Math.min(rect.width-270, e.clientX-rect.left+14))+'px';
+  tip.style.top=(e.clientY-rect.top+10)+'px';
+}
+
+// ============================================================
+// 종료 / 결과
+// ============================================================
+function endGame(){
+  stopTimer();
+  $('map-svg').onclick=null;
+  ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
+  show('screen-result');
+  const detail=$('result-detail');
+  $('name-entry').classList.add('hidden');
+
+  if(G.battle){
+    const b=G.battle;
+    const w = b.scores[0]===b.scores[1] ? -1 : (b.scores[0]>b.scores[1]?0:1);
+    $('result-title').textContent='⚔️ 배틀 결과';
+    $('result-main').textContent = w<0 ? '무승부!' : `🏆 ${b.names[w]} 승리!`;
+    detail.innerHTML=`<table class="vs-table">
+      <tr><td><b>${b.names[0]}</b></td><td>${b.scores[0]}점</td><td>정답 ${b.correct[0]}/${Math.ceil(G.queue.length/2)}</td></tr>
+      <tr><td><b>${b.names[1]}</b></td><td>${b.scores[1]}점</td><td>정답 ${b.correct[1]}/${Math.floor(G.queue.length/2)}</td></tr></table>`;
+    xp+=Math.round((b.scores[0]+b.scores[1])/20);
+  } else {
+    const answered = G.idx;
+    $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
+    $('result-main').textContent=G.score+'점';
+    const acc = answered? Math.round(G.correctCnt/answered*100):0;
+    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%)<br>최대 콤보 ${G.maxCombo}🔥`;
+    xp+=Math.round(G.score/10);
+    if(G.score>0){
+      $('name-entry').classList.remove('hidden');
+      $('player-name').value=store.load('geo_lastname','');
+    }
+  }
+  store.save('geo_xp',xp);
+}
+
+$('btn-save-score').onclick=()=>{
+  const name=($('player-name').value.trim()||'무명').slice(0,10);
+  store.save('geo_lastname',name);
+  const list=board[G.mode]||(board[G.mode]=[]);
+  list.push({name,score:G.score,date:new Date().toISOString().slice(0,10)});
+  list.sort((a,b)=>b.score-a.score); board[G.mode]=list.slice(0,10);
+  store.save('geo_board',board);
+  $('name-entry').classList.add('hidden');
+};
+$('btn-retry').onclick=()=>startGame(G.mode);
+$('btn-home').onclick=()=>{ initHome(); show('screen-home'); };
+$('btn-quit').onclick=()=>{ stopTimer(); $('map-svg').onclick=null;
+  ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
+  initHome(); show('screen-home');
+};
+
+// ---------- 시작 ----------
+buildMap();
+initMapGestures();
+initHome();
