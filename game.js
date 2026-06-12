@@ -33,14 +33,14 @@ const G = {
 
 const MODE_INFO = {
   explore:  {title:'🔍 백지도 탐색', useMap:true},
-  location: {title:'📍 위치 사냥', useMap:true, n:12, time:20},
-  muniname: {title:'🔎 지역 판독', useMap:true, n:12, time:15},
-  detective:{title:'🕵️ 지역 추리', useMap:true, n:8, time:40},
-  climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:30},
-  stats:    {title:'📊 통계 비교', useMap:true, n:8, time:30},
-  mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:25},
+  location: {title:'📍 위치 사냥', useMap:true, n:14, time:30},
+  muniname: {title:'🔎 지역 판독', useMap:true, n:12, time:25},
+  detective:{title:'🕵️ 지역 추리', useMap:true, n:10, time:55},
+  climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:40},
+  stats:    {title:'📊 통계 비교', useMap:true, n:8, time:40},
+  mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:35},
   ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
-  battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:15},
+  battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:30},
 };
 
 // 마스코트는 위치 사냥의 '설명형' 문제로 흡수
@@ -87,12 +87,32 @@ function imgSearchLink(keyword, extra){
 function weightedSample(items, n, keyFn){
   const pool = items.slice(), out = [];
   while(out.length < n && pool.length){
-    const ws = pool.map(it => 1 + Math.min(freqOf(keyFn(it)), 40) / 6);
+    const ws = pool.map(it => 1 + Math.min(freqOf(keyFn(it)), 18) / 9);   // 최대 3배로 완화
     let r = Math.random() * ws.reduce((a, b) => a + b, 0);
     let i = 0;
     for(; i < pool.length - 1; i++){ r -= ws[i]; if(r <= 0) break; }
     out.push(pool.splice(i, 1)[0]);
   }
+  return out;
+}
+// 위치·추리 전용: 같은 시·군 중복 금지 + 최근 출제 이력 회피
+function sampleLocQueue(items, n){
+  const recent=new Set(store.load('geo_recent_locs',[]));
+  const used=new Set(), out=[];
+  while(out.length<n){
+    const avail=items.filter(it=>!used.has(it.accept[0]));
+    if(!avail.length) break;
+    const ws=avail.map(it=>{
+      let w=1+Math.min(freqOf(it.accept[0]),18)/9;     // 빈출 가중 최대 3배
+      if(recent.has(it.accept[0])) w*=0.12;            // 최근에 나온 시·군은 강하게 회피
+      return w;
+    });
+    let r=Math.random()*ws.reduce((a,b)=>a+b,0), i=0;
+    for(;i<avail.length-1;i++){ r-=ws[i]; if(r<=0) break; }
+    used.add(avail[i].accept[0]); out.push(avail[i]);
+  }
+  const hist=store.load('geo_recent_locs',[]).concat([...used]);
+  store.save('geo_recent_locs', hist.slice(-45));       // 최근 45개 시·군 기억
   return out;
 }
 
@@ -135,6 +155,7 @@ function initHome(){
     }
   });
   if(!any) hb.innerHTML='<div style="color:var(--dim);font-size:.83rem">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>';
+  updateGachaUI();
   // 빈출 지역 TOP 12
   $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수 — 빈출 지역은 게임에서 더 자주 출제됩니다`;
   const fl=$('freq-list'); fl.innerHTML='';
@@ -185,13 +206,34 @@ function buildMap(){
 function applyView(){
   $('map-svg').setAttribute('viewBox',`${view.x} ${view.y} ${view.w} ${view.h}`);
 }
-function resetView(){ view={...VIEW0}; applyView(); }
+// 부드러운 뷰 전환 (ease-out)
+let viewAnimId=null;
+let VIEW_ANIM_MS=240;
+function animateView(tv){
+  if(viewAnimId){ cancelAnimationFrame(viewAnimId); viewAnimId=null; }
+  if(VIEW_ANIM_MS<=0 || typeof requestAnimationFrame!=='function'){
+    view={...tv}; applyView(); return;
+  }
+  const from={...view};
+  const t0=(typeof performance!=='undefined'?performance.now():0);
+  const step=(t)=>{
+    const k=Math.min(1,(t-t0)/VIEW_ANIM_MS);
+    const e=1-Math.pow(1-k,3);                     // ease-out cubic
+    view={x:from.x+(tv.x-from.x)*e, y:from.y+(tv.y-from.y)*e,
+          w:from.w+(tv.w-from.w)*e, h:from.h+(tv.h-from.h)*e};
+    applyView();
+    if(k<1) viewAnimId=requestAnimationFrame(step); else viewAnimId=null;
+  };
+  viewAnimId=requestAnimationFrame(step);
+}
+function clampedTarget(tv){
+  const old={...view}; view=tv; clampView(); const r={...view}; view=old; return r;
+}
+function resetView(){ animateView({...VIEW0}); }
 function zoomAt(cx, cy, factor){
   const nw=Math.min(VIEW0.w, Math.max(VIEW0.w/8, view.w*factor));
   const k=nw/view.w;
-  view.x=cx-(cx-view.x)*k; view.y=cy-(cy-view.y)*k;
-  view.w=nw; view.h=view.h*k;
-  clampView(); applyView();
+  animateView(clampedTarget({x:cx-(cx-view.x)*k, y:cy-(cy-view.y)*k, w:nw, h:view.h*k}));
 }
 function clampView(){
   view.x=Math.max(VIEW0.x-60, Math.min(view.x, VIEW0.x+VIEW0.w-view.w+60));
@@ -245,6 +287,10 @@ function initMapGestures(){
     }
   });
   const up=e=>{
+    // 탭(이동 없음)이면 터치 지점에 물결 효과
+    if(ptrs.size===1 && !moved && !suppressTap){
+      try { const p=svgPoint(e.clientX,e.clientY); tapRipple(p.x,p.y); } catch(err){}
+    }
     ptrs.delete(e.pointerId);
     if(ptrs.size<2) pinch0=null;
     if(ptrs.size===0){ panStart=null; setTimeout(()=>{ suppressTap=false; },50); }
@@ -261,6 +307,15 @@ function initMapGestures(){
   $('zoom-reset').onclick=resetView;
 }
 
+// 탭 물결 효과
+function tapRipple(x, y){
+  const svg=$('map-svg');
+  const r=document.createElementNS('http://www.w3.org/2000/svg','circle');
+  r.setAttribute('cx',x); r.setAttribute('cy',y); r.setAttribute('r',6);
+  r.setAttribute('class','tap-ripple');
+  svg.appendChild(r);
+  setTimeout(()=>r.remove(), 500);
+}
 function clearMapExtras(){
   document.querySelectorAll('#map-svg .loc-dot, #map-svg .loc-label, #map-svg .click-mark, #map-svg .match-mark').forEach(e=>e.remove());
   document.querySelectorAll('#map-svg .muni').forEach(p=>p.classList.remove('correct','wrong','flash','dim-region','pulse'));
@@ -373,7 +428,7 @@ function startGame(mode){
     const n2=prompt('플레이어 2 이름?','P2')||'P2';
     G.battle={turn:1, scores:[0,0], combos:[0,0], correct:[0,0], names:[n1.slice(0,8),n2.slice(0,8)]};
   } else if(mode==='location'||mode==='detective'){
-    G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, l=>l.accept[0]);
+    G.queue=sampleLocQueue(pool(mode), MODE_INFO[mode].n);
   } else if(mode==='muniname'){
     G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
   } else {
@@ -781,8 +836,7 @@ function fitViewTo(pts, pad){
   let x0=Math.min(...xs)-pad, y0=Math.min(...ys)-pad;
   let w=Math.max(...xs)-Math.min(...xs)+pad*2, h=Math.max(...ys)-Math.min(...ys)+pad*2;
   const s=Math.max(w,h,220);             // 너무 과한 확대 방지
-  view={x:x0-(s-w)/2, y:y0-(s-h)/2, w:s, h:s*VIEW0.h/VIEW0.w};
-  clampView(); applyView();
+  animateView(clampedTarget({x:x0-(s-w)/2, y:y0-(s-h)/2, w:s, h:s*VIEW0.h/VIEW0.w}));
 }
 function addMatchMark(x, y, letter){
   const svg=$('map-svg');
@@ -898,7 +952,7 @@ function askClimateMatch(set){
       hudUpdate(); afterAnswer();
     };
     setMapTap(handler);
-    startTimer(20,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
+    startTimer(28,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
       revealNames(); award(false,0); pick.forEach(s=>recordStat(s.region,false));
       feedback(false,'시간 초과',`(가)는 <b>${target.name}</b> · `+expBody(),0);
       hudUpdate(); afterAnswer();
@@ -1044,7 +1098,7 @@ function askStats(set){
       hudUpdate(); afterAnswer();
     };
     setMapTap(handler);
-    startTimer(20,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
+    startTimer(28,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
       revealNames(); award(false,0); pick.forEach(s=>recordStat(PROVINCES[s.name]?.region,false));
       feedback(false,'시간 초과',`(가)는 <b>${shortSido(targetSd.name)}</b> · `+expBody(),0);
       hudUpdate(); afterAnswer();
@@ -1204,6 +1258,134 @@ function positionTip(e,tip){
 }
 
 // ============================================================
+// 🎴 지역 카드 컬렉션 (뽑기/수집)
+// ============================================================
+let coins = store.load('geo_coins', 0);
+let cards = store.load('geo_cards', {});          // {지역명: 보유 수}
+const DRAW_COST = 5;
+
+function rarityOf(loc){
+  const f=freqOf(loc.accept[0]);
+  return f>=15 ? '전설' : f>=4 ? '희귀' : '일반';
+}
+const RARITY_META = {
+  '전설': {cls:'legend', label:'★ 전설', p:0.05},
+  '희귀': {cls:'rare',   label:'◆ 희귀', p:0.25},
+  '일반': {cls:'common', label:'● 일반', p:0.70},
+};
+function cardEmoji(loc){
+  const f=(loc.fact||'')+(loc.name||'');
+  const rules=[[/공항/,'✈️'],[/조선|항만|항구/,'🚢'],[/제철|철강/,'🏭'],[/석유 화학|정유/,'🛢️'],
+    [/반도체|전자|디스플레이|IT/,'💻'],[/자동차/,'🚗'],[/한우|목축|축산/,'🐂'],[/녹차|차밭|다향/,'🍵'],
+    [/사과/,'🍎'],[/포도|와인/,'🍇'],[/감귤/,'🍊'],[/인삼|홍삼/,'🌿'],[/쌀|평야|곡창|벼/,'🌾'],
+    [/갯벌|염전|천일염/,'🦀'],[/화산|오름|용암|주상 절리/,'🌋'],[/석회|카르스트|동굴/,'🕳️'],
+    [/눈|동계|스키|산천어/,'❄️'],[/온천/,'♨️'],[/신도시|택지/,'🏙️'],[/도청|행정|청사/,'🏛️'],
+    [/세계 .?유산|불국사|해인사|하회|법주사|고인돌|왕릉|청자/,'🏯'],[/축제/,'🎉'],
+    [/기차|철도|KTX/,'🚄'],[/섬|도서|다도해/,'🏝️'],[/호수|호반|댐/,'💧'],[/국립 공원|산/,'⛰️'],
+    [/치즈/,'🧀'],[/나비|반딧불|생태|습지|늪/,'🦋'],[/마늘|양파/,'🧄'],[/구석기|유적/,'🗿'],
+    [/원자력|발전/,'⚡'],[/우주|항공/,'🚀'],[/혁신도시/,'🏢']];
+  for(const [re,e] of rules) if(re.test(f)) return e;
+  return '📍';
+}
+let MUNI_BBOX={};
+function muniBBox(name){
+  if(MUNI_BBOX[name]) return MUNI_BBOX[name];
+  const d=MUNIS[name].d;
+  const nums=d.match(/-?\d+\.?\d*/g).map(Number);
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  for(let i=0;i<nums.length;i+=2){
+    if(nums[i]<minx)minx=nums[i]; if(nums[i]>maxx)maxx=nums[i];
+    if(nums[i+1]<miny)miny=nums[i+1]; if(nums[i+1]>maxy)maxy=nums[i+1];
+  }
+  const pad=Math.max(maxx-minx,maxy-miny)*0.1;
+  return MUNI_BBOX[name]={x:minx-pad,y:miny-pad,w:maxx-minx+pad*2,h:maxy-miny+pad*2};
+}
+function cardHTML(loc, owned, count){
+  const rar=RARITY_META[rarityOf(loc)];
+  const mu=loc.accept[0], bb=muniBBox(mu);
+  const meaning=(loc.fact||'').split(/[,·]/)[0].trim();
+  const sil=`<svg viewBox="${bb.x.toFixed(0)} ${bb.y.toFixed(0)} ${bb.w.toFixed(0)} ${bb.h.toFixed(0)}" class="card-sil"><path d="${MUNIS[mu].d}" /></svg>`;
+  if(!owned){
+    return `<div class="rcard unknown"><div class="card-sil-wrap">${sil}</div><div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
+  }
+  return `<div class="rcard ${rar.cls}">
+    <div class="rcard-rar">${rar.label}</div>
+    <div class="rcard-emoji">${cardEmoji(loc)}</div>
+    <div class="card-sil-wrap">${sil}</div>
+    <div class="rcard-name">${loc.name}</div>
+    <div class="rcard-meaning">${meaning}</div>
+    ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
+  </div>`;
+}
+function updateGachaUI(){
+  if($('coin-cnt')) $('coin-cnt').innerHTML=`🪙 <b>${coins}</b>`;
+  if($('coll-progress')) $('coll-progress').textContent=`(${Object.keys(cards).length}/${LOCATIONS.length})`;
+  if($('btn-draw')) $('btn-draw').disabled = coins<DRAW_COST;
+}
+function drawCard(){
+  if(coins<DRAW_COST) return null;
+  coins-=DRAW_COST; store.save('geo_coins',coins);
+  const roll=Math.random();
+  const want = roll<RARITY_META['전설'].p ? '전설' : roll<RARITY_META['전설'].p+RARITY_META['희귀'].p ? '희귀' : '일반';
+  let cand=LOCATIONS.filter(l=>rarityOf(l)===want);
+  if(!cand.length) cand=LOCATIONS;
+  const loc=cand[Math.floor(Math.random()*cand.length)];
+  const dup=!!cards[loc.name];
+  cards[loc.name]=(cards[loc.name]||0)+1;
+  if(dup){ coins+=2; store.save('geo_coins',coins); }   // 중복 → 2코인 환급
+  store.save('geo_cards',cards);
+  updateGachaUI();
+  return {loc, dup, rar:rarityOf(loc)};
+}
+function openGacha(){
+  const res=drawCard();
+  if(!res) return;
+  const modal=$('gacha-modal');
+  modal.classList.remove('hidden');
+  const card=$('gacha-card');
+  card.classList.remove('flipped','legend-glow');
+  $('gcard-front').innerHTML=cardHTML(res.loc,true,cards[res.loc.name]);
+  $('gacha-msg').innerHTML='';
+  setTimeout(()=>{
+    card.classList.add('flipped');
+    if(res.rar==='전설'){ card.classList.add('legend-glow'); confetti(modal.querySelector('.gacha-stage')); }
+    $('gacha-msg').innerHTML=
+      (res.dup?`이미 가진 카드! <b style="color:var(--gold)">+2🪙 환급</b>`:`<b style="color:var(--sea-d)">NEW!</b> 새로운 지역 카드 획득`)+
+      ` · 보유 🪙 ${coins}`;
+    $('btn-draw-again').textContent=`한 번 더 (5🪙)`;
+    $('btn-draw-again').disabled = coins<DRAW_COST;
+  }, 650);
+  try { if(navigator.vibrate) navigator.vibrate(res.rar==='전설'?[40,60,40,60,120]:30); } catch(e){}
+}
+function renderCollection(filter){
+  const grid=$('cards-grid'); grid.innerHTML='';
+  const list=LOCATIONS.filter(l=>filter==='전체'||l.region===filter);
+  const ord={'전설':0,'희귀':1,'일반':2};
+  list.sort((a,b)=>(cards[b.name]?1:0)-(cards[a.name]?1:0) || ord[rarityOf(a)]-ord[rarityOf(b)] || a.name.localeCompare(b.name));
+  list.forEach(l=>{
+    const owned=!!cards[l.name];
+    const el=document.createElement('div');
+    el.innerHTML=cardHTML(l,owned,cards[l.name]||0);
+    const c=el.firstElementChild;
+    c.onclick=()=>{ if(owned){ c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); } };
+    grid.appendChild(c);
+  });
+  const ownedCnt=list.filter(l=>cards[l.name]).length;
+  $('coll-title-progress').textContent=`${ownedCnt}/${list.length}`;
+}
+function openCollection(){
+  show('screen-cards');
+  const chipBox=$('coll-chips'); chipBox.innerHTML='';
+  ['전체',...MAP_REGIONS].forEach(r=>{
+    const b=document.createElement('button');
+    b.className='chip'+(r==='전체'?' on':''); b.textContent=r;
+    b.onclick=()=>{ chipBox.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); b.classList.add('on'); renderCollection(r); };
+    chipBox.appendChild(b);
+  });
+  renderCollection('전체');
+}
+
+// ============================================================
 // 종료 / 결과
 // ============================================================
 // 연속 학습(스트릭) 기록
@@ -1255,13 +1437,20 @@ function endGame(){
       <tr><td><b>${b.names[0]}</b></td><td>${b.scores[0]}점</td><td>정답 ${b.correct[0]}/${Math.ceil(G.queue.length/2)}</td></tr>
       <tr><td><b>${b.names[1]}</b></td><td>${b.scores[1]}점</td><td>정답 ${b.correct[1]}/${Math.floor(G.queue.length/2)}</td></tr></table>`;
     xp+=Math.round((b.scores[0]+b.scores[1])/20);
+    const earned=Math.max(1, Math.round((b.scores[0]+b.scores[1])/200));
+    coins+=earned; store.save('geo_coins',coins); updateGachaUI();
+    detail.innerHTML+=`<div style="margin-top:6px">🪙 카드 코인 +${earned} (보유 ${coins})</div>`;
     confetti(document.querySelector('.result-card'));
   } else {
     const answered = G.idx;
     $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
     $('result-main').textContent=G.score+'점';
     const acc = answered? Math.round(G.correctCnt/answered*100):0;
-    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
+    const earned=Math.max(answered>=3?1:0, Math.round(G.score/100));
+    coins+=earned; store.save('geo_coins',coins); updateGachaUI();
+    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥`+
+      (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins}${coins>=DRAW_COST?' — 뽑기 가능!':''})`:'')+
+      `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
     xp+=Math.round(G.score/10);
     if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
     if(G.score>0){
@@ -1287,6 +1476,13 @@ $('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=nul
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
   initHome(); show('screen-home');
 };
+
+// ---------- 카드 뽑기/컬렉션 이벤트 ----------
+$('btn-draw').onclick=openGacha;
+$('btn-draw-again').onclick=openGacha;
+$('btn-gacha-close').onclick=()=>{ $('gacha-modal').classList.add('hidden'); initHome(); };
+$('btn-collection').onclick=openCollection;
+$('btn-cards-back').onclick=()=>{ initHome(); show('screen-home'); };
 
 // ---------- 시작 ----------
 buildMap();

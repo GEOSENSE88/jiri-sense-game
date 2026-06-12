@@ -69,6 +69,7 @@ check(window.eval("studyExtra('태백')").includes('이미지 자료'), 'studyEx
 check(window.eval("studyExtra('태백')").includes('기출'), 'studyExtra에 기출 빈도 포함');
 
 console.log('\n=== 줌/팬 ===');
+window.eval('VIEW_ANIM_MS=0');   // 테스트에서는 애니메이션 즉시 적용
 window.eval('zoomAt(380,400,0.5)');
 check(window.eval('view.w') < 776, '줌인 시 viewBox 축소');
 window.eval('resetView()');
@@ -228,6 +229,46 @@ const seosan = document.querySelector('#map-svg .muni[data-name="서산시"]');
 seosan.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check(document.getElementById('exp-info').textContent.includes('서산'), '시·군 탭 → 정보 패널 표시');
 check(document.getElementById('exp-info').textContent.includes('석유 화학'), '시·군 내 수능 포인트 연동');
+
+console.log('\n=== 위치 사냥 중복 방지 ===');
+{
+  window.eval("localStorage.removeItem('geo_recent_locs')");
+  window.eval("startGame('location')");
+  const accepts = window.eval("JSON.stringify(G.queue.map(l=>l.accept[0]))");
+  const arr = JSON.parse(accepts);
+  check(new Set(arr).size === arr.length, `런 내 시·군 중복 없음 (${arr.length}문항)`);
+  check(arr.length >= 14, '문항 수 14개로 확대');
+  // 같은 설정으로 한 번 더 → 직전 시·군 회피 (전부 같을 수 없음)
+  window.eval("startGame('location')");
+  const arr2 = JSON.parse(window.eval("JSON.stringify(G.queue.map(l=>l.accept[0]))"));
+  const overlap = arr2.filter(a=>arr.includes(a)).length;
+  check(overlap <= 4, `직전 런과 겹침 최소화 (겹침 ${overlap}/${arr2.length})`);
+}
+
+console.log('\n=== 카드 컬렉션 ===');
+{
+  window.eval('coins=20; store.save("geo_coins",coins); cards={}; store.save("geo_cards",cards);');
+  const res = window.eval('JSON.stringify(drawCard())');
+  const r = JSON.parse(res);
+  check(r && r.loc && r.loc.name, '카드 뽑기 → 카드 획득: ' + r.loc.name + ` (${r.rar})`);
+  check(window.eval('coins') === 15, '뽑기 비용 5🪙 차감');
+  check(window.eval(`cards[${JSON.stringify(r.loc.name)}]`) === 1, '보유 카드 기록');
+  // 중복 환급
+  window.eval(`Math._g=Math.random; Math.random=()=>0.99;`); // 일반 카드 고정 시도
+  const before = window.eval('coins');
+  window.eval('cards={}; LOCATIONS.slice(0,200).forEach(l=>cards[l.name]=1); store.save("geo_cards",cards);'); // 전부 보유 → 무조건 중복
+  window.eval('drawCard()');
+  check(window.eval('coins') === before - 5 + 2, '중복 카드 → +2🪙 환급');
+  window.eval('Math.random=Math._g;');
+  const html = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='울산'), true, 1)`);
+  check(html.includes('card-sil') && html.includes('legend'), '울산 카드 = 전설 등급 + 실루엣 포함');
+  check(window.eval(`cardHTML(LOCATIONS[5], false, 0)`).includes('???'), '미보유 카드는 ??? 처리');
+  // 결과 화면 코인 적립
+  window.eval("G.mode='mcq'; G.battle=null; G.idx=5; G.correctCnt=4; G.score=620; G.maxCombo=3; coins=0; endGame()");
+  check(window.eval('coins') === 6, '결과: 620점 → 6🪙 적립');
+  check(document.getElementById('result-detail').textContent.includes('카드 코인'), '결과 화면에 코인 표시');
+  document.getElementById('btn-home').click();
+}
 
 console.log('\n=== 결과/랭킹 ===');
 window.eval("G.mode='mcq'; G.battle=null; G.idx=5; G.correctCnt=4; G.score=620; G.maxCombo=3; endGame()");

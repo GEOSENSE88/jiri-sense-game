@@ -336,6 +336,96 @@ button { font-family:inherit; }
   100% { transform:translateY(620px) rotate(540deg); opacity:.4; }
 }
 
+/* ============ 🎴 지역 카드 ============ */
+.gacha-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+.coin-cnt { font-size:1.05rem; font-weight:800; color:var(--brown, var(--navy)); min-width:74px; }
+.coin-cnt b { color:var(--gold); font-size:1.15em; }
+.draw-btn { flex:1; padding:11px 14px; min-height:44px; }
+.draw-btn:disabled { filter:grayscale(.6); opacity:.6; cursor:default; }
+.coll-btn { width:100%; padding:10px 14px; min-height:42px; font-size:.86rem; }
+
+.rcard {
+  position:relative; width:100%; aspect-ratio:3/4.2; border-radius:14px; overflow:hidden;
+  background:linear-gradient(170deg, #F4FBFF, #DDF1FC);
+  border:2.5px solid var(--line2); box-shadow:var(--shadow-sm);
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  padding:10px 8px 11px; text-align:center; cursor:pointer; user-select:none;
+}
+.rcard.common { border-color:#9CC8E8; }
+.rcard.rare { border-color:#7E6CD9; background:linear-gradient(170deg,#F4F1FF,#E4DDFB); }
+.rcard.legend {
+  border-color:var(--gold);
+  background:linear-gradient(170deg,#FFF8E1,#FFE9AE);
+  box-shadow:0 4px 18px rgba(245,166,35,.35);
+}
+.rcard.legend::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(115deg, transparent 30%, #FFFFFF99 48%, transparent 62%);
+  background-size:250% 100%; animation:shine 2.6s infinite;
+  pointer-events:none;
+}
+@keyframes shine { 0%{background-position:120% 0} 100%{background-position:-130% 0} }
+.rcard.unknown { filter:grayscale(1); opacity:.55; background:#EDF3F7; }
+.rcard-rar {
+  position:absolute; top:7px; left:8px; font-size:.62rem; font-weight:800;
+  padding:2px 8px; border-radius:99px; background:#FFFFFFCC; color:var(--navy);
+}
+.rcard.rare .rcard-rar { color:#5A48B8; }
+.rcard.legend .rcard-rar { color:#A8730A; }
+.rcard-emoji { position:absolute; top:6px; right:9px; font-size:1.25rem; }
+.card-sil-wrap { flex:1; width:74%; display:flex; align-items:center; justify-content:center; min-height:0; padding-top:20px; }
+.card-sil { width:100%; height:100%; }
+.card-sil path { fill:#FFFFFF; stroke:#7FA9C9; stroke-width:1.5; }
+.rcard.rare .card-sil path { stroke:#7E6CD9; }
+.rcard.legend .card-sil path { stroke:var(--gold); stroke-width:2; }
+.rcard-name { font-weight:900; font-size:.92rem; color:var(--navy); margin-top:5px; }
+.rcard-meaning { font-size:.62rem; color:var(--dim); line-height:1.35; min-height:2.1em;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.rcard-cnt {
+  position:absolute; bottom:7px; right:8px; font-size:.66rem; font-weight:800;
+  background:var(--navy); color:#fff; border-radius:99px; padding:2px 7px;
+}
+
+/* 뽑기 모달 + 3D 플립 */
+.modal {
+  position:fixed; inset:0; z-index:50; background:#0E2A40CC; backdrop-filter:blur(3px);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.gacha-stage { position:relative; text-align:center; width:min(320px, 88vw); }
+.gcard { perspective:900px; width:215px; margin:0 auto 16px; }
+.gcard-inner {
+  position:relative; width:100%; aspect-ratio:3/4.2;
+  transform-style:preserve-3d; transition:transform .65s cubic-bezier(.3,1.4,.4,1);
+}
+.gcard.flipped .gcard-inner { transform:rotateY(180deg); }
+.gcard-back, .gcard-front {
+  position:absolute; inset:0; backface-visibility:hidden; border-radius:16px;
+}
+.gcard-back {
+  display:flex; align-items:center; justify-content:center; font-size:3.4rem;
+  background:linear-gradient(150deg, var(--sea), var(--navy));
+  border:3px solid #fff; box-shadow:0 10px 30px #0006;
+  animation:cardPulse 1s infinite alternate;
+}
+@keyframes cardPulse { from{transform:scale(1)} to{transform:scale(1.035)} }
+.gcard-front { transform:rotateY(180deg); }
+.gcard-front .rcard { width:100%; height:100%; }
+.gcard.legend-glow .gcard-front .rcard { box-shadow:0 0 38px 8px rgba(245,166,35,.65); }
+.gacha-msg { color:#fff; font-size:.92rem; margin-bottom:14px; min-height:1.4em; font-weight:600; }
+
+/* 컬렉션 화면 */
+.coll-body { max-width:1100px; margin:8px auto 40px; padding:0 16px; }
+.coll-prog { color:var(--sea-d); margin-left:6px; }
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+@media (max-width:560px){ .cards-grid { grid-template-columns:repeat(3, 1fr); gap:8px; } }
+
+/* 지도 탭 물결 */
+.tap-ripple {
+  fill:none; stroke:var(--sea-d); stroke-width:2.5; pointer-events:none;
+  animation:rippleOut .45s ease-out forwards;
+}
+@keyframes rippleOut { from{ r:6; opacity:.85; } to{ r:26; opacity:0; } }
+
 .pop { animation:pop .35s; }
 @keyframes pop { 0%{transform:scale(.65);opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1)} }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }

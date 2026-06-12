@@ -72,6 +72,15 @@
     </section>
 
     <section class="panel side-panel">
+      <div class="gacha-box">
+        <h2>🎴 지역 카드</h2>
+        <div class="gacha-row">
+          <span id="coin-cnt" class="coin-cnt"></span>
+          <button id="btn-draw" class="primary-btn draw-btn">카드 뽑기 <small>5🪙</small></button>
+        </div>
+        <button id="btn-collection" class="ghost-btn coll-btn">컬렉션 보기 <span id="coll-progress"></span></button>
+        <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 적립 — 전국 지역 카드를 모아 보세요! (★전설은 기출 최다 빈출 지역)</p>
+      </div>
       <div class="profile-box">
         <h2>내 계급</h2>
         <div id="rank-badge" class="rank-badge"></div>
@@ -95,6 +104,35 @@
     </section>
   </div>
   <footer class="credit">제작: <b>산남고 이성훈</b> · 자료: 2027 EBS 수능특강·수능완성, 기상청 평년값, 통계청 · 지도: 통계청 행정구역</footer>
+</div>
+
+<!-- ===== 카드 뽑기 모달 ===== -->
+<div id="gacha-modal" class="modal hidden">
+  <div class="gacha-stage">
+    <div id="gacha-card" class="gcard">
+      <div class="gcard-inner">
+        <div class="gcard-back">🎴</div>
+        <div class="gcard-front" id="gcard-front"></div>
+      </div>
+    </div>
+    <div id="gacha-msg" class="gacha-msg"></div>
+    <div class="result-actions">
+      <button id="btn-draw-again" class="primary-btn">한 번 더 (5🪙)</button>
+      <button id="btn-gacha-close" class="ghost-btn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 카드 컬렉션 화면 ===== -->
+<div id="screen-cards" class="screen">
+  <div class="game-top">
+    <button id="btn-cards-back" class="text-btn">← 홈으로</button>
+    <div class="game-title">🎴 지역 카드 컬렉션 <span id="coll-title-progress" class="coll-prog"></span></div>
+  </div>
+  <div class="coll-body">
+    <div id="coll-chips" class="chips" style="margin-bottom:14px"></div>
+    <div id="cards-grid" class="cards-grid"></div>
+  </div>
 </div>
 
 <!-- ===== 게임 화면 ===== -->
