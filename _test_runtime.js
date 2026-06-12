@@ -200,6 +200,19 @@ document.querySelector(`#map-svg .muni[data-name="${det.accept[0]}"]`)
   .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check(window.eval('G.score') > 0, '정답 탭 → 점수(힌트 수만큼 차감)');
 check(document.getElementById('feedback-box').textContent.includes('힌트 2개') || document.getElementById('feedback-box').textContent.includes('명추리'), '명추리 피드백');
+// 말줄임 잘림 검사: 쉼표 없는 설명(마스코트형)도 단어 중간에서 잘리지 않아야 함
+{
+  const noComma = window.eval(`(function(){
+    const l=locPool().find(x=>x.descOnly && !(x.desc||'').includes(','));
+    if(!l) return null;
+    return buildHints(l);
+  })()`);
+  if(noComma){
+    check(!/[가-힣]…/.test(noComma[1]), '힌트가 단어 중간에서 잘리지 않음 (공백 경계 분할)');
+  } else {
+    check(true, '쉼표 없는 설명 항목 없음(검사 생략)');
+  }
+}
 
 console.log('\n=== 개념 퀴즈 / OX ===');
 window.eval("startGame('mcq')");
@@ -265,6 +278,11 @@ console.log('\n=== 카드 컬렉션 ===');
   check(html.includes('land-face'), '카드에 귀여운 얼굴(눈·볼·미소) 포함');
   check(html.includes('vector-effect="non-scaling-stroke"'), '외곽선 두께 균일(non-scaling-stroke)');
   check(html.includes('rcard-reg') && html.includes('영남'), '권역 칩 표시');
+  check(html.includes('rcard-pop') && html.includes('👥'), '인구 뱃지 표시');
+  const gm = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='구미'), true, 1)`);
+  check(gm.includes('경북 구미'), '도 이름 병기(경북 구미)');
+  const popCover = window.eval(`Object.values(MUNIS).filter(m=>m.pop>0).length`);
+  check(popCover === 161, `시·군 인구 데이터 ${popCover}/161 주입`);
   check(html.includes('--regbg'), '권역별 배경색 변수 적용');
   // 지역성 스탬프 일러스트
   const bs = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='보성'), true, 1)`);

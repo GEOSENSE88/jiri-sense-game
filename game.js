@@ -628,15 +628,22 @@ function buildHints(loc){
   const kind=muniName.endsWith('군')?'군(郡)':muniName.match(/(광역시|특별시|특별자치시)$/)?'광역 도시':'도시';
   const prov=MUNIS[loc.accept[0]]?.prov||'';
   const h1=`${loc.region} 지방의 ${kind}`;
-  // 설명을 쉼표·가운뎃점 단위로 잘라 힌트 2~3개 구성
+  // 설명을 쉼표·가운뎃점 단위로 잘라 힌트 2~3개 구성 (단어 중간 잘림 방지)
   const masked=maskName(loc.desc||loc.fact, loc);
-  const parts=masked.split(/,\s*/).filter(s=>s.trim().length>=4);
+  const parts=masked.split(/[,，]\s*|\s·\s/).filter(s=>s.trim().length>=4);
   let h2, h3;
   if(parts.length>=2){
     h2=parts[0]; h3=parts.slice(1).join(', ');
   } else {
-    const half=Math.ceil(masked.length/2);
-    h2=masked.slice(0,half)+'…'; h3=masked;
+    // 한 덩어리 설명: 절반 근처의 공백(단어 경계)에서 분할
+    const words=masked.split(' ');
+    if(words.length>=4){
+      const cut=Math.ceil(words.length/2);
+      h2=words.slice(0,cut).join(' ')+' …';
+      h3=masked;
+    } else {
+      h2=masked; h3=masked;   // 너무 짧으면 그대로
+    }
   }
   return [h1, h2, h3+(prov?` (${prov})`:'')];
 }
@@ -1402,11 +1409,28 @@ function cuteLandSVG(mu, withFace, loc){
     <path d="${m.d}" class="land" vector-effect="non-scaling-stroke"/>
     ${face}${stampG}</svg>`;
 }
+// 도(道) 소속 시·군은 '경북 구미'처럼 도 이름을 함께 표기
+const PROV_SHORT={'경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남',
+  '전북특별자치도':'전북','전라남도':'전남','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주'};
+function cardDisplayName(loc){
+  const mu=loc.accept[0];
+  const prov=MUNIS[mu]?.prov||'';
+  const base=loc.name.replace(/\(.+\)$/,'');
+  const short=PROV_SHORT[prov];
+  return short ? `${short} ${base}` : base;
+}
+function fmtPop(p){
+  if(!p) return '';
+  if(p>=1e6) return (p/1e4).toFixed(0)+'만';
+  if(p>=1e5) return Math.round(p/1e4)+'만';
+  return (p/1e4).toFixed(1)+'만';
+}
 function cardHTML(loc, owned, count){
   const rar=RARITY_META[rarityOf(loc)];
   const mu=loc.accept[0];
   const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
   const meaning=(loc.fact||'').split(/[,·]/)[0].trim();
+  const pop=MUNIS[mu]?.pop;
   if(!owned){
     return `<div class="rcard unknown">
       <div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div>
@@ -1418,8 +1442,9 @@ function cardHTML(loc, owned, count){
     <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
     <span class="rcard-cloud c1"></span><span class="rcard-cloud c2"></span>
     <div class="card-sil-wrap">${cuteLandSVG(mu,true,loc)}</div>
-    <div class="rcard-name">${loc.name}</div>
+    <div class="rcard-name">${cardDisplayName(loc)}</div>
     <div class="rcard-meaning">${meaning}</div>
+    ${pop?`<div class="rcard-pop">👥 ${fmtPop(pop)}</div>`:''}
     ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
   </div>`;
 }
@@ -1431,8 +1456,9 @@ function openCardDetail(loc){
   card.classList.add('flipped'); card.classList.remove('legend-glow');
   if(rarityOf(loc)==='전설') card.classList.add('legend-glow');
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
+  const pop=MUNIS[loc.accept[0]]?.pop;
   $('gacha-msg').innerHTML=
-    `<div style="max-width:300px;margin:0 auto;line-height:1.6">${loc.fact}</div>`+
+    `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명(2022)`:''}<br>${loc.fact}</div>`+
     `<div style="margin-top:8px">${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'마스코트')} ${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'관광 명소')}</div>`;
   $('btn-draw-again').classList.add('hidden');
 }

@@ -415,6 +415,11 @@ button { font-family:inherit; }
   position:absolute; bottom:7px; right:8px; font-size:.66rem; font-weight:800; z-index:2;
   background:var(--navy); color:#fff; border-radius:99px; padding:2px 7px;
 }
+.rcard-pop {
+  position:absolute; bottom:7px; left:8px; font-size:.62rem; font-weight:800; z-index:2;
+  background:#FFFFFFD9; color:#4A7CA8; border-radius:99px; padding:2px 8px;
+  box-shadow:0 1px 3px #0002;
+}
 
 /* 정복 지도 */
 .conquest-wrap {
