@@ -669,8 +669,8 @@ function addMatchMark(x, y, letter){
   const svg=$('map-svg');
   const g=document.createElementNS('http://www.w3.org/2000/svg','g');
   g.setAttribute('class','match-mark');
-  g.innerHTML=`<circle cx="${x}" cy="${y}" r="13" fill="#FF7200" stroke="#FFFCF0" stroke-width="2.5"/>`+
-    `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#FFFCF0">${letter}</text>`;
+  g.innerHTML=`<circle cx="${x}" cy="${y}" r="13" fill="#E2574C" stroke="#FFFFFF" stroke-width="2.5"/>`+
+    `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#FFFFFF">${letter}</text>`;
   svg.appendChild(g); return g;
 }
 // 산점도: 두 지표 평면에 (가)~(다) 점 표시 — 수능 자료 형식
@@ -682,15 +682,15 @@ function renderScatterSVG(rows, m1, m2){
   const py=v=>T+(H-T-B)*(1-((v-y0)/((y1-y0)||1)*0.8+0.1));
   let pts='';
   rows.forEach((r,i)=>{
-    pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5.5" fill="#3B82F6" stroke="#fff" stroke-width="1.5"/>`+
-      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#7A4E21">(${'가나다'[i]})</text>`+
-      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9B8868">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
+    pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5.5" fill="#1278C2" stroke="#fff" stroke-width="1.5"/>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#1B4F8F">(${'가나다'[i]})</text>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6E93AE">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
-    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#D9C28E"/>
-    <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="#D9C28E"/>
-    <text x="${(L+W-R)/2}" y="${H-12}" text-anchor="middle" font-size="10" fill="#9B8868">${m1.label}(${m1.unit}) →</text>
-    <text x="14" y="${(T+H-B)/2}" font-size="10" fill="#9B8868" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">${m2.label}(${m2.unit}) →</text>
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#A9CDE3"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="#A9CDE3"/>
+    <text x="${(L+W-R)/2}" y="${H-12}" text-anchor="middle" font-size="10" fill="#6E93AE">${m1.label}(${m1.unit}) →</text>
+    <text x="14" y="${(T+H-B)/2}" font-size="10" fill="#6E93AE" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">${m2.label}(${m2.unit}) →</text>
     ${pts}</svg>`;
 }
 
@@ -1028,7 +1028,7 @@ function bumpStreak(){
 }
 // 결과 꽃가루
 function confetti(host){
-  const colors=['#FEC428','#FF7200','#05A66B','#3B82F6','#FF6B9D'];
+  const colors=['#FFD23F','#A4CE4E','#20A2EE','#F2889B','#E2574C'];
   for(let i=0;i<26;i++){
     const s=document.createElement('span');
     s.className='confetti';
