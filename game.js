@@ -1300,22 +1300,163 @@ function muniBBox(name){
   const pad=Math.max(maxx-minx,maxy-miny)*0.1;
   return MUNI_BBOX[name]={x:minx-pad,y:miny-pad,w:maxx-minx+pad*2,h:maxy-miny+pad*2};
 }
+// 권역별 카드 색 (배경 틴트 / 칩·지도 채움색)
+const REGION_COLORS = {
+  '수도권': {bg:'#D9EFFD', deep:'#1278C2', map:'#6FB7EC'},
+  '강원':   {bg:'#DDF3E1', deep:'#2FA34F', map:'#7FCB8F'},
+  '충청':   {bg:'#FFF3C9', deep:'#C77F00', map:'#F6CE5B'},
+  '호남':   {bg:'#FFE5E1', deep:'#D8554A', map:'#F08A80'},
+  '영남':   {bg:'#EAE4FB', deep:'#6A5ACD', map:'#A795E0'},
+  '제주':   {bg:'#FFE9D4', deep:'#E8740C', map:'#F9A86B'},
+};
+// ----- 지역성 테마 스탬프(미니 일러스트) 라이브러리 -----
+// 각 스탬프는 100×100 기준 좌표로 그리고 호출 시 위치·크기로 변환
+const STAMP_ART = {
+  tea:    `<ellipse cx="35" cy="55" rx="26" ry="14" fill="#2FA34F" transform="rotate(-35 35 55)"/><ellipse cx="68" cy="48" rx="24" ry="13" fill="#5CB531" transform="rotate(25 68 48)"/><path d="M35 55 Q50 30 68 48" stroke="#1F7A38" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+  ship:   `<path d="M15 62 L85 62 L72 84 L28 84 Z" fill="#1278C2"/><rect x="44" y="34" width="12" height="28" fill="#E2574C"/><rect x="36" y="46" width="28" height="16" rx="3" fill="#fff"/><path d="M8 70 Q18 64 28 70 T48 70 T68 70 T88 70" stroke="#7CC4F0" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  factory:`<rect x="20" y="45" width="60" height="38" rx="4" fill="#8FA6B6"/><rect x="28" y="28" width="12" height="20" fill="#6E93AE"/><rect x="52" y="22" width="12" height="26" fill="#6E93AE"/><circle cx="34" cy="18" r="8" fill="#fff" opacity=".9"/><circle cx="62" cy="12" r="10" fill="#fff" opacity=".8"/><rect x="30" y="56" width="11" height="11" fill="#FFD23F"/><rect x="56" y="56" width="11" height="11" fill="#FFD23F"/>`,
+  apple:  `<circle cx="50" cy="58" r="26" fill="#E2574C"/><circle cx="40" cy="50" r="8" fill="#FF8E8E" opacity=".8"/><path d="M50 34 Q52 22 62 18" stroke="#7A4E21" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="66" cy="26" rx="12" ry="7" fill="#5CB531" transform="rotate(28 66 26)"/>`,
+  grape:  `<circle cx="38" cy="46" r="11" fill="#8E7BE5"/><circle cx="60" cy="46" r="11" fill="#7E6CD9"/><circle cx="49" cy="60" r="11" fill="#6A5ACD"/><circle cx="38" cy="73" r="10" fill="#8E7BE5"/><circle cx="60" cy="73" r="10" fill="#7E6CD9"/><path d="M50 36 Q50 22 58 16" stroke="#7A4E21" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="64" cy="22" rx="11" ry="6" fill="#5CB531" transform="rotate(20 64 22)"/>`,
+  citrus: `<circle cx="50" cy="58" r="26" fill="#FF9F2E"/><circle cx="41" cy="50" r="7" fill="#FFC97C" opacity=".9"/><ellipse cx="58" cy="30" rx="12" ry="7" fill="#2FA34F" transform="rotate(-18 58 30)"/>`,
+  rice:   `<path d="M50 84 Q48 52 50 30" stroke="#C7A14A" stroke-width="5" fill="none"/><g fill="#FFD23F" stroke="#C7A14A" stroke-width="2"><ellipse cx="42" cy="34" rx="7" ry="11" transform="rotate(20 42 34)"/><ellipse cx="58" cy="34" rx="7" ry="11" transform="rotate(-20 58 34)"/><ellipse cx="40" cy="50" rx="7" ry="11" transform="rotate(25 40 50)"/><ellipse cx="60" cy="50" rx="7" ry="11" transform="rotate(-25 60 50)"/><ellipse cx="50" cy="22" rx="7" ry="11"/></g>`,
+  crab:   `<ellipse cx="50" cy="58" rx="24" ry="17" fill="#F08A80"/><circle cx="42" cy="50" r="4.5" fill="#fff"/><circle cx="58" cy="50" r="4.5" fill="#fff"/><circle cx="42" cy="50" r="2.2" fill="#4A3426"/><circle cx="58" cy="50" r="2.2" fill="#4A3426"/><path d="M28 46 Q14 36 18 24 M72 46 Q86 36 82 24" stroke="#E2574C" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="16" cy="22" r="7" fill="#E2574C"/><circle cx="84" cy="22" r="7" fill="#E2574C"/>`,
+  snow:   `<g stroke="#7CC4F0" stroke-width="6" stroke-linecap="round"><path d="M50 18 V82 M22 34 L78 66 M78 34 L22 66"/></g><circle cx="50" cy="50" r="8" fill="#fff" stroke="#7CC4F0" stroke-width="4"/>`,
+  mountain:`<path d="M14 80 L42 32 L60 60 L72 42 L90 80 Z" fill="#2FA34F"/><path d="M42 32 L52 49 L46 49 L54 60 L34 60 L42 46 Z" fill="#fff" opacity=".9"/>`,
+  temple: `<path d="M18 46 Q50 18 82 46 L74 46 Q50 28 26 46 Z" fill="#4A6E3A"/><path d="M24 50 H76 L72 44 H28 Z" fill="#8E5A2B"/><rect x="32" y="50" width="36" height="26" fill="#F2E6D0"/><rect x="44" y="56" width="12" height="20" fill="#8E5A2B"/><rect x="28" y="76" width="44" height="7" rx="2" fill="#A8794A"/>`,
+  train:  `<rect x="22" y="34" width="56" height="38" rx="14" fill="#fff" stroke="#1278C2" stroke-width="5"/><rect x="30" y="42" width="40" height="13" rx="5" fill="#7CC4F0"/><circle cx="38" cy="64" r="5" fill="#1B4F8F"/><circle cx="62" cy="64" r="5" fill="#1B4F8F"/><path d="M22 78 H78" stroke="#9CC8E8" stroke-width="5" stroke-linecap="round"/>`,
+  lighthouse:`<path d="M42 30 H58 L62 78 H38 Z" fill="#fff" stroke="#E2574C" stroke-width="4"/><path d="M40 44 H60 M39 58 H61" stroke="#E2574C" stroke-width="7"/><rect x="40" y="18" width="20" height="13" rx="4" fill="#FFD23F"/><path d="M30 84 H70" stroke="#1278C2" stroke-width="6" stroke-linecap="round"/>`,
+  ginseng:`<path d="M50 30 Q46 48 50 56 Q40 62 36 78 M50 56 Q60 64 62 80 M50 42 Q42 46 38 42" stroke="#D9B48A" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M50 30 Q44 18 34 16 M50 30 Q56 16 66 14" stroke="#2FA34F" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="32" cy="14" rx="9" ry="5" fill="#5CB531"/><ellipse cx="68" cy="12" rx="9" ry="5" fill="#5CB531"/>`,
+  cheese: `<path d="M16 64 L84 40 L84 76 L16 76 Z" fill="#FFD23F" stroke="#E8B100" stroke-width="3"/><circle cx="42" cy="62" r="6" fill="#FFF3C9"/><circle cx="62" cy="56" r="5" fill="#FFF3C9"/><circle cx="70" cy="68" r="4" fill="#FFF3C9"/>`,
+  butterfly:`<g fill="#F2889B"><ellipse cx="34" cy="42" rx="17" ry="14" transform="rotate(-20 34 42)"/><ellipse cx="66" cy="42" rx="17" ry="14" transform="rotate(20 66 42)"/><ellipse cx="36" cy="64" rx="13" ry="11" transform="rotate(15 36 64)" fill="#FF6B9D"/><ellipse cx="64" cy="64" rx="13" ry="11" transform="rotate(-15 64 64)" fill="#FF6B9D"/></g><rect x="46" y="34" width="8" height="40" rx="4" fill="#4A3426"/><path d="M48 32 Q42 22 36 20 M52 32 Q58 22 64 20" stroke="#4A3426" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  hotspring:`<ellipse cx="50" cy="68" rx="30" ry="14" fill="#7CC4F0"/><path d="M36 50 Q32 40 36 32 M50 52 Q46 40 50 30 M64 50 Q60 40 64 32" stroke="#9CC8E8" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  cow:    `<ellipse cx="50" cy="56" rx="26" ry="22" fill="#C68A4F"/><ellipse cx="50" cy="66" rx="13" ry="9" fill="#F2D9BD"/><circle cx="41" cy="48" r="4" fill="#4A3426"/><circle cx="59" cy="48" r="4" fill="#4A3426"/><circle cx="45" cy="65" r="2.5" fill="#8E5A2B"/><circle cx="55" cy="65" r="2.5" fill="#8E5A2B"/><path d="M26 40 Q18 32 20 24 M74 40 Q82 32 80 24" stroke="#A8794A" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="28" cy="46" rx="7" ry="5" fill="#C68A4F"/><ellipse cx="72" cy="46" rx="7" ry="5" fill="#C68A4F"/>`,
+  fish:   `<ellipse cx="46" cy="52" rx="26" ry="15" fill="#7CC4F0"/><path d="M70 52 L88 38 L88 66 Z" fill="#5BB8F0"/><circle cx="32" cy="48" r="4" fill="#1B4F8F"/><path d="M40 44 Q48 38 58 42 M42 60 Q50 66 60 62" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  garlic: `<path d="M50 26 Q42 36 36 50 Q30 70 50 78 Q70 70 64 50 Q58 36 50 26 Z" fill="#F6F0E4" stroke="#D9CBB0" stroke-width="3"/><path d="M50 30 V76 M42 40 Q46 60 50 76 M58 40 Q54 60 50 76" stroke="#D9CBB0" stroke-width="2.5" fill="none"/><path d="M50 26 Q52 16 58 12" stroke="#5CB531" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+  cave:   `<path d="M20 80 Q20 34 50 30 Q80 34 80 80 Z" fill="#8E7BE5"/><path d="M34 80 Q34 52 50 50 Q66 52 66 80 Z" fill="#3B2F66"/><path d="M44 50 L46 62 M56 52 L54 64" stroke="#C9BEF5" stroke-width="4" stroke-linecap="round"/>`,
+  volcano:`<path d="M22 78 Q34 42 44 40 L56 40 Q66 42 78 78 Z" fill="#C68A4F"/><ellipse cx="50" cy="40" rx="9" ry="4" fill="#8E5A2B"/><path d="M30 66 Q40 58 50 66 T70 66" stroke="#A8D158" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  plane:  `<path d="M22 58 L78 42 Q86 40 84 48 L80 52 L40 64 Z" fill="#fff" stroke="#1278C2" stroke-width="4"/><path d="M52 48 L42 30 L52 30 L62 45 Z" fill="#7CC4F0"/><path d="M44 60 L38 72 L46 70 L52 58 Z" fill="#7CC4F0"/><circle cx="74" cy="46" r="3" fill="#1278C2"/>`,
+  car:    `<path d="M22 62 Q24 48 36 46 L62 44 Q74 44 78 56 L80 62 Q82 70 74 70 H28 Q20 70 22 62 Z" fill="#5BB8F0" stroke="#1278C2" stroke-width="3.5"/><rect x="38" y="48" width="20" height="11" rx="4" fill="#DFF3FD"/><circle cx="36" cy="70" r="7" fill="#1B4F8F"/><circle cx="66" cy="70" r="7" fill="#1B4F8F"/>`,
+  chip:   `<rect x="30" y="30" width="40" height="40" rx="6" fill="#1B4F8F"/><rect x="40" y="40" width="20" height="20" rx="3" fill="#7CC4F0"/><g stroke="#1B4F8F" stroke-width="5" stroke-linecap="round"><path d="M38 30 V18 M50 30 V18 M62 30 V18 M38 70 V82 M50 70 V82 M62 70 V82 M30 38 H18 M30 50 H18 M30 62 H18 M70 38 H82 M70 50 H82 M70 62 H82"/></g>`,
+  pottery:`<path d="M38 26 H62 Q58 36 64 44 Q74 56 64 72 Q58 80 50 80 Q42 80 36 72 Q26 56 36 44 Q42 36 38 26 Z" fill="#7FB8A4" stroke="#4E8A75" stroke-width="3"/><path d="M40 50 Q50 44 60 50 M42 60 Q50 55 58 60" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>`,
+  building:`<rect x="30" y="26" width="40" height="56" rx="4" fill="#9CC8E8"/><g fill="#FFF3C9"><rect x="37" y="34" width="9" height="9"/><rect x="54" y="34" width="9" height="9"/><rect x="37" y="50" width="9" height="9"/><rect x="54" y="50" width="9" height="9"/><rect x="44" y="66" width="12" height="16" fill="#1B4F8F"/></g>`,
+  strawberry:`<path d="M50 36 Q72 38 70 58 Q66 78 50 82 Q34 78 30 58 Q28 38 50 36 Z" fill="#E2574C"/><g fill="#FFF3C9"><circle cx="42" cy="52" r="2.5"/><circle cx="58" cy="52" r="2.5"/><circle cx="50" cy="64" r="2.5"/><circle cx="40" cy="66" r="2"/><circle cx="60" cy="66" r="2"/></g><path d="M40 36 L50 26 L60 36 L50 40 Z" fill="#2FA34F"/>`,
+};
+// 지역성 → 스탬프 매핑 (위에서부터 우선)
+const STAMP_RULES = [
+  [/치즈/,'cheese'], [/녹차|차밭|다향/,'tea'], [/한우|목축|축산/,'cow'],
+  [/조선 공업|조선소|항구|항만|포구/,'ship'], [/제철|철강|석유 화학|정유|시멘트/,'factory'],
+  [/공항/,'plane'], [/자동차/,'car'], [/반도체|전자|디스플레이|IT|광\(光\)/,'chip'],
+  [/사과/,'apple'], [/포도|와인|복분자/,'grape'], [/감귤/,'citrus'], [/딸기/,'strawberry'],
+  [/인삼|홍삼|산수유/,'ginseng'], [/마늘|양파/,'garlic'],
+  [/갯벌|염전|천일염|대게|꽃게/,'crab'], [/오징어|산천어|재첩|굴비|수산|멸치|전복/,'fish'],
+  [/동굴|카르스트|석회/,'cave'], [/화산|오름|용암|주상 절리|분화구/,'volcano'],
+  [/눈|동계|스키|설|폭설/,'snow'], [/온천/,'hotspring'],
+  [/청자|도자기|옹기/,'pottery'], [/나비|반딧불|생태|습지|늪|철새/,'butterfly'],
+  [/불국사|해인사|하회|법주사|사찰|향교|서원|읍성|한옥|고인돌|왕릉|유적|성당|절/,'temple'],
+  [/KTX|철도|기차|전철/,'train'], [/등대|다도해|섬|도서/,'lighthouse'],
+  [/벼|쌀|평야|곡창|간척/,'rice'], [/혁신도시|도청|행정|신도시|청사/,'building'],
+  [/국립 공원|산맥|고원|봉|산$|산지|지리산|설악|덕유|소백/,'mountain'],
+];
+function stampsOf(loc){
+  const text=(loc.fact||'')+' '+(loc.name||'');
+  const found=[];
+  for(const [re,key] of STAMP_RULES){
+    if(re.test(text) && !found.includes(key)) found.push(key);
+    if(found.length>=2) break;
+  }
+  if(!found.length) found.push('mountain');
+  return found;
+}
+function stampSVG(key, x, y, size, flip){
+  const art=STAMP_ART[key]||STAMP_ART.mountain;
+  return `<g data-stamp="${key}" transform="translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${(size/100*(flip?-1:1)).toFixed(4)},${(size/100).toFixed(4)}) translate(-50,-50)">${art}</g>`;
+}
+
+// 아이콘 스타일의 귀여운 땅 캐릭터: 연두 땅 + 흰 외곽선(고정 두께) + 얼굴
+function cuteLandSVG(mu, withFace, loc){
+  const bb=muniBBox(mu), m=MUNIS[mu];
+  const s=Math.sqrt(bb.w*bb.h);          // 기하평균 → 길쭉한 지역도 얼굴 크기 일정
+  // 얼굴 비율 (도형 크기에 비례 → 카드마다 같은 느낌)
+  const er=s*0.052, gap=s*0.14;
+  const fx=m.cx, fy=m.cy;
+  const face=withFace?`
+    <g class="land-face">
+      <circle cx="${fx-gap/2}" cy="${fy}" r="${er}" fill="#4A3426"/>
+      <circle cx="${fx+gap/2}" cy="${fy}" r="${er}" fill="#4A3426"/>
+      <circle cx="${fx-gap/2+er*0.3}" cy="${fy-er*0.35}" r="${er*0.32}" fill="#fff"/>
+      <circle cx="${fx+gap/2+er*0.3}" cy="${fy-er*0.35}" r="${er*0.32}" fill="#fff"/>
+      <ellipse cx="${fx-gap*0.95}" cy="${fy+er*1.1}" rx="${er*0.85}" ry="${er*0.5}" fill="#FF8F7A" opacity=".65"/>
+      <ellipse cx="${fx+gap*0.95}" cy="${fy+er*1.1}" rx="${er*0.85}" ry="${er*0.5}" fill="#FF8F7A" opacity=".65"/>
+      <path d="M ${fx-er*0.9} ${fy+er*1.15} Q ${fx} ${fy+er*2.3} ${fx+er*0.9} ${fy+er*1.15}"
+            fill="none" stroke="#4A3426" stroke-width="${(er*0.42).toFixed(2)}" stroke-linecap="round"/>
+    </g>`:'';
+  // 지역성 스탬프: 주제 일러스트를 땅 주변에 배치
+  let stampG='';
+  if(withFace && loc){
+    const st=stampsOf(loc);
+    stampG += stampSVG(st[0], fx+s*0.40, fy-s*0.34, s*0.46, false);
+    if(st[1]) stampG += stampSVG(st[1], fx-s*0.42, fy+s*0.34, s*0.36, false);
+  }
+  return `<svg viewBox="${bb.x.toFixed(0)} ${bb.y.toFixed(0)} ${bb.w.toFixed(0)} ${bb.h.toFixed(0)}" class="card-sil">
+    <path d="${m.d}" class="land-shadow" vector-effect="non-scaling-stroke"/>
+    <path d="${m.d}" class="land" vector-effect="non-scaling-stroke"/>
+    ${face}${stampG}</svg>`;
+}
 function cardHTML(loc, owned, count){
   const rar=RARITY_META[rarityOf(loc)];
-  const mu=loc.accept[0], bb=muniBBox(mu);
+  const mu=loc.accept[0];
+  const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
   const meaning=(loc.fact||'').split(/[,·]/)[0].trim();
-  const sil=`<svg viewBox="${bb.x.toFixed(0)} ${bb.y.toFixed(0)} ${bb.w.toFixed(0)} ${bb.h.toFixed(0)}" class="card-sil"><path d="${MUNIS[mu].d}" /></svg>`;
   if(!owned){
-    return `<div class="rcard unknown"><div class="card-sil-wrap">${sil}</div><div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
+    return `<div class="rcard unknown">
+      <div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div>
+      <div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
   }
-  return `<div class="rcard ${rar.cls}">
+  return `<div class="rcard ${rar.cls}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-rar">${rar.label}</div>
-    <div class="rcard-emoji">${cardEmoji(loc)}</div>
-    <div class="card-sil-wrap">${sil}</div>
+    <div class="rcard-reg">${loc.region}</div>
+    <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
+    <span class="rcard-cloud c1"></span><span class="rcard-cloud c2"></span>
+    <div class="card-sil-wrap">${cuteLandSVG(mu,true,loc)}</div>
     <div class="rcard-name">${loc.name}</div>
     <div class="rcard-meaning">${meaning}</div>
     ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
   </div>`;
+}
+// 카드 상세 보기: 큰 카드 + 전체 설명 + 실제 이미지(마스코트·명소) 검색 연결
+function openCardDetail(loc){
+  const modal=$('gacha-modal');
+  modal.classList.remove('hidden');
+  const card=$('gacha-card');
+  card.classList.add('flipped'); card.classList.remove('legend-glow');
+  if(rarityOf(loc)==='전설') card.classList.add('legend-glow');
+  $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
+  $('gacha-msg').innerHTML=
+    `<div style="max-width:300px;margin:0 auto;line-height:1.6">${loc.fact}</div>`+
+    `<div style="margin-top:8px">${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'마스코트')} ${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'관광 명소')}</div>`;
+  $('btn-draw-again').classList.add('hidden');
+}
+// 🗺️ 정복 지도: 수집한 카드의 시·군이 권역 색으로 채워짐
+function conquestMapSVG(){
+  const ownedMuni=new Set();
+  Object.keys(cards).forEach(n=>{
+    const l=LOCATIONS.find(x=>x.name===n);
+    if(l) l.accept.forEach(a=>ownedMuni.add(a));
+  });
+  let paths='';
+  for(const [name,m] of Object.entries(MUNIS)){
+    if(ownedMuni.has(name)){
+      const c=(REGION_COLORS[m.region]||{}).map||'#9CC8E8';
+      paths+=`<path d="${m.d}" fill="${c}" stroke="#FFFFFF" stroke-width=".7"/>`;
+    } else {
+      paths+=`<path d="${m.d}" fill="#E9F0F4" stroke="#D3DEE6" stroke-width=".5"/>`;
+    }
+  }
+  let borders='';
+  for(const p of Object.values(PROVINCES)) borders+=`<path d="${p.d}" fill="none" stroke="#B9C9D4" stroke-width="1"/>`;
+  const total=new Set(LOCATIONS.flatMap(l=>l.accept)).size;
+  return {svg:`<svg viewBox="-8 -8 776 822" class="conquest-map">${paths}${borders}</svg>`,
+          owned:ownedMuni.size, total};
 }
 function updateGachaUI(){
   if($('coin-cnt')) $('coin-cnt').innerHTML=`🪙 <b>${coins}</b>`;
@@ -1367,7 +1508,7 @@ function renderCollection(filter){
     const el=document.createElement('div');
     el.innerHTML=cardHTML(l,owned,cards[l.name]||0);
     const c=el.firstElementChild;
-    c.onclick=()=>{ if(owned){ c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); } };
+    c.onclick=()=>{ if(owned) openCardDetail(l); };
     grid.appendChild(c);
   });
   const ownedCnt=list.filter(l=>cards[l.name]).length;
@@ -1375,6 +1516,11 @@ function renderCollection(filter){
 }
 function openCollection(){
   show('screen-cards');
+  // 정복 지도
+  const cq=conquestMapSVG();
+  $('conquest-wrap').innerHTML=
+    `<div class="conquest-head">🗺️ 나의 백지도 정복 <b>${cq.owned}</b>/${cq.total} 시·군</div>`+cq.svg+
+    `<div class="map-hint" style="text-align:center">카드를 모으면 백지도가 권역 색으로 채워집니다</div>`;
   const chipBox=$('coll-chips'); chipBox.innerHTML='';
   ['전체',...MAP_REGIONS].forEach(r=>{
     const b=document.createElement('button');
@@ -1480,7 +1626,11 @@ $('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=nul
 // ---------- 카드 뽑기/컬렉션 이벤트 ----------
 $('btn-draw').onclick=openGacha;
 $('btn-draw-again').onclick=openGacha;
-$('btn-gacha-close').onclick=()=>{ $('gacha-modal').classList.add('hidden'); initHome(); };
+$('btn-gacha-close').onclick=()=>{
+  $('gacha-modal').classList.add('hidden');
+  $('btn-draw-again').classList.remove('hidden');
+  if($('screen-cards').classList.contains('active')) openCollection(); else initHome();
+};
 $('btn-collection').onclick=openCollection;
 $('btn-cards-back').onclick=()=>{ initHome(); show('screen-home'); };
 

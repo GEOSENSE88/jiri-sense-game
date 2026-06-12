@@ -262,7 +262,27 @@ console.log('\n=== 카드 컬렉션 ===');
   window.eval('Math.random=Math._g;');
   const html = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='울산'), true, 1)`);
   check(html.includes('card-sil') && html.includes('legend'), '울산 카드 = 전설 등급 + 실루엣 포함');
+  check(html.includes('land-face'), '카드에 귀여운 얼굴(눈·볼·미소) 포함');
+  check(html.includes('vector-effect="non-scaling-stroke"'), '외곽선 두께 균일(non-scaling-stroke)');
+  check(html.includes('rcard-reg') && html.includes('영남'), '권역 칩 표시');
+  check(html.includes('--regbg'), '권역별 배경색 변수 적용');
+  // 지역성 스탬프 일러스트
+  const bs = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='보성'), true, 1)`);
+  check(bs.includes('data-stamp="tea"'), '보성 카드에 찻잎 일러스트');
+  const hs = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='횡성'), true, 1)`);
+  check(hs.includes('data-stamp="cow"'), '횡성 카드에 소 일러스트');
+  const gj = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='거제'), true, 1)`);
+  check(gj.includes('data-stamp="ship"'), '거제 카드에 배 일러스트');
+  check(window.eval('Object.keys(STAMP_ART).length') >= 20, '스탬프 라이브러리 20종 이상');
+  // 전체 카드가 스탬프를 갖는지(기본 mountain 폴백 포함)
+  const noStamp = window.eval(`LOCATIONS.filter(l=>!cardHTML(l,true,1).includes('data-stamp')).length`);
+  check(noStamp === 0, '모든 카드에 테마 일러스트 부여');
   check(window.eval(`cardHTML(LOCATIONS[5], false, 0)`).includes('???'), '미보유 카드는 ??? 처리');
+  // 정복 지도
+  window.eval(`cards={'보성':1,'울산':1}; store.save('geo_cards',cards);`);
+  const cq = JSON.parse(window.eval('const _c=conquestMapSVG(); JSON.stringify({owned:_c.owned,total:_c.total,hasFill:_c.svg.includes("#A795E0")||_c.svg.includes("#F08A80")})'));
+  check(cq.owned === 2 && cq.total > 100, `정복 지도: 보유 시·군 ${cq.owned}/${cq.total} 채움`);
+  check(cq.hasFill, '정복 지도에 권역 색 채움');
   // 결과 화면 코인 적립
   window.eval("G.mode='mcq'; G.battle=null; G.idx=5; G.correctCnt=4; G.score=620; G.maxCombo=3; coins=0; endGame()");
   check(window.eval('coins') === 6, '결과: 620점 → 6🪙 적립');
