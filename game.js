@@ -657,6 +657,14 @@ function buildPermChoices(correct){
   return shuffle([correct, ...others]);
 }
 function permText(perm){ return ['(가)','(나)','(다)'].map((g,i)=>`${g}-${MARK_L[perm[i]]}`).join(' · '); }
+// 지도 마커 A·B·C: 좌상단 → 우상단 순서 (x 우선, 비슷하면 북쪽 먼저)
+function sortMarkers(arr, xy){
+  return arr.slice().sort((a,b)=>{
+    const A=xy(a), B=xy(b);
+    if(Math.abs(A.x-B.x)>=45) return A.x-B.x;
+    return A.y-B.y;
+  });
+}
 function fitViewTo(pts, pad){
   const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
   let x0=Math.min(...xs)-pad, y0=Math.min(...ys)-pad;
@@ -706,8 +714,8 @@ function askClimate(item){
 function askClimateMatch(set){
   const info=MODE_INFO[G.mode];
   const sts=set.st.map(n=>CLIMATE.find(c=>c.name===n));
-  const markers=shuffle(sts);                       // 지도 A·B·C
-  const gOrder=shuffle([0,1,2]);                    // (가나다)→마커 index
+  const markers=sortMarkers(sts, s=>({x:s.x, y:s.y}));        // A·B·C: 좌상단→우상단
+  const gOrder=[0,1,2].sort((a,b)=>climVal(markers[a],set.inds[0])-climVal(markers[b],set.inds[0])); // (가나다): 그래프 왼쪽부터
   const correct=gOrder;
   const m1=CLIM_INDS[set.inds[0]], m2=CLIM_INDS[set.inds[1]];
   const rows=gOrder.map(mi=>({v1:climVal(markers[mi],set.inds[0]), v2:climVal(markers[mi],set.inds[1])}));
@@ -813,8 +821,8 @@ function statVal(sd, key){
 function askStats(set){
   const info=MODE_INFO[G.mode];
   const sds=set.sd.map(n=>SIDO_STATS.find(s=>s.name===n));
-  const markers=shuffle(sds);
-  const gOrder=shuffle([0,1,2]);
+  const markers=sortMarkers(sds, s=>provCenter(s.name));      // A·B·C: 좌상단→우상단
+  const gOrder=[0,1,2].sort((a,b)=>statVal(markers[a],set.inds[0])-statVal(markers[b],set.inds[0])); // (가나다): 그래프 왼쪽부터
   const correct=gOrder;
   const m1=STAT_INDS[set.inds[0]], m2=STAT_INDS[set.inds[1]];
   const rows=gOrder.map(mi=>({v1:statVal(markers[mi],set.inds[0]), v2:statVal(markers[mi],set.inds[1])}));

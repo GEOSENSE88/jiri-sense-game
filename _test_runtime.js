@@ -126,6 +126,21 @@ window.eval("startGame('climate'); G.queue=[{kind:'match',set:CLIMATE_SETS[0]},{
 check(document.querySelectorAll('#map-svg .match-mark').length === 3, '지도에 A·B·C 마커 3개');
 check(document.querySelector('#question-box svg.climate-graph') !== null, '산점도 SVG 렌더링');
 check(document.getElementById('question-box').textContent.includes('(가)'), '(가)~(다) 자료 표기');
+// 표기 순서 규칙: A·B·C는 좌상단→우상단, (가나다)는 그래프 왼쪽(첫 지표 오름차순)부터
+{
+  const marks=[...document.querySelectorAll('#map-svg .match-mark circle')]
+    .map(c=>({x:+c.getAttribute('cx'), y:+c.getAttribute('cy')}));
+  let ordered=true;
+  for(let i=0;i<2;i++){
+    if(Math.abs(marks[i].x-marks[i+1].x)>=45){ if(marks[i].x>marks[i+1].x) ordered=false; }
+    else if(marks[i].y>marks[i+1].y) ordered=false;
+  }
+  check(ordered, 'A·B·C 마커가 좌상단→우상단 순서');
+  const svgTxt=document.querySelector('#question-box svg.climate-graph').innerHTML;
+  const ga=svgTxt.indexOf('(가)'), na=svgTxt.indexOf('(나)'), da=svgTxt.indexOf('(다)');
+  const xs=[...svgTxt.matchAll(/<circle cx="([\d.]+)"/g)].map(m=>+m[1]);
+  check(xs[0]<=xs[1] && xs[1]<=xs[2], '(가)~(다)가 그래프 왼쪽부터 순서대로');
+}
 check(document.querySelectorAll('#choices-box .choice-btn').length === 5, '순열 보기 5개');
 {
   // 정답 보기 클릭 (G의 내부 correct 알 수 없으므로 모든 버튼 텍스트 중 정답 클릭은 dataset.p 비교로)
