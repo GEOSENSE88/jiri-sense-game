@@ -85,7 +85,10 @@ function initHome(){
   });
   let rank=RANKS[0], next=null;
   for(const r of RANKS){ if(xp>=r[0]) rank=r; else { next=r; break; } }
-  $('rank-badge').textContent=rank[1];
+  const streak=store.load('geo_streak',0);
+  const today=new Date().toDateString();
+  const streakOn = store.load('geo_lastday','')===today;
+  $('rank-badge').innerHTML=rank[1]+(streak>=1?` <span class="streak-chip">${streakOn?'🔥':'⏳'} ${streak}일 연속</span>`:'');
   $('xp-bar').style.width = next? Math.min(100,(xp-rank[0])/(next[0]-rank[0])*100)+'%' : '100%';
   $('xp-text').textContent = next? `XP ${xp} / 다음 계급(${next[1]})까지 ${next[0]-xp}` : `XP ${xp} — 최고 계급 달성!`;
   const ml=$('mastery-list'); ml.innerHTML='';
@@ -472,10 +475,23 @@ function studyExtra(name){
 
 function feedback(correct, head, body, pts){
   const fb=$('feedback-box');
+  // 콤보 칭찬
+  const combo = G.battle ? G.battle.combos[G.battle.turn-1] : G.combo;
+  let flair='';
+  if(correct && combo>=2){
+    flair = combo>=7 ? ` · ${combo}연속! 백지도가 머릿속에 있다 🗺️✨`
+          : combo>=5 ? ` · ${combo}연속! 지리 감각 폭발 🔥🔥`
+          : combo>=3 ? ` · ${combo}연속 🔥` : ` · ${combo}연속!`;
+  }
   fb.className='feedback-box '+(correct?'good':'bad');
-  fb.innerHTML=`<div class="fb-head">${head}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
+  fb.innerHTML=`<div class="fb-head">${head}${flair}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);
+  // 모바일: 해설이 보이도록 자동 스크롤 + 가벼운 진동
+  if(window.innerWidth<=820){
+    setTimeout(()=>fb.scrollIntoView({behavior:'smooth', block:'center'}),60);
+  }
+  try { if(navigator.vibrate) navigator.vibrate(correct?25:[50,40,50]); } catch(e){}
 }
 
 // ============================================================
@@ -653,8 +669,8 @@ function addMatchMark(x, y, letter){
   const svg=$('map-svg');
   const g=document.createElementNS('http://www.w3.org/2000/svg','g');
   g.setAttribute('class','match-mark');
-  g.innerHTML=`<circle cx="${x}" cy="${y}" r="13" fill="#FF8F00" stroke="#131C22" stroke-width="2"/>`+
-    `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#131C22">${letter}</text>`;
+  g.innerHTML=`<circle cx="${x}" cy="${y}" r="13" fill="#FF7200" stroke="#FFFCF0" stroke-width="2.5"/>`+
+    `<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#FFFCF0">${letter}</text>`;
   svg.appendChild(g); return g;
 }
 // 산점도: 두 지표 평면에 (가)~(다) 점 표시 — 수능 자료 형식
@@ -666,15 +682,15 @@ function renderScatterSVG(rows, m1, m2){
   const py=v=>T+(H-T-B)*(1-((v-y0)/((y1-y0)||1)*0.8+0.1));
   let pts='';
   rows.forEach((r,i)=>{
-    pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5" fill="#3282B8"/>`+
-      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#BBE1FA">(${'가나다'[i]})</text>`+
-      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#7d97ad">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
+    pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5.5" fill="#3B82F6" stroke="#fff" stroke-width="1.5"/>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#7A4E21">(${'가나다'[i]})</text>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9B8868">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
-    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#4a6884"/>
-    <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="#4a6884"/>
-    <text x="${(L+W-R)/2}" y="${H-12}" text-anchor="middle" font-size="10" fill="#9db4c8">${m1.label}(${m1.unit}) →</text>
-    <text x="14" y="${(T+H-B)/2}" font-size="10" fill="#9db4c8" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">${m2.label}(${m2.unit}) →</text>
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#D9C28E"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="#D9C28E"/>
+    <text x="${(L+W-R)/2}" y="${H-12}" text-anchor="middle" font-size="10" fill="#9B8868">${m1.label}(${m1.unit}) →</text>
+    <text x="14" y="${(T+H-B)/2}" font-size="10" fill="#9B8868" transform="rotate(-90 14 ${(T+H-B)/2})" text-anchor="middle">${m2.label}(${m2.unit}) →</text>
     ${pts}</svg>`;
 }
 
@@ -1000,30 +1016,63 @@ function positionTip(e,tip){
 // ============================================================
 // 종료 / 결과
 // ============================================================
+// 연속 학습(스트릭) 기록
+function bumpStreak(){
+  const today=new Date().toDateString();
+  const last=store.load('geo_lastday','');
+  if(last===today) return store.load('geo_streak',1);
+  const yest=new Date(Date.now()-864e5).toDateString();
+  const s=(last===yest)? store.load('geo_streak',0)+1 : 1;
+  store.save('geo_lastday',today); store.save('geo_streak',s);
+  return s;
+}
+// 결과 꽃가루
+function confetti(host){
+  const colors=['#FEC428','#FF7200','#05A66B','#3B82F6','#FF6B9D'];
+  for(let i=0;i<26;i++){
+    const s=document.createElement('span');
+    s.className='confetti';
+    s.style.cssText=`left:${Math.random()*100}%;background:${colors[i%colors.length]};animation-delay:${Math.random()*0.7}s;animation-duration:${1.6+Math.random()*1.2}s;transform:rotate(${Math.random()*360}deg)`;
+    host.appendChild(s);
+    setTimeout(()=>s.remove(), 3200);
+  }
+}
+function resultComment(acc){
+  if(acc>=90) return '이 감각이면 수능장에서도 흔들리지 않겠어요. 만점 가즈아! 🏆';
+  if(acc>=70) return '상위권 페이스! 틀린 지역만 탐색 모드로 복습하면 완성 💪';
+  if(acc>=50) return '기본기 장착 완료. 빈출 지역부터 한 번 더 돌아봐요 📚';
+  return '오늘 틀린 지역이 수능날의 점수가 됩니다. 탐색 모드부터 차근차근! 🌱';
+}
+
 function endGame(){
   stopTimer();
   $('map-svg').onclick=null;
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
   show('screen-result');
+  bumpStreak();
   const detail=$('result-detail');
   $('name-entry').classList.add('hidden');
 
   if(G.battle){
     const b=G.battle;
     const w = b.scores[0]===b.scores[1] ? -1 : (b.scores[0]>b.scores[1]?0:1);
+    const gap = Math.abs(b.scores[0]-b.scores[1]);
     $('result-title').textContent='⚔️ 배틀 결과';
     $('result-main').textContent = w<0 ? '무승부!' : `🏆 ${b.names[w]} 승리!`;
-    detail.innerHTML=`<table class="vs-table">
+    const tag = w<0 ? '다시 붙어야겠죠?' : gap<150 ? '진땀나는 접전이었어요!' : '압도적인 승리!';
+    detail.innerHTML=`${tag}<table class="vs-table">
       <tr><td><b>${b.names[0]}</b></td><td>${b.scores[0]}점</td><td>정답 ${b.correct[0]}/${Math.ceil(G.queue.length/2)}</td></tr>
       <tr><td><b>${b.names[1]}</b></td><td>${b.scores[1]}점</td><td>정답 ${b.correct[1]}/${Math.floor(G.queue.length/2)}</td></tr></table>`;
     xp+=Math.round((b.scores[0]+b.scores[1])/20);
+    confetti(document.querySelector('.result-card'));
   } else {
     const answered = G.idx;
     $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
     $('result-main').textContent=G.score+'점';
     const acc = answered? Math.round(G.correctCnt/answered*100):0;
-    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%)<br>최대 콤보 ${G.maxCombo}🔥`;
+    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
     xp+=Math.round(G.score/10);
+    if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
     if(G.score>0){
       $('name-entry').classList.remove('hidden');
       $('player-name').value=store.load('geo_lastname','');
