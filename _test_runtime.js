@@ -120,38 +120,24 @@ document.querySelector(`#map-svg .muni[data-name="${ms.accept[0]}"]`)
 check(window.eval('G.score') > 0, '정답 시·군 탭 → 점수 부여');
 check(document.getElementById('feedback-box').textContent.includes(ms.name), '해설에 마스코트 정보 표시');
 
-console.log('\n=== 기후 비교 (매칭형) ===');
-// 매칭형 강제 진입
+console.log('\n=== 기후 비교 (2지역 탭형) ===');
+// Math.random=0 → qtype 'tap', 차트 'dual'
+window.eval("Math._r=Math.random; Math.random=()=>0;");
 window.eval("startGame('climate'); G.queue=[{kind:'match',set:CLIMATE_SETS[0]},{kind:'order',set:ORDER_SETS[0]}]; G.idx=0; nextQuestion();");
-check(document.querySelectorAll('#map-svg .match-mark').length === 3, '지도에 A·B·C 마커 3개');
-check(document.querySelector('#question-box svg.climate-graph') !== null, '산점도 SVG 렌더링');
-check(document.getElementById('question-box').textContent.includes('(가)'), '(가)~(다) 자료 표기');
-// 표기 순서 규칙: A·B·C는 좌상단→우상단, (가나다)는 그래프 왼쪽(첫 지표 오름차순)부터
+check(document.querySelectorAll('#map-svg .match-mark').length === 2, '지도에 A·B 마커 2개');
+check(document.querySelector('#question-box .dual-climate') !== null, '기후 그래프 2개 나란히(dual) 렌더링');
+check(document.getElementById('question-box').textContent.includes('(가)'), '(가) 탭 발문');
 {
   const marks=[...document.querySelectorAll('#map-svg .match-mark circle')]
     .map(c=>({x:+c.getAttribute('cx'), y:+c.getAttribute('cy')}));
-  let ordered=true;
-  for(let i=0;i<2;i++){
-    if(Math.abs(marks[i].x-marks[i+1].x)>=45){ if(marks[i].x>marks[i+1].x) ordered=false; }
-    else if(marks[i].y>marks[i+1].y) ordered=false;
-  }
-  check(ordered, 'A·B·C 마커가 좌상단→우상단 순서');
-  const svgTxt=document.querySelector('#question-box svg.climate-graph').innerHTML;
-  const ga=svgTxt.indexOf('(가)'), na=svgTxt.indexOf('(나)'), da=svgTxt.indexOf('(다)');
-  const xs=[...svgTxt.matchAll(/<circle cx="([\d.]+)"/g)].map(m=>+m[1]);
-  check(xs[0]<=xs[1] && xs[1]<=xs[2], '(가)~(다)가 그래프 왼쪽부터 순서대로');
+  const ordered = Math.abs(marks[0].x-marks[1].x)>=45 ? marks[0].x<=marks[1].x : marks[0].y<=marks[1].y;
+  check(ordered, 'A·B 마커가 좌상단→우상단 순서');
 }
-check(document.querySelectorAll('#choices-box .choice-btn').length === 5, '순열 보기 5개');
-{
-  // 정답 보기 클릭 (G의 내부 correct 알 수 없으므로 모든 버튼 텍스트 중 정답 클릭은 dataset.p 비교로)
-  const btns=[...document.querySelectorAll('#choices-box .choice-btn')];
-  // 정답을 모르는 상태 → 아무거나 클릭 후 correct 클래스가 정확히 1개 버튼에 표시되는지 확인
-  btns[0].click();
-  const marked=btns.filter(b=>b.classList.contains('correct'));
-  check(marked.length === 1, '정답 보기 하이라이트 1개');
-  check(document.getElementById('feedback-box').textContent.includes('📌'), '해설에 학습 포인트(point) 표시');
-  check(document.querySelectorAll('#map-svg .loc-label').length === 3, '지역명 공개(라벨 3개)');
-}
+// 지도 탭 → 즉시 채점
+document.getElementById('map-svg').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+check(!document.getElementById('feedback-box').classList.contains('hidden'), '탭 후 즉시 피드백');
+check(document.getElementById('feedback-box').textContent.includes('📌'), '학습 포인트 표시');
+check(document.querySelectorAll('#map-svg .loc-label').length === 2, '두 지역명 공개');
 document.getElementById('btn-next').click();
 console.log('--- 순서형 ---');
 check(document.getElementById('game-body').classList.contains('no-map'), '순서형은 지도 숨김');
@@ -163,20 +149,37 @@ check(document.getElementById('question-box').textContent.includes('순서대로
   check(btns.filter(b=>b.classList.contains('correct')).length === 1, '순서형 정답 표시');
   check(document.getElementById('feedback-box').textContent.includes('>'), '해설에 값 순서 표시');
 }
-
-console.log('\n=== 통계 비교 (매칭형) ===');
-window.eval("startGame('stats')");
-const statSet = window.eval('G.queue[0]');
-check(document.querySelectorAll('#map-svg .match-mark').length === 3, '시·도 마커 3개');
-check(document.querySelector('#question-box svg.climate-graph') !== null, '통계 산점도 렌더링');
-check(document.querySelectorAll('#map-svg .muni.dim-region').length > 0, '비대상 시·도 흐림 처리');
+console.log('--- 진술형 ---');
+window.eval("Math.random=()=>0.9;");   // qtype 'stmt', 차트 scatter
+window.eval("startGame('climate'); G.queue=[{kind:'match',set:CLIMATE_SETS[1]}]; G.idx=0; nextQuestion();");
+check(document.getElementById('question-box').textContent.includes('옳은 것'), '진술형 발문');
 {
   const btns=[...document.querySelectorAll('#choices-box .choice-btn')];
-  check(btns.length === 5, '순열 보기 5개');
-  btns[0].click();
-  check(btns.filter(b=>b.classList.contains('correct')).length === 1, '정답 보기 표시');
+  check(btns.length === 4, '진술 보기 4개');
+  check(btns.every(b=>b.textContent.includes('보다')), '모든 보기가 A·B 비교 진술');
+  check(btns.filter(b=>b.dataset.t==='1').length === 1, '옳은 진술 정확히 1개');
+  btns.find(b=>b.dataset.t==='1').click();
+  check(window.eval('G.score') > 0, '진술형 정답 → 점수');
+}
+window.eval("Math.random=Math._r;");
+
+console.log('\n=== 통계 비교 (2지역) ===');
+window.eval("Math._r2=Math.random; Math.random=()=>0;");   // tap형 + table 차트
+window.eval("startGame('stats')");
+check(document.querySelectorAll('#map-svg .match-mark').length === 2, '시·도 마커 2개');
+check(document.querySelector('#question-box .pair-table') !== null, '도표(pair-table) 렌더링');
+check(document.querySelectorAll('#map-svg .muni.dim-region').length > 0, '비대상 시·도 흐림 처리');
+{
+  // A·B 외 시·도 탭은 무시되어야 함
+  const other=[...document.querySelectorAll('#map-svg .muni')].find(m=>m.classList.contains('dim-region'));
+  other.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(document.getElementById('feedback-box').classList.contains('hidden'), 'A·B 외 시·도 탭 무시');
+  const bright=[...document.querySelectorAll('#map-svg .muni')].find(m=>!m.classList.contains('dim-region'));
+  bright.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(!document.getElementById('feedback-box').classList.contains('hidden'), 'A·B 탭 → 채점');
   check(document.getElementById('feedback-box').textContent.includes('📌'), '학습 포인트 표시');
 }
+window.eval("Math.random=Math._r2;");
 
 console.log('\n=== 시·도 클릭 (시·군 탭 방식) ===');
 window.eval("startGame('province')");

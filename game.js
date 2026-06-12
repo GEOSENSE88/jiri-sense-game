@@ -36,8 +36,8 @@ const MODE_INFO = {
   location: {title:'📍 위치 사냥', useMap:true, n:12, time:18},
   muniname: {title:'🔎 지역 판독', useMap:true, n:12, time:15},
   mascot:   {title:'🐯 마스코트 찾기', useMap:true, n:10, time:18},
-  climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:35},
-  stats:    {title:'📊 통계 비교', useMap:true, n:8, time:35},
+  climate:  {title:'🌡️ 기후 비교', useMap:true, n:8, time:30},
+  stats:    {title:'📊 통계 비교', useMap:true, n:8, time:30},
   province: {title:'🧩 시·도 클릭', useMap:true, n:10, time:14},
   mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:25},
   ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
@@ -260,18 +260,27 @@ function dimOtherRegions(region){
     if(p.dataset.region!==region) p.classList.add('dim-region');
   });
 }
+// ----- 지도 탭 리스너 중앙 관리: 문제 전환·이탈 시 반드시 해제 -----
+let activeMapTap=null;
+function setMapTap(fn){
+  clearMapTap();
+  activeMapTap=fn;
+  $('map-svg').addEventListener('click',fn);
+}
+function clearMapTap(){
+  if(activeMapTap){ $('map-svg').removeEventListener('click',activeMapTap); activeMapTap=null; }
+}
 // 각 시·군 탭 핸들러 등록(1회성)
 function onMuniTap(fn){
-  const svg=$('map-svg');
   const handler=(e)=>{
     if(suppressTap || G.locked) return;
     const t=e.target.closest('.muni');
     if(!t) return;
-    svg.removeEventListener('click',handler);
+    clearMapTap();
     fn(t, e);
   };
-  svg.addEventListener('click',handler);
-  return ()=>svg.removeEventListener('click',handler);
+  setMapTap(handler);
+  return clearMapTap;
 }
 
 // ============================================================
@@ -423,6 +432,7 @@ function recordStat(region, correct){
 // ---------- 진행 ----------
 function nextQuestion(){
   G.locked=false;
+  clearMapTap();
   $('feedback-box').classList.add('hidden');
   $('btn-next').classList.add('hidden');
   clearMapExtras();
@@ -623,6 +633,43 @@ function climateIndicators(st){
   return {tmin, tmax, range:+(tmax-tmin).toFixed(1), total:Math.round(total),
           sRate:Math.round(summer/total*100), wRate:Math.round(winter/total*100)};
 }
+// ----- 2지역 비교용 차트 렌더러들 (유형 다양화) -----
+// 묶음 막대: 지표별로 (가)(나) 막대 비교
+function renderPairBars(rows, metas, labels){
+  labels = labels || ['(가)','(나)'];
+  const W=330, H=46+metas.length*58;
+  let body='';
+  metas.forEach((m,mi)=>{
+    const v=[rows[0].v[mi], rows[1].v[mi]];
+    const max=Math.max(...v.map(Math.abs), 1e-9);
+    const y0=40+mi*58;
+    body+=`<text x="10" y="${y0}" font-size="10" font-weight="700" fill="#1B4F8F">${m.label}(${m.unit})</text>`;
+    v.forEach((val,i)=>{
+      const bw=Math.max(6, Math.abs(val)/max*180);
+      const y=y0+8+i*18;
+      body+=`<text x="10" y="${y+11}" font-size="10" font-weight="800" fill="#2C4A66">${labels[i]}</text>`+
+        `<rect x="38" y="${y}" width="${bw.toFixed(1)}" height="13" rx="4" fill="${i===0?'#20A2EE':'#A4CE4E'}"/>`+
+        `<text x="${(42+bw).toFixed(1)}" y="${y+11}" font-size="10" fill="#6E93AE">${val}</text>`;
+    });
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="18" font-size="9" fill="#98B9CE">자료 비교</text>${body}</svg>`;
+}
+// 도표: 수능식 표
+function renderPairTable(rows, metas, labels){
+  labels = labels || ['(가)','(나)'];
+  const tr=metas.map((m,mi)=>
+    `<tr><td>${m.label}(${m.unit})</td><td>${rows[0].v[mi]}</td><td>${rows[1].v[mi]}</td></tr>`).join('');
+  return `<table class="pair-table"><thead><tr><th>구분</th><th>${labels[0]}</th><th>${labels[1]}</th></tr></thead><tbody>${tr}</tbody></table>`;
+}
+// 기후 그래프 2개 나란히 (수능 단골 형태)
+function renderDualClimate(stA, stB, labels){
+  labels = labels || ['(가)','(나)'];
+  return `<div class="dual-climate">
+    <div><div class="dual-label">${labels[0]}</div>${renderClimateSVG(stA)}</div>
+    <div><div class="dual-label">${labels[1]}</div>${renderClimateSVG(stB)}</div>
+  </div>`;
+}
 function renderClimateSVG(st){
   const W=340, H=210, L=38, R=44, T=14, B=24;
   const pw=W-L-R, ph=H-T-B;
@@ -633,20 +680,20 @@ function renderClimateSVG(st){
   const yP=v=>T+ph*(1-v/pMax);
   let bars='', line='', dots='', gridT='';
   st.p.forEach((v,i)=>{ const bw=pw/12*0.62;
-    bars+=`<rect x="${(x(i)-bw/2).toFixed(1)}" y="${yP(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-B-yP(v)).toFixed(1)}" fill="#38bdf8" opacity=".75"/>`; });
-  line='<polyline fill="none" stroke="#f87171" stroke-width="2" points="'+
+    bars+=`<rect x="${(x(i)-bw/2).toFixed(1)}" y="${yP(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-B-yP(v)).toFixed(1)}" fill="#5BB8F0" opacity=".85"/>`; });
+  line='<polyline fill="none" stroke="#E2574C" stroke-width="2" points="'+
     st.t.map((v,i)=>`${x(i).toFixed(1)},${yT(v).toFixed(1)}`).join(' ')+'"/>';
-  st.t.forEach((v,i)=>{ dots+=`<circle cx="${x(i).toFixed(1)}" cy="${yT(v).toFixed(1)}" r="2.4" fill="#f87171"/>`; });
-  [-20,-10,0,10,20].forEach(v=>{ gridT+=`<line x1="${L}" y1="${yT(v)}" x2="${W-R}" y2="${yT(v)}" stroke="#334155" stroke-width="${v===0?1:0.5}"/>`+
-    `<text x="${L-5}" y="${yT(v)+3}" text-anchor="end" font-size="8" fill="#94a3b8">${v}</text>`; });
+  st.t.forEach((v,i)=>{ dots+=`<circle cx="${x(i).toFixed(1)}" cy="${yT(v).toFixed(1)}" r="2.4" fill="#E2574C"/>`; });
+  [-20,-10,0,10,20].forEach(v=>{ gridT+=`<line x1="${L}" y1="${yT(v)}" x2="${W-R}" y2="${yT(v)}" stroke="#D8E8F2" stroke-width="${v===0?1.2:0.6}"/>`+
+    `<text x="${L-5}" y="${yT(v)+3}" text-anchor="end" font-size="8" fill="#6E93AE">${v}</text>`; });
   let gridP='';
-  for(let v=100; v<pMax; v+=100) gridP+=`<text x="${W-R+5}" y="${(yP(v)+3).toFixed(1)}" font-size="8" fill="#94a3b8">${v}</text>`;
-  const months=[1,3,5,7,9,11].map(m=>`<text x="${x(m-1).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="8" fill="#94a3b8">${m}월</text>`).join('');
+  for(let v=100; v<pMax; v+=100) gridP+=`<text x="${W-R+5}" y="${(yP(v)+3).toFixed(1)}" font-size="8" fill="#6E93AE">${v}</text>`;
+  const months=[1,3,5,7,9,11].map(m=>`<text x="${x(m-1).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="8" fill="#6E93AE">${m}월</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
     ${gridT}${gridP}${bars}${line}${dots}${months}
-    <text x="${L-5}" y="${T-3}" font-size="8" fill="#f87171">기온(℃)</text>
-    <text x="${W-R+5}" y="${T-3}" font-size="8" fill="#38bdf8">강수량(mm)</text>
-    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#94a3b8" stroke-width="1"/>
+    <text x="${L-5}" y="${T-3}" font-size="8" fill="#E2574C">기온(℃)</text>
+    <text x="${W-R+5}" y="${T-3}" font-size="8" fill="#1278C2">강수량(mm)</text>
+    <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#A9CDE3" stroke-width="1"/>
   </svg>`;
 }
 // ----- 매칭형 공통 유틸 -----
@@ -682,16 +729,17 @@ function addMatchMark(x, y, letter){
   svg.appendChild(g); return g;
 }
 // 산점도: 두 지표 평면에 (가)~(다) 점 표시 — 수능 자료 형식
-function renderScatterSVG(rows, m1, m2){
+function renderScatterSVG(rows, m1, m2, labels){
   const W=320,H=230,L=52,R=16,T=18,B=40;
   const xs=rows.map(r=>r.v1), ys=rows.map(r=>r.v2);
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
   const px=v=>L+(W-L-R)*((v-x0)/((x1-x0)||1)*0.8+0.1);
   const py=v=>T+(H-T-B)*(1-((v-y0)/((y1-y0)||1)*0.8+0.1));
   let pts='';
+  labels = labels || ['(가)','(나)','(다)'];
   rows.forEach((r,i)=>{
     pts+=`<circle cx="${px(r.v1).toFixed(1)}" cy="${py(r.v2).toFixed(1)}" r="5.5" fill="#1278C2" stroke="#fff" stroke-width="1.5"/>`+
-      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#1B4F8F">(${'가나다'[i]})</text>`+
+      `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)-10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#1B4F8F">${labels[i]}</text>`+
       `<text x="${px(r.v1).toFixed(1)}" y="${(py(r.v2)+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6E93AE">${r.v1}${m1.unit==='%'||m1.unit==='℃'?m1.unit:''}, ${r.v2}${m2.unit==='%'||m2.unit==='℃'?m2.unit:''}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
@@ -711,52 +759,115 @@ function askClimate(item){
   if(item.kind==='order') return askClimateOrder(item.set);
   return askClimateMatch(item.set);
 }
+// ----- 2지역 비교 공통: 진술형 보기 생성 ("A는 B보다 ~") -----
+function cmpWord(key, meta){
+  if(key==='range'||key==='popGrow') return '크다';
+  if(meta.unit==='℃'||meta.unit==='%') return '높다';
+  return '많다';
+}
+function pairStatements(valsA, valsB, keys, metaOf){
+  const cands=[];
+  keys.forEach((k,ki)=>{
+    const a=valsA[ki], b=valsB[ki];
+    if(a==null||b==null) return;
+    const diff=Math.abs(a-b), base=Math.max(Math.abs(a),Math.abs(b),1e-9);
+    if(diff/base<0.07 && diff<0.7) return;            // 동률에 가까운 지표 제외
+    const m=metaOf(k), w=cmpWord(k,m);
+    cands.push({text:`A는 B보다 ${m.label}이(가) ${w}.`, truth:a>b});
+    cands.push({text:`B는 A보다 ${m.label}이(가) ${w}.`, truth:b>a});
+  });
+  const trues=shuffle(cands.filter(c=>c.truth));
+  const falses=shuffle(cands.filter(c=>!c.truth));
+  if(!trues.length || falses.length<3) return null;
+  return shuffle([trues[0], ...falses.slice(0,3)]);
+}
+
 function askClimateMatch(set){
   const info=MODE_INFO[G.mode];
-  const sts=set.st.map(n=>CLIMATE.find(c=>c.name===n));
-  const markers=sortMarkers(sts, s=>({x:s.x, y:s.y}));        // A·B·C: 좌상단→우상단
-  const gOrder=[0,1,2].sort((a,b)=>climVal(markers[a],set.inds[0])-climVal(markers[b],set.inds[0])); // (가나다): 그래프 왼쪽부터
-  const correct=gOrder;
-  const m1=CLIM_INDS[set.inds[0]], m2=CLIM_INDS[set.inds[1]];
-  const rows=gOrder.map(mi=>({v1:climVal(markers[mi],set.inds[0]), v2:climVal(markers[mi],set.inds[1])}));
-
+  // 세트에서 2개 지역만 추출 (빠른 템포)
+  const pick=shuffle(set.st.slice()).slice(0,2).map(n=>CLIMATE.find(c=>c.name===n));
+  const markers=sortMarkers(pick, s=>({x:s.x, y:s.y}));            // A·B: 좌상단→우상단
+  const gOrder=[0,1].sort((a,b)=>climVal(markers[a],set.inds[0])-climVal(markers[b],set.inds[0])); // (가)(나): 왼쪽부터
+  const metas=set.inds.map(k=>CLIM_INDS[k]);
   markers.forEach((s,i)=>addMatchMark(s.x, s.y, MARK_L[i]));
-  fitViewTo(markers, 90);
+  fitViewTo(markers, 95);
 
-  $('question-box').innerHTML=
-    `<span class="q-region">기후 비교</span> 지도에 표시된 세 지역 A~C를 그래프의 (가)~(다)와 옳게 연결한 것은?`+
-    renderScatterSVG(rows, m1, m2)+
-    `<div class="map-hint">1991~2020년 평년값 · 위치(위도·해안/내륙·고도)를 근거로 상대 비교!</div>`;
-  const expBody=()=>`${gOrder.map((mi,i)=>`(${'가나다'[i]}) ${markers[mi].name}`).join(' · ')}<div class="fb-extra">📌 ${set.point}</div>`;
+  const allKeys=Object.keys(CLIM_INDS);
+  const stmts=pairStatements(
+    allKeys.map(k=>climVal(markers[0],k)), allKeys.map(k=>climVal(markers[1],k)),
+    allKeys, k=>CLIM_INDS[k]);
+  const qtype = (stmts && Math.random()>=0.62) ? 'stmt' : 'tap';
+
+  // 차트 유형 다양화
+  const chartLabels = qtype==='tap' ? ['(가)','(나)'] : ['A','B'];
+  const chartRows = (qtype==='tap'?gOrder:[0,1]).map(mi=>({v:set.inds.map(k=>climVal(markers[mi],k))}));
+  const ct=['dual','table','bars','scatter'][Math.floor(Math.random()*4)];
+  let chart;
+  if(ct==='dual') chart=renderDualClimate(markers[(qtype==='tap'?gOrder:[0,1])[0]], markers[(qtype==='tap'?gOrder:[0,1])[1]], chartLabels);
+  else if(ct==='table') chart=renderPairTable(chartRows, metas, chartLabels);
+  else if(ct==='bars') chart=renderPairBars(chartRows, metas, chartLabels);
+  else chart=renderScatterSVG(chartRows.map(r=>({v1:r.v[0], v2:r.v[1]})), metas[0], metas[1], chartLabels);
+
+  const expBody=()=>`A: ${markers[0].name} · B: ${markers[1].name}<div class="fb-extra">📌 ${set.point}</div>`;
   const revealNames=()=>{
     document.querySelectorAll('#map-svg .match-mark').forEach(g=>g.remove());
     markers.forEach(s=>{ addDot(s.x,s.y,5,'loc-dot target-reveal'); addLabel(s.x,s.y-10,s.name); });
   };
-  const box=$('choices-box'); box.innerHTML='';
-  buildPermChoices(correct).forEach(perm=>{
-    const b=document.createElement('button');
-    b.className='choice-btn'; b.textContent=permText(perm); b.dataset.p=perm.join();
-    b.onclick=()=>{
-      if(G.locked) return; G.locked=true; stopTimer();
-      box.querySelectorAll('button').forEach(x=>x.disabled=true);
-      const ok=perm.join()===correct.join();
-      b.classList.add(ok?'correct':'wrong');
-      if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+
+  if(qtype==='tap'){
+    const target=markers[gOrder[0]];                 // (가)에 해당하는 지역
+    $('question-box').innerHTML=
+      `<span class="q-region">기후 비교</span> 자료의 <b style="color:var(--sea-d)">(가)</b>에 해당하는 지역을 지도의 A·B에서 탭하세요!`+
+      chart+`<div class="map-hint">1991~2020년 평년값 · 위치(위도·해안/내륙·고도)로 판단!</div>`;
+    $('choices-box').innerHTML='';
+    const handler=(e)=>{
+      if(suppressTap||G.locked) return;
+      const p=svgPoint(e.clientX,e.clientY);
+      const d0=Math.hypot(p.x-markers[0].x,p.y-markers[0].y), d1=Math.hypot(p.x-markers[1].x,p.y-markers[1].y);
+      const tapped=d0<=d1?0:1;
+      G.locked=true; clearMapTap(); stopTimer();
+      const ok=markers[tapped]===target;
       revealNames();
-      const pts=award(ok,130);
-      sts.forEach(s=>recordStat(s.region,ok));
-      feedback(ok,ok?'정답':'오답',expBody(),pts);
+      const pts=award(ok,90);
+      pick.forEach(s=>recordStat(s.region,ok));
+      feedback(ok, ok?'정답':`오답 (탭: ${MARK_L[tapped]})`, `(가)는 <b>${MARK_L[markers.indexOf(target)]} ${target.name}</b> · `+expBody(), pts);
       hudUpdate(); afterAnswer();
     };
-    box.appendChild(b);
-  });
-  startTimer(info.time||35,()=>{ if(G.locked)return; G.locked=true;
-    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.p===correct.join()) x.classList.add('correct'); });
-    revealNames();
-    award(false,0); sts.forEach(s=>recordStat(s.region,false));
-    feedback(false,'시간 초과',expBody(),0);
-    hudUpdate(); afterAnswer();
-  });
+    setMapTap(handler);
+    startTimer(20,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
+      revealNames(); award(false,0); pick.forEach(s=>recordStat(s.region,false));
+      feedback(false,'시간 초과',`(가)는 <b>${target.name}</b> · `+expBody(),0);
+      hudUpdate(); afterAnswer();
+    });
+  } else {
+    $('question-box').innerHTML=
+      `<span class="q-region">기후 비교</span> 지도에 표시된 A, B 두 지역에 대한 설명으로 <b style="color:var(--sea-d)">옳은 것</b>은?`+
+      chart+`<div class="map-hint">자료와 위치를 함께 보고 판단하세요</div>`;
+    const box=$('choices-box'); box.innerHTML='';
+    stmts.forEach(st=>{
+      const b=document.createElement('button');
+      b.className='choice-btn'; b.textContent=st.text; b.dataset.t=st.truth?'1':'0';
+      b.onclick=()=>{
+        if(G.locked) return; G.locked=true; stopTimer();
+        box.querySelectorAll('button').forEach(x=>x.disabled=true);
+        const ok=st.truth;
+        b.classList.add(ok?'correct':'wrong');
+        if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.t==='1') x.classList.add('correct'); });
+        revealNames();
+        const pts=award(ok,120);
+        pick.forEach(s=>recordStat(s.region,ok));
+        feedback(ok,ok?'정답':'오답',expBody(),pts);
+        hudUpdate(); afterAnswer();
+      };
+      box.appendChild(b);
+    });
+    startTimer(info.time||30,()=>{ if(G.locked)return; G.locked=true;
+      box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.t==='1') x.classList.add('correct'); });
+      revealNames(); award(false,0); pick.forEach(s=>recordStat(s.region,false));
+      feedback(false,'시간 초과',expBody(),0);
+      hudUpdate(); afterAnswer();
+    });
+  }
 }
 function askClimateOrder(set){
   const sts=set.st.map(n=>CLIMATE.find(c=>c.name===n));
@@ -818,54 +929,91 @@ function statVal(sd, key){
   const m=STAT_INDS[key];
   return +(sd[key]*m.scale).toFixed(sd[key]*m.scale>=100?0:1);
 }
+function shortSido(n){ return n.replace(/(특별자치시|특별자치도|광역시|특별시)$/,''); }
 function askStats(set){
   const info=MODE_INFO[G.mode];
-  const sds=set.sd.map(n=>SIDO_STATS.find(s=>s.name===n));
-  const markers=sortMarkers(sds, s=>provCenter(s.name));      // A·B·C: 좌상단→우상단
-  const gOrder=[0,1,2].sort((a,b)=>statVal(markers[a],set.inds[0])-statVal(markers[b],set.inds[0])); // (가나다): 그래프 왼쪽부터
-  const correct=gOrder;
-  const m1=STAT_INDS[set.inds[0]], m2=STAT_INDS[set.inds[1]];
-  const rows=gOrder.map(mi=>({v1:statVal(markers[mi],set.inds[0]), v2:statVal(markers[mi],set.inds[1])}));
+  const pick=shuffle(set.sd.slice()).slice(0,2).map(n=>SIDO_STATS.find(s=>s.name===n));
+  const markers=sortMarkers(pick, s=>provCenter(s.name));          // A·B: 좌상단→우상단
+  const gOrder=[0,1].sort((a,b)=>statVal(markers[a],set.inds[0])-statVal(markers[b],set.inds[0]));
+  const metas=set.inds.map(k=>STAT_INDS[k]);
 
-  // 지도: 세 시·도만 밝게 + 문자 마커
-  const target=new Set(set.sd);
+  const target=new Set(markers.map(s=>s.name));
   document.querySelectorAll('#map-svg .muni').forEach(x=>{ if(!target.has(x.dataset.prov)) x.classList.add('dim-region'); });
   markers.forEach((s,i)=>{ const c=provCenter(s.name); addMatchMark(c.x, c.y, MARK_L[i]); });
 
-  $('question-box').innerHTML=
-    `<span class="q-region">통계 비교</span> 지도에 표시된 세 시·도 A~C를 그래프의 (가)~(다)와 옳게 연결한 것은?`+
-    renderScatterSVG(rows, m1, m2)+
-    `<div class="map-hint">통계청 자료 — 산업 구조·인구 변화의 지역 차를 근거로 판단!</div>`;
-  const expBody=()=>`${gOrder.map((mi,i)=>`(${'가나다'[i]}) ${markers[mi].name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')}`).join(' · ')}<div class="fb-extra">📌 ${set.point}</div>`;
+  const allKeys=Object.keys(STAT_INDS);
+  const stmts=pairStatements(
+    allKeys.map(k=>statVal(markers[0],k)), allKeys.map(k=>statVal(markers[1],k)),
+    allKeys, k=>STAT_INDS[k]);
+  const qtype = (stmts && Math.random()>=0.62) ? 'stmt' : 'tap';
+
+  const chartLabels = qtype==='tap' ? ['(가)','(나)'] : ['A','B'];
+  const chartRows = (qtype==='tap'?gOrder:[0,1]).map(mi=>({v:set.inds.map(k=>statVal(markers[mi],k))}));
+  const ct=['table','bars','scatter'][Math.floor(Math.random()*3)];
+  let chart;
+  if(ct==='table') chart=renderPairTable(chartRows, metas, chartLabels);
+  else if(ct==='bars') chart=renderPairBars(chartRows, metas, chartLabels);
+  else chart=renderScatterSVG(chartRows.map(r=>({v1:r.v[0], v2:r.v[1]})), metas[0], metas[1], chartLabels);
+
+  const expBody=()=>`A: ${shortSido(markers[0].name)} · B: ${shortSido(markers[1].name)}<div class="fb-extra">📌 ${set.point}</div>`;
   const revealNames=()=>{
     document.querySelectorAll('#map-svg .match-mark').forEach(g=>g.remove());
-    markers.forEach(s=>{ const c=provCenter(s.name); addLabel(c.x, c.y+4, s.name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')); });
+    markers.forEach(s=>{ const c=provCenter(s.name); addLabel(c.x, c.y+4, shortSido(s.name)); });
   };
-  const box=$('choices-box'); box.innerHTML='';
-  buildPermChoices(correct).forEach(perm=>{
-    const b=document.createElement('button');
-    b.className='choice-btn'; b.textContent=permText(perm); b.dataset.p=perm.join();
-    b.onclick=()=>{
-      if(G.locked) return; G.locked=true; stopTimer();
-      box.querySelectorAll('button').forEach(x=>x.disabled=true);
-      const ok=perm.join()===correct.join();
-      b.classList.add(ok?'correct':'wrong');
-      if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.p===correct.join()) x.classList.add('correct'); });
+
+  if(qtype==='tap'){
+    const targetSd=markers[gOrder[0]];
+    $('question-box').innerHTML=
+      `<span class="q-region">통계 비교</span> 자료의 <b style="color:var(--sea-d)">(가)</b>에 해당하는 시·도를 지도의 A·B에서 탭하세요!`+
+      chart+`<div class="map-hint">통계청 자료 — 산업·인구의 지역 차로 판단! (A·B 시·도만 탭 가능)</div>`;
+    $('choices-box').innerHTML='';
+    const handler=(e)=>{
+      if(suppressTap||G.locked) return;
+      const t=e.target.closest('.muni');
+      if(!t || !target.has(t.dataset.prov)) return;      // A·B 외 탭은 무시
+      G.locked=true; clearMapTap(); stopTimer();
+      const ok=t.dataset.prov===targetSd.name;
       revealNames();
-      const pts=award(ok,130);
-      sds.forEach(s=>recordStat(PROVINCES[s.name]?.region,ok));
-      feedback(ok,ok?'정답':'오답',expBody(),pts);
+      const pts=award(ok,90);
+      pick.forEach(s=>recordStat(PROVINCES[s.name]?.region,ok));
+      feedback(ok, ok?'정답':`오답 (탭: ${shortSido(t.dataset.prov)})`, `(가)는 <b>${shortSido(targetSd.name)}</b> · `+expBody(), pts);
       hudUpdate(); afterAnswer();
     };
-    box.appendChild(b);
-  });
-  startTimer(info.time||35,()=>{ if(G.locked)return; G.locked=true;
-    box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.p===correct.join()) x.classList.add('correct'); });
-    revealNames();
-    award(false,0); sds.forEach(s=>recordStat(PROVINCES[s.name]?.region,false));
-    feedback(false,'시간 초과',expBody(),0);
-    hudUpdate(); afterAnswer();
-  });
+    setMapTap(handler);
+    startTimer(20,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
+      revealNames(); award(false,0); pick.forEach(s=>recordStat(PROVINCES[s.name]?.region,false));
+      feedback(false,'시간 초과',`(가)는 <b>${shortSido(targetSd.name)}</b> · `+expBody(),0);
+      hudUpdate(); afterAnswer();
+    });
+  } else {
+    $('question-box').innerHTML=
+      `<span class="q-region">통계 비교</span> 지도에 표시된 A, B 두 시·도에 대한 설명으로 <b style="color:var(--sea-d)">옳은 것</b>은?`+
+      chart+`<div class="map-hint">자료와 위치를 함께 보고 판단하세요</div>`;
+    const box=$('choices-box'); box.innerHTML='';
+    stmts.forEach(st=>{
+      const b=document.createElement('button');
+      b.className='choice-btn'; b.textContent=st.text; b.dataset.t=st.truth?'1':'0';
+      b.onclick=()=>{
+        if(G.locked) return; G.locked=true; stopTimer();
+        box.querySelectorAll('button').forEach(x=>x.disabled=true);
+        const ok=st.truth;
+        b.classList.add(ok?'correct':'wrong');
+        if(!ok) box.querySelectorAll('button').forEach(x=>{ if(x.dataset.t==='1') x.classList.add('correct'); });
+        revealNames();
+        const pts=award(ok,120);
+        pick.forEach(s=>recordStat(PROVINCES[s.name]?.region,ok));
+        feedback(ok,ok?'정답':'오답',expBody(),pts);
+        hudUpdate(); afterAnswer();
+      };
+      box.appendChild(b);
+    });
+    startTimer(info.time||30,()=>{ if(G.locked)return; G.locked=true;
+      box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.t==='1') x.classList.add('correct'); });
+      revealNames(); award(false,0); pick.forEach(s=>recordStat(PROVINCES[s.name]?.region,false));
+      feedback(false,'시간 초과',expBody(),0);
+      hudUpdate(); afterAnswer();
+    });
+  }
 }
 
 // --- 시·도 클릭: 해당 시·도의 아무 시·군이나 탭 ---
@@ -1054,6 +1202,7 @@ function resultComment(acc){
 
 function endGame(){
   stopTimer();
+  clearMapTap();
   $('map-svg').onclick=null;
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
   show('screen-result');
@@ -1100,7 +1249,7 @@ $('btn-save-score').onclick=()=>{
 };
 $('btn-retry').onclick=()=>startGame(G.mode);
 $('btn-home').onclick=()=>{ initHome(); show('screen-home'); };
-$('btn-quit').onclick=()=>{ stopTimer(); $('map-svg').onclick=null;
+$('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=null;
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
   initHome(); show('screen-home');
 };
