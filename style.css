@@ -345,6 +345,26 @@ button { font-family:inherit; }
 }
 
 .explore-controls { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+.exp-info {
+  background:var(--panel); border:1.5px solid var(--line); border-radius:var(--r-md);
+  padding:14px 15px; color:var(--text); font-size:.9rem; line-height:1.6; box-shadow:var(--shadow-sm);
+}
+.exp-nav { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.exp-nav .ghost-btn { padding:8px 14px; min-height:38px; font-size:.82rem; flex:1; }
+.exp-count { color:var(--faint); font-size:.78rem; font-weight:700; white-space:nowrap; }
+.exp-head { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:8px; }
+.exp-head b { font-size:1.12rem; color:var(--navy); }
+.exp-head .q-region { margin:0; vertical-align:0; }
+.exp-pop {
+  font-size:.72rem; font-weight:800; color:#4A7CA8;
+  background:#EFF6FF; border:1.5px solid var(--blue-l); border-radius:99px; padding:3px 10px;
+}
+.exp-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.exp-badge {
+  font-size:.74rem; font-weight:800; color:var(--navy);
+  background:#FFF3C9; border:1.5px solid #F6CE5B; border-radius:99px; padding:4px 11px;
+}
+.exp-text { font-size:.83rem; color:var(--dim); line-height:1.6; }
 
 /* 지역 추리 */
 .hint-list { margin:10px 0 0; padding:12px 15px 12px 34px; background:#F7FCFF;

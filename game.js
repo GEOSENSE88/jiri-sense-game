@@ -156,14 +156,17 @@ function initHome(){
   });
   if(!any) hb.innerHTML='<div style="color:var(--dim);font-size:.83rem">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>';
   updateGachaUI();
-  // 빈출 지역 TOP 12
-  $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수 — 빈출 지역은 게임에서 더 자주 출제됩니다`;
+  // 빈출 지역 TOP 12 — 특별·광역시 제외, 시·군 단위만
+  $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수(시·군 기준) — 빈출 지역은 게임에서 더 자주 출제됩니다`;
   const fl=$('freq-list'); fl.innerHTML='';
-  const top=Object.entries(FREQ).sort((a,b)=>b[1].count-a[1].count).slice(0,12);
-  const max=top[0][1].count;
+  const METRO_RE=/(특별시|광역시|특별자치시)$/;
+  const top=Object.entries(FREQ)
+    .filter(([name])=>MUNIS[name] && !METRO_RE.test(name))
+    .sort((a,b)=>b[1].count-a[1].count).slice(0,12);
+  const max=top.length?top[0][1].count:1;
   top.forEach(([name,v],i)=>{
     fl.insertAdjacentHTML('beforeend',
-      `<div class="freq-row"><span class="f-rank">${i+1}</span><span class="f-name">${name.replace(/(특별자치시|특별자치도|광역시|특별시)$/,'')}</span>
+      `<div class="freq-row"><span class="f-rank">${i+1}</span><span class="f-name">${name.replace(/\(.+\)$/,'')}</span>
        <div class="f-bar"><div class="f-fill" style="width:${Math.round(v.count/max*100)}%"></div></div>
        <span class="f-val">${v.count}회·${v.exams}개 시험</span></div>`);
   });
@@ -350,6 +353,26 @@ function addLabel(x, y, text, cls){
 function labelWrongMuni(name){
   const m=MUNIS[name];
   if(m) addLabel(m.cx, m.cy+4, name.replace(/\(.+\)$/,''), 'bad');
+}
+// 권역 경계 박스 (문제 시작 시 자동 확대용)
+let REGION_BBOX=null;
+function regionBBox(region){
+  if(!REGION_BBOX){
+    REGION_BBOX={};
+    for(const [n,m] of Object.entries(MUNIS)){
+      const bb=muniBBox(n);
+      const r=REGION_BBOX[m.region]||(REGION_BBOX[m.region]={minx:1e9,miny:1e9,maxx:-1e9,maxy:-1e9});
+      r.minx=Math.min(r.minx,bb.x); r.miny=Math.min(r.miny,bb.y);
+      r.maxx=Math.max(r.maxx,bb.x+bb.w); r.maxy=Math.max(r.maxy,bb.y+bb.h);
+    }
+  }
+  return REGION_BBOX[region];
+}
+// 출제 지역의 권역으로 부드럽게 확대 (정답 자체는 노출하지 않음)
+function fitRegion(region){
+  const r=regionBBox(region);
+  if(!r) return;
+  fitViewTo([{x:r.minx,y:r.miny},{x:r.maxx,y:r.maxy}], 26);
 }
 function dimOtherRegions(region){
   if(region==='전체') return;
@@ -613,6 +636,7 @@ function askLocation(loc){
   }
   $('choices-box').innerHTML='<div class="map-hint">💡 해당 시·군을 탭! 작으면 확대(핀치/＋) 후 탭하세요. 빗나가도 가까우면 절반 점수</div>';
   if(G.region!=='전체') dimOtherRegions(G.region);
+  fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
     loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
@@ -693,6 +717,7 @@ function askDetective(loc){
   };
   renderChoices();
   if(G.region!=='전체') dimOtherRegions(G.region);
+  fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
     loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
@@ -735,6 +760,11 @@ function askMuniName(name){
     `<span class="q-region">${m.region}</span> 지도에 <b style="color:var(--accent)">깜빡이는 시·군</b>의 이름은? <span class="map-hint">(${m.prov})</span>`;
   muniEl(name)?.classList.add('flash','pulse');
   if(G.region!=='전체') dimOtherRegions(G.region);
+  // 출제 시·군 주변으로 자동 확대 (이미 깜빡임으로 공개된 상태)
+  {
+    const bb=muniBBox(name);
+    fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.9+40);
+  }
   // 같은 시·도 내에서 오답 3개
   const sib=shuffle(Object.keys(MUNIS).filter(n=>n!==name&&MUNIS[n].prov===m.prov));
   let opts=sib.slice(0,3);
@@ -1227,14 +1257,15 @@ function askOX(q){
 // ============================================================
 // 탐색(학습) 모드 — 탭 기반
 // ============================================================
+const EXP={list:[], i:-1};
 function startExplore(){
   show('screen-game');
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='hidden');
   $('timer-bar').style.width='0%';
 
-  $('question-box').innerHTML='<span class="q-region">학습 모드</span> 시·군이나 파란 점을 탭하면 정보가 표시됩니다.';
+  $('question-box').innerHTML='<span class="q-region">학습 모드</span> 시·군이나 파란 점을 탭하거나, ◀ ▶ 로 지역을 넘겨 보세요.';
   const box=$('choices-box');
-  box.innerHTML='<div class="explore-controls" id="exp-chips"></div><div id="exp-info" style="color:var(--dim);font-size:.9rem;line-height:1.6">아직 선택된 지역이 없습니다.</div>';
+  box.innerHTML='<div class="explore-controls" id="exp-chips"></div><div id="exp-info" class="exp-info">지역을 선택하면 핵심 정보가 여기에 표시됩니다.</div>';
   const chipBox=$('exp-chips');
   ['전체',...MAP_REGIONS].forEach(r=>{
     const b=document.createElement('button');
@@ -1244,35 +1275,83 @@ function startExplore(){
   });
   renderExploreDots('전체');
 
-  // 시·군 탭 → 정보 표시 (상시 리스너)
+  // 시·군/점 탭 → 해당 지역으로 이동
   const svg=$('map-svg');
   svg.onclick=(e)=>{
     if(suppressTap) return;
     const dot=e.target.closest('.loc-dot');
-    if(dot){ showLocInfo(dot.dataset.name); return; }
+    if(dot){ const i=EXP.list.findIndex(l=>l.name===dot.dataset.name); if(i>=0) expShow(i); return; }
     const t=e.target.closest('.muni');
     if(!t) return;
+    const name=t.dataset.name;
+    const i=EXP.list.findIndex(l=>l.accept.includes(name));
+    if(i>=0){ expShow(i); return; }
+    // 등록 지점이 없는 시·군: 간단 정보 + 확대
     document.querySelectorAll('#map-svg .muni').forEach(x=>x.classList.remove('flash'));
     t.classList.add('flash');
-    const name=t.dataset.name;
-    const inside=LOCATIONS.filter(l=>l.accept.includes(name));
+    const bb=muniBBox(name);
+    fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.8+40);
+    const pop=MUNIS[name]?.pop;
     $('exp-info').innerHTML=
-      `<b style="color:var(--accent);font-size:1.08rem">${name}</b> <span class="q-region" style="margin-left:6px">${t.dataset.prov}</span>`+
-      (inside.length? inside.map(l=>`<div style="margin-top:7px"><b>📍 ${l.name}</b><br>${l.fact}</div>`).join('')
-        : '<div style="margin-top:7px">등록된 수능 포인트가 없는 지역입니다. 경계와 위치만 눈에 익혀 두세요!</div>')+
-      studyExtra(name.replace(/\(.+\)$/,''));
+      `<div class="exp-head"><b>${name.replace(/\(.+\)$/,'')}</b><span class="q-region">${MUNIS[name].prov}</span>${pop?`<span class="exp-pop">👥 ${fmtPop(pop)}</span>`:''}</div>`+
+      `<div class="exp-text">등록된 수능 포인트가 없는 지역 — 경계와 위치만 눈에 익혀 두세요!</div>`+studyExtra(name.replace(/\(.+\)$/,''));
   };
 }
-function showLocInfo(name){
-  const l=LOCATIONS.find(x=>x.name===name);
-  if(!l) return;
-  $('exp-info').innerHTML=`<b style="color:var(--accent);font-size:1.08rem">📍 ${l.name}</b> <span class="q-region" style="margin-left:6px">${l.region}</span><div style="margin-top:7px">${l.fact}</div>`+studyExtra(l.name);
+// 설명을 뱃지(짧은 핵심)와 본문으로 분해해 가독성 향상
+function factBadges(fact){
+  const parts=(fact||'').split(/[,.·]/).map(s=>s.trim()).filter(Boolean);
+  const badges=[], texts=[];
+  parts.forEach(p=>{ (p.length<=18?badges:texts).push(p); });
+  return {badges, texts};
+}
+function expShow(i){
+  if(!EXP.list.length) return;
+  EXP.i=(i+EXP.list.length)%EXP.list.length;
+  const l=EXP.list[EXP.i];
+  // 지도: 해당 시·군 강조 + 확대
+  document.querySelectorAll('#map-svg .muni').forEach(x=>x.classList.remove('flash'));
+  l.accept.forEach(n=>muniEl(n)?.classList.add('flash'));
+  const bb=muniBBox(l.accept[0]);
+  fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.8+40);
+  // 정보 패널
+  const pop=MUNIS[l.accept[0]]?.pop;
+  const {badges,texts}=factBadges(l.fact);
+  const rc=REGION_COLORS[l.region]||{};
+  $('exp-info').innerHTML=
+    `<div class="exp-nav">
+       <button class="ghost-btn exp-prev">◀ 이전</button>
+       <span class="exp-count">${EXP.i+1} / ${EXP.list.length}</span>
+       <button class="ghost-btn exp-next">다음 ▶</button>
+     </div>
+     <div class="exp-head"><b>${cardDisplayName(l)}</b>
+       <span class="q-region" style="background:${rc.deep||'var(--sea)'}">${l.region}</span>
+       ${pop?`<span class="exp-pop">👥 ${fmtPop(pop)}</span>`:''}
+     </div>`+
+    (badges.length?`<div class="exp-badges">${badges.map(b=>`<span class="exp-badge">${b}</span>`).join('')}</div>`:'')+
+    (texts.length?`<div class="exp-text">${texts.join('. ')}</div>`:'')+
+    studyExtra(l.name.replace(/\(.+\)$/,''));
+  $('exp-info').querySelector('.exp-prev').onclick=()=>expShow(EXP.i-1);
+  $('exp-info').querySelector('.exp-next').onclick=()=>expShow(EXP.i+1);
+  // 좌우 스와이프로도 넘기기
+  const panel=$('exp-info');
+  let sx=null;
+  panel.ontouchstart=(e)=>{ sx=e.touches[0].clientX; };
+  panel.ontouchend=(e)=>{
+    if(sx===null) return;
+    const dx=e.changedTouches[0].clientX-sx; sx=null;
+    if(Math.abs(dx)>48) expShow(EXP.i+(dx<0?1:-1));
+  };
 }
 function renderExploreDots(region){
   clearMapExtras();
+  resetView();
   dimOtherRegions(region==='전체'?'전체':region);
+  EXP.list=LOCATIONS.filter(l=>region==='전체'||l.region===region);
+  EXP.i=-1;
+  $('exp-info').innerHTML='지역을 선택하거나 ◀ ▶ 로 넘겨 보세요.'+
+    `<div class="exp-nav" style="margin-top:8px"><button class="ghost-btn" onclick="expShow(0)">첫 지역부터 보기 ▶</button></div>`;
   const tip=$('map-tooltip');
-  LOCATIONS.filter(l=>region==='전체'||l.region===region).forEach(l=>{
+  EXP.list.forEach(l=>{
     const d=addDot(l.x,l.y,4.5+Math.min(freqOf(l.name),30)*0.12,'loc-dot');  // 빈출 지역일수록 큰 점
     d.dataset.name=l.name;
     d.onmousemove=(e)=>{ if(matchMedia('(hover:hover)').matches){ tip.classList.remove('hidden'); tip.innerHTML=`<b>${l.name}</b><br>${l.fact}`; positionTip(e,tip); } };
