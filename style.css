@@ -394,10 +394,9 @@ button { font-family:inherit; }
   font-size:.78rem; font-weight:800; color:#2C5E85;
   background:#EFF6FF; border:1.5px solid var(--blue-l); border-radius:99px; padding:4px 11px;
 }
-.exp-rank {
-  font-size:.74rem; font-weight:800; color:#7A5A10;
-  background:#FFF3C9; border:1.5px solid #F6CE5B; border-radius:99px; padding:4px 11px;
-}
+.exp-rank { font-size:.74rem; font-weight:800; border-radius:99px; padding:4px 11px; border:1.5px solid; }
+.exp-rank.rk-nat { color:#7A5A10; background:#FFF3C9; border-color:#F6CE5B; }   /* 전국: 골드 */
+.exp-rank.rk-reg { color:#1E6E3C; background:#E2F6E8; border-color:#8FD3A4; }   /* 권역: 그린 */
 .exp-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
 .exp-badge {
   font-size:.74rem; font-weight:800; border-radius:99px; padding:4px 11px;

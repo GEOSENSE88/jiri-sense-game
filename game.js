@@ -1356,8 +1356,9 @@ function popBadgeHTML(muniName, region){
   const m=MUNIS[muniName];
   if(!m||!m.pop) return '';
   const r=popRank(muniName);
-  return `<span class="exp-pop">👥 ${fmtPop(m.pop)}</span>`+
-    `<span class="exp-rank">전국 ${r.nat}위 · ${regionLabel(region||m.region)} ${r.reg}위</span>`;
+  return `<span class="exp-pop">👥 인구 ${fmtPop(m.pop)}</span>`+
+    `<span class="exp-rank rk-nat">전국 ${r.nat}위</span>`+
+    `<span class="exp-rank rk-reg">${regionLabel(region||m.region)} ${r.reg}위</span>`;
 }
 function expShow(i){
   if(!EXP.list.length) return;
