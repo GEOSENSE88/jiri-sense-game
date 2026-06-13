@@ -350,7 +350,12 @@ button { font-family:inherit; }
   #btn-next { position:sticky; bottom:14px; z-index:6; width:100%; }
 }
 
-.explore-controls { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+.explore-controls {
+  display:flex; flex-wrap:nowrap; gap:7px; margin-bottom:10px;
+  overflow-x:auto; padding-bottom:4px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.explore-controls::-webkit-scrollbar { display:none; }
 .exp-info {
   background:var(--panel); border:1.5px solid var(--line); border-radius:var(--r-md);
   padding:14px 15px; color:var(--text); font-size:.9rem; line-height:1.6; box-shadow:var(--shadow-sm);
