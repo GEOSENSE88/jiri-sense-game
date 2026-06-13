@@ -1,6 +1,6 @@
 {
-  "name": "지리SENSE GAME — 한국지리 백지도 정복",
-  "short_name": "지리SENSE",
+  "name": "지리SENSE GAME",
+  "short_name": "지리SENSE GAME",
   "description": "수능 한국지리 백지도·기후·통계 경쟁 퀴즈 (제작: 산남고 이성훈)",
   "start_url": "./index.html",
   "display": "standalone",
