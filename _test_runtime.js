@@ -56,6 +56,7 @@ console.log('\n=== 홈 화면 / 지도 ===');
 check(document.querySelectorAll('#map-svg .muni').length === muniCount, `시·군 path ${muniCount}개 렌더링`);
 check(document.querySelectorAll('#map-svg .prov-border').length === 17, '시·도 외곽선 17개 오버레이');
 check(document.querySelectorAll('#region-chips .chip').length === 9, '출제 범위 칩 9개');
+check([...document.querySelectorAll('#region-chips .chip')].some(c=>c.textContent==='충청권'), "홈 칩 '충청권' 표기");
 check(window.eval('LOCATIONS.every(l=>Array.isArray(l.accept)&&l.accept.every(a=>MUNIS[a]))'), '모든 지점이 유효한 시·군에 매핑');
 
 console.log('\n=== 빈출 빈도 연동 ===');
@@ -265,12 +266,22 @@ seosan.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check(document.getElementById('exp-info').textContent.includes('서산'), '시·군 탭 → 정보 패널 표시');
 check(window.eval('view.w') < 776, '선택 지역으로 지도 확대');
 check(document.querySelector('#exp-info .exp-badge') === null && document.querySelector('#exp-info .exp-text') !== null, '서산: 핵심 8종 외 내용은 뱃지 없이 서술식');
-// 수원: 도청 소재지 + 특례시 뱃지
+// 수원: 도청 소재지 + 특례시 + 2기(광교) 뱃지
 window.eval(`expShow(EXP.list.findIndex(l=>l.name==='수원'))`);
 {
   const b=[...document.querySelectorAll('#exp-info .exp-badge')].map(x=>x.textContent);
-  check(b.includes('특례시') && b.includes('도청 소재지'), `수원 뱃지: ${b.join(', ')}`);
+  check(b.some(t=>t.includes('특례시')) && b.some(t=>t.includes('도청 소재지')) && b.some(t=>t.includes('2기 신도시')), `수원 뱃지: ${b.join(' · ')}`);
+  const classes=[...document.querySelectorAll('#exp-info .exp-badge')].map(x=>x.className);
+  check(new Set(classes).size === classes.length, '뱃지 종류별 색상 클래스 상이');
 }
+// 성남: 1기(분당) + 2기(판교) 동시 뱃지
+window.eval(`expShow(EXP.list.findIndex(l=>l.name==='성남'))`);
+{
+  const b=[...document.querySelectorAll('#exp-info .exp-badge')].map(x=>x.textContent);
+  check(b.some(t=>t.includes('1기 신도시')) && b.some(t=>t.includes('2기 신도시')), `성남 뱃지(1기+2기): ${b.join(' · ')}`);
+}
+// 권역 칩 '~권' 표기 (학습 모드)
+check([...document.querySelectorAll('#exp-chips .chip')].some(c=>c.textContent==='강원권'), "선택 칩 '강원권' 표기");
 window.eval(`expShow(EXP.list.findIndex(l=>l.name==='상주'))`);
 check([...document.querySelectorAll('#exp-info .exp-badge')].some(x=>x.textContent.includes('명칭 유래')), '상주: 도(道) 명칭 유래 뱃지');
 window.eval(`expShow(EXP.list.findIndex(l=>l.name==='서산'))`);

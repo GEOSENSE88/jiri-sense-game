@@ -123,7 +123,7 @@ function initHome(){
   const chips = $('region-chips'); chips.innerHTML='';
   REGIONS.forEach(r=>{
     const b=document.createElement('button');
-    b.className='chip'+(G.region===r?' on':''); b.textContent=r;
+    b.className='chip'+(G.region===r?' on':''); b.textContent=regionLabel(r);
     b.onclick=()=>{ G.region=r; initHome(); };
     chips.appendChild(b);
   });
@@ -1269,7 +1269,7 @@ function startExplore(){
   const chipBox=$('exp-chips');
   ['전체',...MAP_REGIONS].forEach(r=>{
     const b=document.createElement('button');
-    b.className='chip'+(r==='전체'?' on':''); b.textContent=r;
+    b.className='chip'+(r==='전체'?' on':''); b.textContent=regionLabel(r);
     b.onclick=()=>{ chipBox.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); b.classList.add('on'); renderExploreDots(r); };
     chipBox.appendChild(b);
   });
@@ -1315,19 +1315,22 @@ function splitFact(f){
 // 뱃지는 핵심 8종만: 도명 유래·특례시·도청 소재지·혁신도시·기업도시·1기/2기 신도시·국가 산업 단지
 const DONAME_ORIGIN=['강릉','원주','충주','청주','전주','나주','경주','상주'];   // 강원·충청·전라·경상
 const TEUKRYE=['수원','고양','용인','창원','화성'];                              // 특례시(2022·2025)
+const SINDOSI1=['성남','고양','부천'];                                           // 분당·일산·중동 (안양·군포는 지점 미등록)
+const SINDOSI2=['성남','화성','김포','파주','수원','용인','하남','평택','인천']; // 판교·동탄·한강·운정·광교·위례·고덕·검단
 function factBadges(loc){
   const fact=loc.fact||'';
   const base=(loc.name||'').replace(/\(.+\)$/,'');
   const badges=[];
-  if(DONAME_ORIGIN.includes(base)) badges.push('도(道) 명칭 유래');
-  if(TEUKRYE.includes(base)||/특례시/.test(fact)) badges.push('특례시');
-  if(/도청/.test(fact)) badges.push('도청 소재지');
-  if(/혁신도시/.test(fact)) badges.push('혁신도시');
-  if(/기업도시/.test(fact)) badges.push('기업도시');
-  if(/1기 신도시/.test(fact)) badges.push('수도권 1기 신도시');
-  if(/2기 신도시/.test(fact)) badges.push('수도권 2기 신도시');
-  if(/국가 ?산업 ?단지/.test(fact)) badges.push('국가 산업 단지');
-  return {badges:[...new Set(badges)], texts:splitFact(fact)};
+  const add=(t,cls)=>{ if(!badges.some(b=>b.t===t)) badges.push({t,cls}); };
+  if(DONAME_ORIGIN.includes(base)) add('📜 도(道) 명칭 유래','b-origin');
+  if(TEUKRYE.includes(base)||/특례시/.test(fact)) add('⭐ 특례시','b-teuk');
+  if(/도청/.test(fact)) add('🏛️ 도청 소재지','b-docheong');
+  if(/혁신도시/.test(fact)) add('🏢 혁신도시','b-hyuksin');
+  if(/기업도시/.test(fact)) add('💼 기업도시','b-gieop');
+  if(SINDOSI1.includes(base)||/1기 신도시/.test(fact)) add('🏘️ 수도권 1기 신도시','b-sin1');
+  if(SINDOSI2.includes(base)||/2기 신도시/.test(fact)) add('🌆 수도권 2기 신도시','b-sin2');
+  if(/국가 ?산업 ?단지/.test(fact)) add('⚙️ 국가 산업 단지','b-sandan');
+  return {badges, texts:splitFact(fact)};
 }
 // 권역 표기: 수도권 외에는 '권'을 붙여 통일 (강원권·충청권…)
 function regionLabel(r){
@@ -1378,7 +1381,7 @@ function expShow(i){
        <span class="reg-chip" style="background:${rc.deep||'var(--sea)'}">${regionLabel(l.region)}</span>
      </div>
      <div class="exp-popline">${popBadgeHTML(l.accept[0], l.region)}</div>`+
-    (badges.length?`<div class="exp-badges">${badges.map(b=>`<span class="exp-badge">${b}</span>`).join('')}</div>`:'')+
+    (badges.length?`<div class="exp-badges">${badges.map(b=>`<span class="exp-badge ${b.cls}">${b.t}</span>`).join('')}</div>`:'')+
     (texts.length?`<div class="exp-text">${texts.join('. ')}</div>`:'')+
     studyExtra(l.name.replace(/\(.+\)$/,''));
   $('exp-info').querySelector('.exp-prev').onclick=()=>expShow(EXP.i-1);
@@ -1702,7 +1705,7 @@ function openCollection(){
   const chipBox=$('coll-chips'); chipBox.innerHTML='';
   ['전체',...MAP_REGIONS].forEach(r=>{
     const b=document.createElement('button');
-    b.className='chip'+(r==='전체'?' on':''); b.textContent=r;
+    b.className='chip'+(r==='전체'?' on':''); b.textContent=regionLabel(r);
     b.onclick=()=>{ chipBox.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); b.classList.add('on'); renderCollection(r); };
     chipBox.appendChild(b);
   });

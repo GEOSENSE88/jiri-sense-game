@@ -131,11 +131,17 @@ button { font-family:inherit; }
   letter-spacing:.05em;
 }
 
-.chips { display:flex; flex-wrap:wrap; gap:7px; }
+.chips {
+  display:flex; flex-wrap:nowrap; gap:7px;
+  overflow-x:auto; padding-bottom:4px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.chips::-webkit-scrollbar { display:none; }
 .chip {
   padding:8px 15px; border-radius:99px; border:1.5px solid var(--line2);
   background:#fff; color:var(--dim); cursor:pointer; font-size:.84rem;
   min-height:36px; transition:.14s; font-weight:700;
+  white-space:nowrap; flex:0 0 auto;
 }
 .chip:hover { border-color:var(--sea); color:var(--navy); }
 .chip.on { background:var(--sea); color:#fff; border-color:var(--sea); }
@@ -370,9 +376,18 @@ button { font-family:inherit; }
 }
 .exp-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
 .exp-badge {
-  font-size:.74rem; font-weight:800; color:var(--navy);
-  background:#FFF3C9; border:1.5px solid #F6CE5B; border-radius:99px; padding:4px 11px;
+  font-size:.74rem; font-weight:800; border-radius:99px; padding:4px 11px;
+  border:1.5px solid; box-shadow:0 1px 3px #0001;
 }
+/* 뱃지 8종 — 종류별 색상 */
+.exp-badge.b-origin   { background:#F2EDFF; border-color:#B9A7EE; color:#5A3FB8; }  /* 도명 유래: 보라 */
+.exp-badge.b-teuk     { background:#FFF3C9; border-color:#F0C53C; color:#9A6B00; }  /* 특례시: 골드 */
+.exp-badge.b-docheong { background:#FFE7E4; border-color:#F2A09A; color:#B5362C; }  /* 도청: 레드 */
+.exp-badge.b-hyuksin  { background:#E2F6E8; border-color:#8FD3A4; color:#1E7A3C; }  /* 혁신도시: 그린 */
+.exp-badge.b-gieop    { background:#E0F4F4; border-color:#84CFCB; color:#0E6E69; }  /* 기업도시: 틸 */
+.exp-badge.b-sin1     { background:#FFEDD9; border-color:#F2B270; color:#A85B00; }  /* 1기: 오렌지 */
+.exp-badge.b-sin2     { background:#FFE6F0; border-color:#F09CC0; color:#B5316E; }  /* 2기: 핑크 */
+.exp-badge.b-sandan   { background:#E8EEF5; border-color:#A9BDD2; color:#3D5A77; }  /* 산단: 스틸 */
 .exp-text { font-size:.83rem; color:var(--dim); line-height:1.6; }
 
 /* 지역 추리 */
