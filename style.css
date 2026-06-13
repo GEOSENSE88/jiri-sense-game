@@ -95,11 +95,30 @@ button { font-family:inherit; }
 
 /* 게임 모드 캐러셀 */
 .swipe-hint { font-size:.68rem; color:var(--faint); font-weight:600; margin-left:auto; }
+.carousel-wrap { position:relative; }
+.car-arrow {
+  position:absolute; top:50%; transform:translateY(-60%); z-index:5;
+  width:40px; height:40px; border-radius:99px; border:1.5px solid var(--line2);
+  background:#fff; color:var(--navy); font-size:1.6rem; font-weight:900; line-height:1;
+  cursor:pointer; box-shadow:0 3px 12px rgba(18,120,194,.2); display:none;
+  align-items:center; justify-content:center; padding-bottom:4px;
+}
+.car-arrow:hover { border-color:var(--sea); color:var(--sea-d); }
+.car-arrow:active { transform:translateY(-60%) scale(.92); }
+.car-arrow.car-prev { left:-19px; }
+.car-arrow.car-next { right:-19px; }
+.car-arrow.show { display:flex; }
+@media (hover:hover) and (min-width:760px){
+  .carousel-wrap { padding:0 6px; }
+  .car-arrow { display:flex; }
+  .car-arrow:disabled { opacity:0; pointer-events:none; }
+}
 .mode-carousel {
   display:flex; gap:11px; overflow-x:auto; padding:4px 2px 12px;
-  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scroll-behavior:smooth;
   scrollbar-width:none; max-width:100%;
 }
+.mode-carousel.dragging { scroll-behavior:auto; scroll-snap-type:none; cursor:grabbing; }
 .mode-carousel::-webkit-scrollbar { display:none; }
 .mode-card {
   position:relative; flex:0 0 210px; scroll-snap-align:start;

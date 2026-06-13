@@ -1804,6 +1804,33 @@ $('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=nul
   initHome(); show('screen-home');
 };
 
+// ---------- 게임 모드 캐러셀: 화살표·드래그·휠 가로 스크롤 ----------
+(function initCarousel(){
+  const car=$('mode-carousel'); if(!car) return;
+  const prev=$('car-prev'), next=$('car-next');
+  const step=()=>car.querySelector('.mode-card').offsetWidth+11;
+  const updateArrows=()=>{
+    if(!prev||!next) return;
+    prev.disabled=car.scrollLeft<=2;
+    next.disabled=car.scrollLeft>=car.scrollWidth-car.clientWidth-2;
+  };
+  prev&&(prev.onclick=()=>{ car.scrollBy({left:-step()*1.2, behavior:'smooth'}); });
+  next&&(next.onclick=()=>{ car.scrollBy({left:step()*1.2, behavior:'smooth'}); });
+  car.addEventListener('scroll', updateArrows, {passive:true});
+  // 마우스 드래그(데스크톱)
+  let down=false, sx=0, sl=0, moved=false;
+  car.addEventListener('mousedown',e=>{ down=true; moved=false; sx=e.pageX; sl=car.scrollLeft; car.classList.add('dragging'); });
+  window.addEventListener('mousemove',e=>{ if(!down) return; const dx=e.pageX-sx; if(Math.abs(dx)>4) moved=true; car.scrollLeft=sl-dx; });
+  window.addEventListener('mouseup',()=>{ if(down){ down=false; car.classList.remove('dragging'); } });
+  // 드래그 직후 카드 클릭 방지
+  car.addEventListener('click',e=>{ if(moved){ e.preventDefault(); e.stopPropagation(); moved=false; } }, true);
+  // 세로 휠 → 가로 스크롤
+  car.addEventListener('wheel',e=>{
+    if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ car.scrollLeft+=e.deltaY; e.preventDefault(); }
+  }, {passive:false});
+  setTimeout(updateArrows, 100);
+})();
+
 // ---------- 카드 뽑기/컬렉션 이벤트 ----------
 $('btn-draw').onclick=openGacha;
 $('btn-draw-again').onclick=openGacha;
