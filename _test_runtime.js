@@ -210,6 +210,15 @@ check(document.querySelectorAll('#map-svg .muni.dim-region').length > 0, '비대
   check(document.getElementById('feedback-box').textContent.includes('📌'), '학습 포인트 표시');
 }
 window.eval("Math.random=Math._r2;");
+// 인구 변화 라인 차트 렌더 검증
+{
+  const ga=window.eval("JSON.stringify(SIDO_STATS.find(s=>s.name==='경기도').popSeries)");
+  const jn=window.eval("JSON.stringify(SIDO_STATS.find(s=>s.name==='전라남도').popSeries)");
+  const svg=window.eval(`renderPopChange(${ga},${jn},['(가)','(나)'])`);
+  check(svg.includes('<polyline') && svg.includes('class="climate-graph"'), '인구 변화 라인 차트 렌더링');
+  check(svg.includes('2010=100'), '인구 변화 그래프 기준선 표기');
+  check(!svg.includes('NaN'), '인구 변화 그래프 수치 정상');
+}
 
 console.log('\n=== 지역 추리 (힌트 게임) ===');
 window.eval("startGame('detective')");

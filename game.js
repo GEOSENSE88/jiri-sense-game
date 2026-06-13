@@ -839,6 +839,32 @@ function renderPairTable(rows, metas, labels){
     `<tr><td>${m.label}(${m.unit})</td><td>${rows[0].v[mi]}</td><td>${rows[1].v[mi]}</td></tr>`).join('');
   return `<table class="pair-table"><thead><tr><th>구분</th><th>${labels[0]}</th><th>${labels[1]}</th></tr></thead><tbody>${tr}</tbody></table>`;
 }
+// 인구 변화 라인 그래프 (2010=100 상댓값, 두 지역) — 수능 단골 형태
+function renderPopChange(seriesA, seriesB, labels){
+  labels = labels || ['(가)','(나)'];
+  const W=330, H=200, L=38, R=14, T=18, B=34;
+  const years=POP_SERIES_YEARS;
+  const all=seriesA.concat(seriesB);
+  const ymax=Math.max(200, Math.ceil(Math.max(...all)/50)*50);
+  const x=i=>L+(W-L-R)*i/(years.length-1);
+  const y=v=>T+(H-T-B)*(1-v/ymax);
+  let grid='';
+  for(let v=0; v<=ymax; v+=50){
+    grid+=`<line x1="${L}" y1="${y(v).toFixed(1)}" x2="${W-R}" y2="${y(v).toFixed(1)}" stroke="#D8E8F2" stroke-width="${v===100?1.4:0.6}" ${v===100?'':'stroke-dasharray="3 3"'}/>`+
+      `<text x="${L-5}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#6E93AE">${v}</text>`;
+  }
+  const months=[0,3,6,9].map(i=>`<text x="${x(i).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="8" fill="#6E93AE">${("'"+String(years[i]).slice(2))}</text>`).join('');
+  const line=(s,col)=>`<polyline fill="none" stroke="${col}" stroke-width="2.4" points="${s.map((v,i)=>x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ')}"/>`+
+    s.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${col}"/>`).join('');
+  // 끝점 라벨
+  const endLbl=(s,col,txt)=>`<text x="${(W-R-2).toFixed(1)}" y="${(y(s[s.length-1])-4).toFixed(1)}" text-anchor="end" font-size="10" font-weight="800" fill="${col}">${txt}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="climate-graph" xmlns="http://www.w3.org/2000/svg">
+    ${grid}${months}
+    ${line(seriesA,'#1278C2')}${line(seriesB,'#E2574C')}
+    ${endLbl(seriesA,'#1278C2',labels[0])}${endLbl(seriesB,'#E2574C',labels[1])}
+    <text x="${L}" y="${T-6}" font-size="8" fill="#6E93AE">2010=100 상댓값</text>
+  </svg>`;
+}
 // 기후 그래프 2개 나란히 (수능 단골 형태)
 function renderDualClimate(stA, stB, labels){
   labels = labels || ['(가)','(나)'];
@@ -1123,25 +1149,36 @@ function askStats(set){
     allKeys, k=>STAT_INDS[k]);
   const qtype = (stmts && Math.random()>=0.62) ? 'stmt' : 'tap';
 
+  // 인구 변화 그래프 사용 조건: 탭형 + 둘 다 시계열 보유 + 2020 상댓값 차이가 충분
+  const canPop = markers.every(s=>s.popSeries) && Math.abs(markers[0].popSeries[9]-markers[1].popSeries[9])>=12;
+  const usePop = qtype==='tap' && canPop && Math.random()<0.5;
+  // 인구 변화일 땐 (가)(나)를 2020 상댓값 오름차순으로 매핑(그래프 끝점 낮은 쪽=가)
+  const order = usePop ? [0,1].sort((a,b)=>markers[a].popSeries[9]-markers[b].popSeries[9]) : (qtype==='tap'?gOrder:[0,1]);
   const chartLabels = qtype==='tap' ? ['(가)','(나)'] : ['A','B'];
-  const chartRows = (qtype==='tap'?gOrder:[0,1]).map(mi=>({v:set.inds.map(k=>statVal(markers[mi],k))}));
-  const ct=['table','bars','scatter'][Math.floor(Math.random()*3)];
   let chart;
-  if(ct==='table') chart=renderPairTable(chartRows, metas, chartLabels);
-  else if(ct==='bars') chart=renderPairBars(chartRows, metas, chartLabels);
-  else chart=renderScatterSVG(chartRows.map(r=>({v1:r.v[0], v2:r.v[1]})), metas[0], metas[1], chartLabels);
+  if(usePop){
+    chart=renderPopChange(markers[order[0]].popSeries, markers[order[1]].popSeries, chartLabels);
+  } else {
+    const chartRows = order.map(mi=>({v:set.inds.map(k=>statVal(markers[mi],k))}));
+    const ct=['table','bars','scatter'][Math.floor(Math.random()*3)];
+    if(ct==='table') chart=renderPairTable(chartRows, metas, chartLabels);
+    else if(ct==='bars') chart=renderPairBars(chartRows, metas, chartLabels);
+    else chart=renderScatterSVG(chartRows.map(r=>({v1:r.v[0], v2:r.v[1]})), metas[0], metas[1], chartLabels);
+  }
 
-  const expBody=()=>`A: ${shortSido(markers[0].name)} · B: ${shortSido(markers[1].name)}<div class="fb-extra">📌 ${set.point}</div>`;
+  const popPoint = usePop
+    ? `<div class="fb-extra">📈 1975~2020 인구 변화(2010=100): 수도권·대도시 주변은 우상향, 농어촌·산업 쇠퇴 지역은 우하향</div>` : '';
+  const expBody=()=>`A: ${shortSido(markers[0].name)} · B: ${shortSido(markers[1].name)}<div class="fb-extra">📌 ${set.point}</div>${popPoint}`;
   const revealNames=()=>{
     document.querySelectorAll('#map-svg .match-mark').forEach(g=>g.remove());
     markers.forEach(s=>{ const c=provCenter(s.name); addLabel(c.x, c.y+4, shortSido(s.name)); });
   };
 
   if(qtype==='tap'){
-    const targetSd=markers[gOrder[0]];
+    const targetSd=markers[order[0]];
     $('question-box').innerHTML=
       `<span class="q-region">통계 비교</span> 자료의 <b style="color:var(--sea-d)">(가)</b>에 해당하는 시·도를 지도의 A·B에서 탭하세요!`+
-      chart+`<div class="map-hint">통계청 자료 — 산업·인구의 지역 차로 판단! (A·B 시·도만 탭 가능)</div>`;
+      chart+`<div class="map-hint">${usePop?'인구 변화 그래프(2010=100) — 증가/감소 추세로 판단!':'통계청 자료 — 산업·인구의 지역 차로 판단!'} (A·B 시·도만 탭 가능)</div>`;
     $('choices-box').innerHTML='';
     const handler=(e)=>{
       if(suppressTap||G.locked) return;

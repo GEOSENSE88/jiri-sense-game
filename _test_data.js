@@ -23,7 +23,7 @@ loadInto('map-data.js');
 loadInto('questions.js');
 ;(function(){
   const code = fs.readFileSync(path.join(dir,'stats-data.js'),'utf8').replace(/^const /gm,'var ');
-  (new Function('ctx', code + '; ctx.CLIMATE=CLIMATE; ctx.SIDO_STATS=SIDO_STATS;'))(ctx);
+  (new Function('ctx', code + '; ctx.CLIMATE=CLIMATE; ctx.SIDO_STATS=SIDO_STATS; ctx.POP_SERIES_YEARS=POP_SERIES_YEARS;'))(ctx);
   const code2 = fs.readFileSync(path.join(dir,'match-sets.js'),'utf8').replace(/^const /gm,'var ');
   (new Function('ctx', code2 + '; ctx.CLIMATE_SETS=CLIMATE_SETS; ctx.ORDER_SETS=ORDER_SETS; ctx.STAT_SETS=STAT_SETS; ctx.CLIM_INDS=CLIM_INDS; ctx.STAT_INDS=STAT_INDS;'))(ctx);
 })();
@@ -82,6 +82,14 @@ ctx.CLIMATE.forEach((c,i) => {
   if(!REGIONS.concat(['북한']).includes(c.region)) err(`CLIMATE#${i} region 오류`);
 });
 if(ctx.SIDO_STATS.length !== 17) err('시도 통계가 17개 아님');
+// 인구 시계열
+{
+  if(ctx.POP_SERIES_YEARS.length !== 10) err('인구 시계열 연도 10개 아님');
+  const withSeries = ctx.SIDO_STATS.filter(s=>Array.isArray(s.popSeries) && s.popSeries.length===10);
+  if(withSeries.length !== 17) err(`인구 시계열 보유 시도 ${withSeries.length}/17`);
+  withSeries.forEach(s=>{ if(Math.abs(s.popSeries[7]-100)>0.1) err(`${s.name} 2010 기준값≠100`); });
+  console.log('인구 시계열: 17개 시도 ×', ctx.POP_SERIES_YEARS.length, '개 연도');
+}
 
 // 비교 세트 검증
 console.log('비교 세트: 기후 매칭', ctx.CLIMATE_SETS.length, '/ 순서형', ctx.ORDER_SETS.length, '/ 통계', ctx.STAT_SETS.length);
