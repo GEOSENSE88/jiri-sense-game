@@ -628,11 +628,11 @@ function askLocation(loc){
   if(descForm){
     const descText = maskName(loc.desc || loc.fact, loc);
     $('question-box').innerHTML=
-      `<span class="q-region">${loc.region}</span> 다음 설명에 해당하는 지역을 백지도에서 탭하세요!`+
+      `<span class="q-region">${regionLabel(loc.region)}</span> 다음 설명에 해당하는 지역을 백지도에서 탭하세요!`+
       `<div class="stat-card" style="font-weight:600">${descText}</div>`;
   } else {
     $('question-box').innerHTML=
-      `<span class="q-region">${loc.region}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
+      `<span class="q-region">${regionLabel(loc.region)}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
   }
   $('choices-box').innerHTML='<div class="map-hint">💡 해당 시·군을 탭! 작으면 확대(핀치/＋) 후 탭하세요. 빗나가도 가까우면 절반 점수</div>';
   if(G.region!=='전체') dimOtherRegions(G.region);
@@ -673,9 +673,9 @@ function buildHints(loc){
   const kind=muniName.endsWith('군')?'군(郡)':muniName.match(/(광역시|특별시|특별자치시)$/)?'광역 도시':'도시';
   const prov=MUNIS[loc.accept[0]]?.prov||'';
   const h1=`${loc.region} 지방의 ${kind}`;
-  // 설명을 쉼표·가운뎃점 단위로 잘라 힌트 2~3개 구성 (단어 중간 잘림 방지)
+  // 설명을 의미 단위로 잘라 힌트 2~3개 구성 (괄호·숫자 보호, 단어 중간 잘림 방지)
   const masked=maskName(loc.desc||loc.fact, loc);
-  const parts=masked.split(/[,，]\s*|\s·\s/).filter(s=>s.trim().length>=4);
+  const parts=splitFact(masked).filter(s=>s.length>=4);
   let h2, h3;
   if(parts.length>=2){
     h2=parts[0]; h3=parts.slice(1).join(', ');
@@ -1291,18 +1291,59 @@ function startExplore(){
     t.classList.add('flash');
     const bb=muniBBox(name);
     fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.8+40);
-    const pop=MUNIS[name]?.pop;
+    const rc2=REGION_COLORS[MUNIS[name].region]||{};
     $('exp-info').innerHTML=
-      `<div class="exp-head"><b>${name.replace(/\(.+\)$/,'')}</b><span class="q-region">${MUNIS[name].prov}</span>${pop?`<span class="exp-pop">👥 ${fmtPop(pop)}</span>`:''}</div>`+
+      `<div class="exp-head"><b>${name.replace(/\(.+\)$/,'')}</b><span class="reg-chip" style="background:${rc2.deep||'var(--sea)'}">${regionLabel(MUNIS[name].region)}</span></div>`+
+      `<div class="exp-popline">${popBadgeHTML(name)}</div>`+
       `<div class="exp-text">등록된 수능 포인트가 없는 지역 — 경계와 위치만 눈에 익혀 두세요!</div>`+studyExtra(name.replace(/\(.+\)$/,''));
   };
 }
+// 괄호 내부와 숫자(33.9km, 1,947m 등)를 보호하며 쉼표·마침표로 분리
+function splitFact(f){
+  const parts=[]; let cur=''; let depth=0;
+  for(let i=0;i<(f||'').length;i++){
+    const ch=f[i];
+    if(ch==='('||ch==='（') depth++;
+    if(ch===')'||ch==='）') depth=Math.max(0,depth-1);
+    const numCtx=/\d/.test(f[i-1]||'') && /\d/.test(f[i+1]||'');
+    if((ch===','||ch==='.') && depth===0 && !numCtx){ parts.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  parts.push(cur);
+  return parts.map(s=>s.trim()).filter(s=>s.length>=2);
+}
 // 설명을 뱃지(짧은 핵심)와 본문으로 분해해 가독성 향상
 function factBadges(fact){
-  const parts=(fact||'').split(/[,.·]/).map(s=>s.trim()).filter(Boolean);
   const badges=[], texts=[];
-  parts.forEach(p=>{ (p.length<=18?badges:texts).push(p); });
+  splitFact(fact).forEach(p=>{ (p.length<=18?badges:texts).push(p); });
   return {badges, texts};
+}
+// 권역 표기: 수도권 외에는 '권'을 붙여 통일 (강원권·충청권…)
+function regionLabel(r){
+  return (r==='수도권'||!MAP_REGIONS.includes(r)) ? r : r+'권';
+}
+// 시·군 인구 순위 (전국 / 권역 내)
+let POP_RANK=null;
+function popRank(name){
+  if(!POP_RANK){
+    POP_RANK={};
+    const entries=Object.entries(MUNIS).filter(([n,m])=>m.pop>0);
+    const nat=entries.slice().sort((a,b)=>b[1].pop-a[1].pop);
+    nat.forEach(([n],i)=>POP_RANK[n]={nat:i+1});
+    for(const reg of MAP_REGIONS){
+      entries.filter(([n,m])=>m.region===reg)
+        .sort((a,b)=>b[1].pop-a[1].pop)
+        .forEach(([n],i)=>{ POP_RANK[n].reg=i+1; });
+    }
+  }
+  return POP_RANK[name];
+}
+function popBadgeHTML(muniName, region){
+  const m=MUNIS[muniName];
+  if(!m||!m.pop) return '';
+  const r=popRank(muniName);
+  return `<span class="exp-pop">👥 ${fmtPop(m.pop)}</span>`+
+    `<span class="exp-rank">전국 ${r.nat}위 · ${regionLabel(region||m.region)} ${r.reg}위</span>`;
 }
 function expShow(i){
   if(!EXP.list.length) return;
@@ -1314,7 +1355,6 @@ function expShow(i){
   const bb=muniBBox(l.accept[0]);
   fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.8+40);
   // 정보 패널
-  const pop=MUNIS[l.accept[0]]?.pop;
   const {badges,texts}=factBadges(l.fact);
   const rc=REGION_COLORS[l.region]||{};
   $('exp-info').innerHTML=
@@ -1324,9 +1364,9 @@ function expShow(i){
        <button class="ghost-btn exp-next">다음 ▶</button>
      </div>
      <div class="exp-head"><b>${cardDisplayName(l)}</b>
-       <span class="q-region" style="background:${rc.deep||'var(--sea)'}">${l.region}</span>
-       ${pop?`<span class="exp-pop">👥 ${fmtPop(pop)}</span>`:''}
-     </div>`+
+       <span class="reg-chip" style="background:${rc.deep||'var(--sea)'}">${regionLabel(l.region)}</span>
+     </div>
+     <div class="exp-popline">${popBadgeHTML(l.accept[0], l.region)}</div>`+
     (badges.length?`<div class="exp-badges">${badges.map(b=>`<span class="exp-badge">${b}</span>`).join('')}</div>`:'')+
     (texts.length?`<div class="exp-text">${texts.join('. ')}</div>`:'')+
     studyExtra(l.name.replace(/\(.+\)$/,''));
@@ -1538,7 +1578,7 @@ function cardHTML(loc, owned, count){
   }
   return `<div class="rcard ${rar.cls}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-rar">${rar.label}</div>
-    <div class="rcard-reg">${loc.region}</div>
+    <div class="rcard-reg">${regionLabel(loc.region)}</div>
     <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
     <span class="rcard-cloud c1"></span><span class="rcard-cloud c2"></span>
     <div class="card-sil-wrap">${cuteLandSVG(mu,true,loc)}</div>
@@ -1557,8 +1597,9 @@ function openCardDetail(loc){
   if(rarityOf(loc)==='전설') card.classList.add('legend-glow');
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
   const pop=MUNIS[loc.accept[0]]?.pop;
+  const pr=pop?popRank(loc.accept[0]):null;
   $('gacha-msg').innerHTML=
-    `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명(2022)`:''}<br>${loc.fact}</div>`+
+    `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명 (전국 ${pr.nat}위 · ${regionLabel(loc.region)} ${pr.reg}위)`:''}<br>${loc.fact}</div>`+
     `<div style="margin-top:8px">${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'마스코트')} ${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'관광 명소')}</div>`;
   $('btn-draw-again').classList.add('hidden');
 }

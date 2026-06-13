@@ -266,6 +266,15 @@ check(document.getElementById('exp-info').textContent.includes('서산'), '시·
 check(window.eval('view.w') < 776, '선택 지역으로 지도 확대');
 check(document.querySelector('#exp-info .exp-badge') !== null, '핵심 내용 뱃지 표시');
 check(document.getElementById('exp-info').textContent.includes('👥'), '인구 표시');
+check(document.getElementById('exp-info').textContent.includes('전국') && /권 \d+위/.test(document.getElementById('exp-info').textContent), '전국·권역 인구 순위 표시');
+check(document.querySelector('#exp-info .reg-chip').textContent === '충청권', "권역 표기 '충청권' 통일");
+// 뱃지 분리 품질: 괄호·숫자 보호
+{
+  const ic = window.eval(`JSON.stringify(factBadges(LOCATIONS.find(l=>l.name==='인천').fact))`);
+  check(!ic.includes('"인천 국제공항(2001"'), '괄호 안 쉼표에서 분리되지 않음');
+  const sm = window.eval(`JSON.stringify(splitFact('방조제(33.9km), 완공'))`);
+  check(JSON.parse(sm)[0]==='방조제(33.9km)', '숫자 소수점에서 분리되지 않음');
+}
 check(document.querySelector('#exp-info .exp-count') !== null, '넘기기 내비게이션(n/total)');
 {
   const before = document.querySelector('#exp-info .exp-count').textContent;

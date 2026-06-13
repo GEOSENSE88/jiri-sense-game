@@ -352,12 +352,21 @@ button { font-family:inherit; }
 .exp-nav { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .exp-nav .ghost-btn { padding:8px 14px; min-height:38px; font-size:.82rem; flex:1; }
 .exp-count { color:var(--faint); font-size:.78rem; font-weight:700; white-space:nowrap; }
-.exp-head { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:8px; }
-.exp-head b { font-size:1.12rem; color:var(--navy); }
-.exp-head .q-region { margin:0; vertical-align:0; }
+.exp-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.exp-head b { font-size:1.18rem; color:var(--navy); }
+.reg-chip {
+  display:inline-block; font-size:.8rem; font-weight:900; color:#fff;
+  border-radius:99px; padding:4px 13px; letter-spacing:.02em;
+  box-shadow:0 1px 4px #0002; text-shadow:0 1px 2px #0003;
+}
+.exp-popline { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:9px; }
 .exp-pop {
-  font-size:.72rem; font-weight:800; color:#4A7CA8;
-  background:#EFF6FF; border:1.5px solid var(--blue-l); border-radius:99px; padding:3px 10px;
+  font-size:.78rem; font-weight:800; color:#2C5E85;
+  background:#EFF6FF; border:1.5px solid var(--blue-l); border-radius:99px; padding:4px 11px;
+}
+.exp-rank {
+  font-size:.74rem; font-weight:800; color:#7A5A10;
+  background:#FFF3C9; border:1.5px solid #F6CE5B; border-radius:99px; padding:4px 11px;
 }
 .exp-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
 .exp-badge {
