@@ -264,7 +264,16 @@ const seosan = document.querySelector('#map-svg .muni[data-name="서산시"]');
 seosan.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 check(document.getElementById('exp-info').textContent.includes('서산'), '시·군 탭 → 정보 패널 표시');
 check(window.eval('view.w') < 776, '선택 지역으로 지도 확대');
-check(document.querySelector('#exp-info .exp-badge') !== null, '핵심 내용 뱃지 표시');
+check(document.querySelector('#exp-info .exp-badge') === null && document.querySelector('#exp-info .exp-text') !== null, '서산: 핵심 8종 외 내용은 뱃지 없이 서술식');
+// 수원: 도청 소재지 + 특례시 뱃지
+window.eval(`expShow(EXP.list.findIndex(l=>l.name==='수원'))`);
+{
+  const b=[...document.querySelectorAll('#exp-info .exp-badge')].map(x=>x.textContent);
+  check(b.includes('특례시') && b.includes('도청 소재지'), `수원 뱃지: ${b.join(', ')}`);
+}
+window.eval(`expShow(EXP.list.findIndex(l=>l.name==='상주'))`);
+check([...document.querySelectorAll('#exp-info .exp-badge')].some(x=>x.textContent.includes('명칭 유래')), '상주: 도(道) 명칭 유래 뱃지');
+window.eval(`expShow(EXP.list.findIndex(l=>l.name==='서산'))`);
 check(document.getElementById('exp-info').textContent.includes('👥'), '인구 표시');
 check(document.getElementById('exp-info').textContent.includes('전국') && /권 \d+위/.test(document.getElementById('exp-info').textContent), '전국·권역 인구 순위 표시');
 check(document.querySelector('#exp-info .reg-chip').textContent === '충청권', "권역 표기 '충청권' 통일");
@@ -281,7 +290,6 @@ check(document.querySelector('#exp-info .exp-count') !== null, '넘기기 내비
   document.querySelector('#exp-info .exp-next').click();
   const after = document.querySelector('#exp-info .exp-count').textContent;
   check(before !== after, `다음 ▶ 버튼으로 지역 넘기기 (${before.trim()} → ${after.trim()})`);
-  check(document.querySelector('#exp-info .exp-badge') !== null, '다음 지역도 뱃지 표시');
 }
 
 console.log('\n=== 위치 사냥 중복 방지 ===');

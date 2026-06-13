@@ -1312,11 +1312,22 @@ function splitFact(f){
   parts.push(cur);
   return parts.map(s=>s.trim()).filter(s=>s.length>=2);
 }
-// 설명을 뱃지(짧은 핵심)와 본문으로 분해해 가독성 향상
-function factBadges(fact){
-  const badges=[], texts=[];
-  splitFact(fact).forEach(p=>{ (p.length<=18?badges:texts).push(p); });
-  return {badges, texts};
+// 뱃지는 핵심 8종만: 도명 유래·특례시·도청 소재지·혁신도시·기업도시·1기/2기 신도시·국가 산업 단지
+const DONAME_ORIGIN=['강릉','원주','충주','청주','전주','나주','경주','상주'];   // 강원·충청·전라·경상
+const TEUKRYE=['수원','고양','용인','창원','화성'];                              // 특례시(2022·2025)
+function factBadges(loc){
+  const fact=loc.fact||'';
+  const base=(loc.name||'').replace(/\(.+\)$/,'');
+  const badges=[];
+  if(DONAME_ORIGIN.includes(base)) badges.push('도(道) 명칭 유래');
+  if(TEUKRYE.includes(base)||/특례시/.test(fact)) badges.push('특례시');
+  if(/도청/.test(fact)) badges.push('도청 소재지');
+  if(/혁신도시/.test(fact)) badges.push('혁신도시');
+  if(/기업도시/.test(fact)) badges.push('기업도시');
+  if(/1기 신도시/.test(fact)) badges.push('수도권 1기 신도시');
+  if(/2기 신도시/.test(fact)) badges.push('수도권 2기 신도시');
+  if(/국가 ?산업 ?단지/.test(fact)) badges.push('국가 산업 단지');
+  return {badges:[...new Set(badges)], texts:splitFact(fact)};
 }
 // 권역 표기: 수도권 외에는 '권'을 붙여 통일 (강원권·충청권…)
 function regionLabel(r){
@@ -1355,7 +1366,7 @@ function expShow(i){
   const bb=muniBBox(l.accept[0]);
   fitViewTo([{x:bb.x,y:bb.y},{x:bb.x+bb.w,y:bb.y+bb.h}], Math.max(bb.w,bb.h)*0.8+40);
   // 정보 패널
-  const {badges,texts}=factBadges(l.fact);
+  const {badges,texts}=factBadges(l);
   const rc=REGION_COLORS[l.region]||{};
   $('exp-info').innerHTML=
     `<div class="exp-nav">
