@@ -90,8 +90,8 @@ check(document.getElementById('mode-carousel') !== null, '게임 모드 캐러�
 check(document.querySelectorAll('#mode-carousel .mode-card').length === 8, '캐러셀에 게임 8종');
 check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
-check(document.querySelector('.hero-stats #rank-badge') !== null, '히어로 스탯 바(계급)');
-check(document.querySelector('.hero-stats #coin-cnt') !== null, '히어로 스탯 바(코인)');
+check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
+check(document.querySelector('.topbar #coin-cnt') !== null, '상단바(코인)');
 
 console.log('\n=== 위치 사냥 (시·군 탭) ===');
 window.eval("startGame('location')");

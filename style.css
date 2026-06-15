@@ -55,8 +55,35 @@ button { font-family:inherit; }
 }
 @media (max-width:880px){ .home-grid { grid-template-columns:1fr; } }
 
+/* 슬림 상단바 (앱 셸) */
+.topbar {
+  position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:8px 14px; background:#FFFFFFF0; backdrop-filter:blur(8px); overflow:hidden;
+  border-bottom:1.5px solid var(--line); box-shadow:0 2px 10px rgba(18,120,194,.05);
+}
+.tb-brand { display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; }
+.tb-brand b { overflow:hidden; text-overflow:ellipsis; }
+.tb-logo { width:30px; height:30px; border-radius:8px; flex-shrink:0; box-shadow:0 2px 6px rgba(18,120,194,.25); }
+.tb-brand b { font-size:1.02rem; font-weight:900; color:var(--navy); letter-spacing:-.3px; white-space:nowrap; }
+.tb-brand .tb-em { color:var(--sea-d); }
+.tb-stats { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.tb-chip {
+  background:#fff; border:1.5px solid var(--line2); border-radius:99px; padding:5px 11px;
+  font-weight:800; font-size:.8rem; color:var(--navy); white-space:nowrap;
+}
+.tb-chip.account-chip { cursor:pointer; transition:.15s; }
+.tb-chip.account-chip:hover { border-color:var(--sea); }
+.tb-chip.account-chip.on { background:var(--navy); color:#fff; border-color:var(--navy); }
+.tb-chip.account-chip small { opacity:.8; font-weight:700; margin-left:2px; }
+.progress-strip {
+  display:flex; align-items:center; gap:9px; max-width:680px; margin:0 auto; padding:8px 16px 0; overflow:hidden;
+}
+.progress-strip .rank-badge { font-size:.74rem; font-weight:800; color:var(--navy); white-space:nowrap; margin:0; flex-shrink:0; }
+.progress-strip .xp-bar-wrap { flex:1 1 auto; min-width:30px; height:8px; }
+.progress-strip .xp-text { font-size:.64rem; color:var(--faint); white-space:nowrap; font-weight:700; overflow:hidden; text-overflow:ellipsis; min-width:0; flex-shrink:1; }
+
 /* 하단 탭 네비게이션 홈 */
-.home-tabs { max-width:680px; margin:0 auto; padding:0 16px calc(80px + env(safe-area-inset-bottom)); }
+.home-tabs { max-width:680px; margin:0 auto; padding:10px 16px calc(80px + env(safe-area-inset-bottom)); }
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
 #tab-challenge.active, #tab-record.active { display:flex; flex-direction:column; gap:18px; }
@@ -67,11 +94,11 @@ button { font-family:inherit; }
 }
 .tabbar-inner { max-width:680px; margin:0 auto; display:flex; }
 .tab-btn {
-  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
-  background:none; border:none; cursor:pointer; padding:9px 4px 8px;
-  color:var(--faint); font-weight:800; font-size:.72rem; position:relative; transition:color .15s;
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px;
+  background:none; border:none; cursor:pointer; padding:8px 2px 7px;
+  color:var(--faint); font-weight:800; font-size:.66rem; position:relative; transition:color .15s;
 }
-.tab-btn .ic { font-size:1.4rem; line-height:1; filter:grayscale(.45); opacity:.65; transition:.15s; }
+.tab-btn .ic { font-size:1.28rem; line-height:1; filter:grayscale(.45); opacity:.65; transition:.15s; }
 .tab-btn.active { color:var(--sea-d); }
 .tab-btn.active .ic { filter:none; opacity:1; transform:translateY(-1px); }
 .tab-btn.active::after {

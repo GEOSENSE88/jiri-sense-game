@@ -293,7 +293,7 @@ function initHome(){
   const streakOn = store.load('geo_lastday','')===today;
   $('rank-badge').innerHTML=rank[1]+(streak>=1?` <span class="streak-chip">${streakOn?'🔥':'⏳'} ${streak}일 연속</span>`:'');
   $('xp-bar').style.width = next? Math.min(100,(xp-rank[0])/(next[0]-rank[0])*100)+'%' : '100%';
-  $('xp-text').textContent = next? `XP ${xp} / 다음 계급(${next[1]})까지 ${next[0]-xp}` : `XP ${xp} — 최고 계급 달성!`;
+  $('xp-text').textContent = next? `다음 계급까지 ${next[0]-xp} XP` : `최고 계급 달성!`;
   const ml=$('mastery-list'); ml.innerHTML='';
   REGIONS.slice(1).forEach(r=>{
     const s=stats[r]||{c:0,t:0};
@@ -348,7 +348,7 @@ function renderMission(){
 function renderAccount(){
   const el=$('account-chip'); if(!el) return;
   if(account){ el.innerHTML=`👤 ${account.nickname} <small>${account.cls}</small>`; el.classList.add('on'); }
-  else { el.innerHTML='👤 로그인 · 기록 저장'; el.classList.remove('on'); }
+  else { el.innerHTML='👤 로그인'; el.classList.remove('on'); }
 }
 
 // 🧭 마스코트 추천 도전 — 상태에 맞는 '오늘 할 것' 한 줄 제안

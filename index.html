@@ -12,32 +12,29 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615m">
+<link rel="stylesheet" href="style.css?v=20260615p">
 </head>
 <body>
 
 <!-- ===== 홈 화면 ===== -->
 <div id="screen-home" class="screen active">
-  <header class="home-header">
-    <img src="icon-192.png" alt="지리SENSE" class="app-logo">
-    <h1>지리SENSE GAME</h1>
-    <p class="subtitle">수능특강 · 수능완성 · 5개년 기출 빈도 기반 — 한국지리 백지도 경쟁 퀴즈</p>
-    <!-- 게임 HUD 스타일 스탯 바 -->
-    <div class="hero-stats">
-      <div id="rank-badge" class="hero-chip rank-badge"></div>
-      <div class="hero-chip coin-chip"><span id="coin-cnt" class="coin-cnt">🪙 0</span></div>
-      <button id="account-chip" class="hero-chip account-chip" type="button">👤 로그인 · 기록 저장</button>
-    </div>
-    <div class="hero-xp">
-      <div id="xp-bar-wrap" class="xp-bar-wrap"><div id="xp-bar"></div></div>
-      <div id="xp-text" class="xp-text"></div>
+  <header class="topbar">
+    <div class="tb-brand"><img class="tb-logo" src="icon-192.png" alt="지리SENSE"><b>지리<span class="tb-em">SENSE</span></b></div>
+    <div class="tb-stats">
+      <span class="tb-chip coin-chip"><span id="coin-cnt" class="coin-cnt">🪙 0</span></span>
+      <button id="account-chip" class="tb-chip account-chip" type="button">👤 로그인</button>
     </div>
   </header>
+  <div class="progress-strip">
+    <span id="rank-badge" class="rank-badge"></span>
+    <div id="xp-bar-wrap" class="xp-bar-wrap"><div id="xp-bar"></div></div>
+    <span id="xp-text" class="xp-text"></span>
+  </div>
 
   <div class="home-tabs">
-    <section class="panel tab-panel active" id="tab-play">
+    <section class="panel tab-panel" id="tab-mission">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615m" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615p" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -47,6 +44,9 @@
         <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
         <div id="mission-body"></div>
       </div>
+    </section>
+
+    <section class="panel tab-panel" id="tab-learn">
       <h2>📖 학습 · 수집</h2>
       <div class="learn-row">
         <button class="learn-btn" id="btn-explore">
@@ -58,8 +58,10 @@
           <span><b>지역 도감</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
         </button>
       </div>
+    </section>
 
-      <h2 style="margin-top:20px">🎮 게임 모드 <span class="swipe-hint">밀거나 화살표로 선택</span></h2>
+    <section class="panel tab-panel active" id="tab-play">
+      <h2>🎮 게임 모드 <span class="swipe-hint">밀거나 화살표로 선택</span></h2>
       <div class="carousel-wrap">
       <button class="car-arrow car-prev" id="car-prev" aria-label="이전">‹</button>
       <button class="car-arrow car-next" id="car-next" aria-label="다음">›</button>
@@ -262,6 +264,8 @@
 
   <nav class="tabbar" id="tabbar">
     <div class="tabbar-inner">
+      <button class="tab-btn" data-tab="learn"><span class="ic">📖</span><span>학습</span></button>
+      <button class="tab-btn" data-tab="mission"><span class="ic">🎯</span><span>미션</span></button>
       <button class="tab-btn active" data-tab="play"><span class="ic">🎮</span><span>플레이</span></button>
       <button class="tab-btn" data-tab="challenge"><span class="ic">⚔️</span><span>도전</span></button>
       <button class="tab-btn" data-tab="record"><span class="ic">📊</span><span>기록</span></button>
@@ -273,7 +277,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615m" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615p" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">반·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="반 (예: 3-7)" maxlength="20" autocomplete="off">
@@ -381,12 +385,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615m"></script>
-<script src="stats-data.js?v=20260615m"></script>
-<script src="freq-data.js?v=20260615m"></script>
-<script src="match-sets.js?v=20260615m"></script>
-<script src="questions.js?v=20260615m"></script>
-<script src="mascots-data.js?v=20260615m"></script>
-<script src="game.js?v=20260615m"></script>
+<script src="map-data.js?v=20260615p"></script>
+<script src="stats-data.js?v=20260615p"></script>
+<script src="freq-data.js?v=20260615p"></script>
+<script src="match-sets.js?v=20260615p"></script>
+<script src="questions.js?v=20260615p"></script>
+<script src="mascots-data.js?v=20260615p"></script>
+<script src="game.js?v=20260615p"></script>
 </body>
 </html>
