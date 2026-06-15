@@ -177,21 +177,27 @@ function locPool(){
     .filter(a=>a.accept && a.accept[0] && MUNIS[a.accept[0]]);
   const mascotImageByMuni = new Map(mascotAssets.map(a=>[a.accept[0], a.image]));
   const curatedMascots = new Set(MASCOTS.map(m=>m.accept[0]));
+  // 시·군별 지역 설명: LOCATION fact 우선 → 기출 노트(noteOf) → 도(道) 위치
+  const factByMuni = new Map();
+  LOCATIONS.forEach(l=>l.accept.forEach(a=>{ if(l.fact && !factByMuni.has(a)) factByMuni.set(a, l.fact); }));
+  const regionDesc=(muni,label,region)=>
+    factByMuni.get(muni) || noteOf(label) || `${(MUNIS[muni]||{}).prov || (regionLabel(region)+' 지방')}에 위치한 시·군`;
   const mascotLocs=MASCOTS.map(m=>{
-    const mu=MUNIS[m.accept[0]];
-    return {name:m.accept[0].replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:m.region, accept:m.accept,
-            image:mascotImageByMuni.get(m.accept[0]) || null,
+    const mu=MUNIS[m.accept[0]], label=m.accept[0].replace(/\(.+\)$/,'');
+    return {name:label, x:mu.cx, y:mu.cy, region:m.region, accept:m.accept,
+            image:mascotImageByMuni.get(m.accept[0]) || null, mascotName:m.name,
             fact:`마스코트 ‘${m.name}’의 고장 — ${m.desc}`, descOnly:true,
-            desc:`마스코트 ‘${m.name}’ — ${m.desc}`};
+            desc:m.desc};
   });
   const imageMascotLocs=mascotAssets
     .filter(a=>!curatedMascots.has(a.accept[0]))
     .map(a=>{
       const mu=MUNIS[a.accept[0]], label=a.accept[0].replace(/\(.+\)$/,'');
+      const rd=regionDesc(a.accept[0], label, mu.region);
       return {name:label, x:mu.cx, y:mu.cy, region:mu.region, accept:a.accept,
-              image:a.image, descOnly:true, imageOnly:true,
-              fact:`${label} 지자체 캐릭터 이미지`,
-              desc:'다음 지자체 캐릭터 이미지를 보고 해당 시·군을 찾으세요.'};
+              image:a.image, descOnly:true, imageOnly:true, mascotName:null,
+              fact:`${label} — ${rd}`,
+              desc:rd};   // 지역 설명을 함께 제시(이미지만으론 어려움)
     });
   LOC_POOL=LOCATIONS.concat(mascotLocs, imageMascotLocs);
   return LOC_POOL;
@@ -1045,13 +1051,14 @@ function askLocation(loc){
   const imageForm = !!loc.image && (loc.imageOnly || loc.descOnly || Math.random()<0.45);
   if(descForm){
     const descText = maskName(loc.desc || loc.fact, loc);
+    const caption = loc.mascotName ? `〈마스코트 ‘${loc.mascotName}’〉` : '〈지자체 캐릭터〉';
     const imageHTML = imageForm
-      ? `<div class="mascot-clue"><img src="${escapeAttr(loc.image)}" alt="지자체 캐릭터 이미지" loading="eager"></div>`
+      ? `<div class="mascot-clue"><img src="${escapeAttr(loc.image)}" alt="지자체 캐릭터 이미지" loading="eager"><div class="mascot-cap">${caption}</div></div>`
       : '';
     $('question-box').innerHTML=
-      `<span class="q-region">${regionLabel(loc.region)}</span> ${imageForm?'이 캐릭터는 어느 지역일까?':'어느 지역일까?'} 백지도에서 콕! 찍어 보자`+
-      imageHTML+
-      `<div class="stat-card" style="font-weight:600">${descText}</div>`;
+      `<span class="q-region">${regionLabel(loc.region)}</span> ${imageForm?'다음 설명과 캐릭터에 해당하는 지역은? 백지도에서 콕!':'어느 지역일까? 백지도에서 콕! 찍어 보자'}`+
+      `<div class="stat-card" style="font-weight:600">${descText}</div>`+
+      imageHTML;
   } else {
     $('question-box').innerHTML=
       `<span class="q-region">${regionLabel(loc.region)}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
@@ -2043,7 +2050,8 @@ function cardHTML(loc, owned, count){
   const rar=RARITY_META[rarityOf(loc)];
   const mu=loc.accept[0];
   const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
-  const meaning=(loc.fact||'').split(/[,·]/)[0].trim();
+  // 첫 의미 단위: 쉼표·문장(마침표+공백)으로 분리. '6·25' 등 가운뎃점은 보호
+  const meaning=(loc.fact||'').split(/,|\.\s/)[0].trim();
   const pop=MUNIS[mu]?.pop;
   if(!owned){
     return `<div class="rcard unknown">
