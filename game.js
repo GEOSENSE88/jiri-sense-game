@@ -154,10 +154,30 @@ const MODE_INFO = {
   mcq:      {title:'📝 개념 퀴즈', useMap:false, n:10, time:35},
   ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
   battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:30},
+  theme:    {title:'🏷️ 테마 게임', useMap:true, n:12, time:30},
   wanted:   {title:'🔍 오답 수배 복습', useMap:true, n:12, time:30},
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
 };
-const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A'};
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C'};
+// 🏷️ 테마 게임: fact 키워드로 분류한 테마 → 해당 지역을 백지도에서 탭
+const THEME_DEFS = [
+  {key:'docheong', label:'🏛️ 도청 소재지', test:f=>/도청/.test(f)},
+  {key:'hyuksin',  label:'🏢 혁신도시',     test:f=>/혁신도시/.test(f)},
+  {key:'gieop',    label:'💼 기업도시',     test:f=>/기업도시/.test(f)},
+  {key:'festival', label:'🎉 축제의 고장',  test:f=>/축제/.test(f)},
+  {key:'sandan',   label:'⚙️ 국가 산업 단지', test:f=>/국가 ?산업 ?단지|산업 ?단지|제철|석유 ?화학|중화학/.test(f)},
+  {key:'heritage', label:'🏯 세계유산·문화재', test:f=>/세계 ?(문화|자연)? ?유산|불국사|해인사|하회|법주사|고인돌|왕릉|청자|석굴암|도산서원|종묘/.test(f)},
+  {key:'port',     label:'⚓ 항구·해양 도시', test:f=>/항구|무역항|외항|어항|컨테이너|조선소|해수욕장/.test(f)},
+];
+let THEME_POOL=null;
+function themePool(){
+  if(THEME_POOL) return THEME_POOL;
+  THEME_POOL=[];
+  THEME_DEFS.forEach(def=>{
+    LOCATIONS.filter(l=>l.fact && def.test(l.fact)).forEach(l=>THEME_POOL.push({def, loc:l}));
+  });
+  return THEME_POOL;
+}
 const BOSS_REGIONS = ['수도권','강원','충청','호남','영남','제주'];
 const BOSS_GATE = 0.6, BOSS_MIN_T = 5;   // 숙련도 60%↑(최소 5문항 풀이)면 도전 가능
 function bossMastery(r){ const s=stats[r]; return s&&s.t? s.c/s.t : 0; }
@@ -166,7 +186,7 @@ function bossTitle(r){ return `${regionLabel(r)} 정복자`; }
 
 // 첫 문항(런 시작) 워밍업: 지도 확대·이동·탭 판정을 익히기 전에 시간 초과로 이탈하는 것 방지.
 // 지도 조작이 필요한 모드만 대상. 모든 플레이어·모든 런에 동일 적용되므로 공유 랭킹 공정성은 유지됨.
-const WARMUP_MODES = new Set(['location','muniname','detective','climate','stats','battle','wanted']);
+const WARMUP_MODES = new Set(['location','muniname','detective','climate','stats','battle','wanted','theme']);
 const WARMUP_MULT = 1.6, WARMUP_ADD = 8;
 
 // 마스코트는 위치 사냥의 '설명형' 문제로 흡수
@@ -419,7 +439,7 @@ function renderWanted(){
   $('btn-wanted-review').onclick=()=>{ G.region='전체'; startGame('wanted'); };
 }
 
-const MODE_CTA={location:'사냥 시작!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!'};
+const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!'};
 document.querySelectorAll('.mode-card').forEach(c=>{
   c.onclick=()=>startGame(c.dataset.mode);
   const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
@@ -750,6 +770,18 @@ function startGame(mode, opt){
     G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
   } else if(mode==='boss'){
     G.queue=bossQueue(opt);
+  } else if(mode==='theme'){
+    // 테마별로 고르게 섞기(테마 중복·지역 중복 회피)
+    const byTheme={}; themePool().forEach(p=>{ (byTheme[p.def.key]=byTheme[p.def.key]||[]).push(p); });
+    const keys=Object.keys(byTheme); const q=[]; const usedMuni=new Set();
+    let guard=0;
+    while(q.length<MODE_INFO.theme.n && guard++<400){
+      const k=keys[Math.floor(Math.random()*keys.length)];
+      const cand=byTheme[k][Math.floor(Math.random()*byTheme[k].length)];
+      if(usedMuni.has(cand.loc.accept[0])) continue;
+      usedMuni.add(cand.loc.accept[0]); q.push(cand);
+    }
+    G.queue=q;
   } else {
     G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
   }
@@ -982,6 +1014,7 @@ function nextQuestion(){
   }
 
   if(type==='location'||type==='wanted') askLocation(item);
+  else if(type==='theme') askTheme(item);
   else if(type==='muniname') askMuniName(item);
   else if(type==='detective') askDetective(item);
   else if(type==='climate') askClimate(item);
@@ -1094,6 +1127,47 @@ function askLocation(loc){
     reveal();
     award(false,0); recordStat(loc.region,false); logResult(loc.accept[0], false);
     feedback(false,'⏰ 아깝다, 시간 초과!',`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name),0);
+    hudUpdate(); afterAnswer();
+  });
+}
+
+// --- 🏷️ 테마 게임: 테마(도청·혁신도시·기업도시·축제 등)에 해당하는 지역을 전국 백지도에서 탭 ---
+function askTheme(item){
+  const info=MODE_INFO[G.mode];
+  const {def, loc}=item;
+  const descText=maskName(loc.fact, loc);
+  $('question-box').innerHTML=
+    `<span class="q-region">${def.label}</span> 이 테마에 해당하는 지역을 백지도에서 탭하세요!`+
+    `<div class="stat-card" style="font-weight:600">${descText}</div>`;
+  $('choices-box').innerHTML='<div class="map-hint">💡 전국 지도에서 찾아 탭! 작으면 확대(＋), 가까우면 절반 점수</div>';
+  // 테마는 전국 대상 → 전체 지도(권역 dim·확대 없음, nextQuestion이 이미 전체 뷰로 리셋)
+  const reveal=()=>{
+    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct','hit'));
+    addDot(loc.x,loc.y,5,'loc-dot target-reveal');
+    addLabel(loc.x,loc.y-10,loc.name);
+  };
+  const exp=()=>`${def.label} — <b>${loc.name}</b> · ${loc.fact}`+studyExtra(loc.name);
+  const off=onMuniTap((t,e)=>{
+    G.locked=true; stopTimer();
+    const tapped=t.dataset.name;
+    const p=svgPoint(e.clientX,e.clientY);
+    const d=Math.hypot(p.x-loc.x, p.y-loc.y);
+    const exact=loc.accept.includes(tapped);
+    let correct=false, base=0, head='';
+    if(exact){ correct=true; base=130; head='🎯 정확해요!'; }
+    else if(d<=55){ correct=true; base=65; head=`👍 근접! (${tapped} 탭, 절반 점수)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
+    else { head=`❌ 아쉬워요 (${tapped} 탭)`; t.classList.add('wrong'); labelWrongMuni(tapped); }
+    reveal();
+    const pts=award(correct,base);
+    recordStat(loc.region,correct);
+    logResult(loc.accept[0], exact);
+    feedback(correct, head, exp(), pts);
+    hudUpdate(); afterAnswer();
+  });
+  startTimer(info.time||30,()=>{ if(G.locked)return; G.locked=true; off();
+    reveal();
+    award(false,0); recordStat(loc.region,false); logResult(loc.accept[0], false);
+    feedback(false,'⏰ 아깝다, 시간 초과!', exp(), 0);
     hudUpdate(); afterAnswer();
   });
 }

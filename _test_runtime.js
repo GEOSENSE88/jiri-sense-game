@@ -87,7 +87,7 @@ check(window.eval('view.w') === 776, '문제 전환 시 지도 자동 원위치'
 
 console.log('\n=== 홈 재배치 (캐러셀·학습 분리) ===');
 check(document.getElementById('mode-carousel') !== null, '게임 모드 캐러셀 존재');
-check(document.querySelectorAll('#mode-carousel .mode-card').length === 8, '캐러셀에 게임 8종');
+check(document.querySelectorAll('#mode-carousel .mode-card').length === 9, '캐러셀에 게임 9종(테마 게임 포함)');
 check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
 check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
@@ -391,6 +391,25 @@ console.log('\n=== 권역 보스전 ===');
   window.eval("G.correctCnt=Math.ceil(G.queue.length*0.7); G.idx=G.queue.length; endGame();");
   check(window.eval("!!titles['강원']") === true, '70%↑ 격파 → 칭호 획득');
   check(document.getElementById('result-title').textContent.includes('격파'), '결과: 보스 격파 표시');
+}
+
+console.log('\n=== 🏷️ 테마 게임 ===');
+{
+  const pools = JSON.parse(window.eval('JSON.stringify((function(){const by={};themePool().forEach(p=>by[p.def.key]=(by[p.def.key]||0)+1);return by;})())'));
+  check(pools.docheong >= 5 && pools.hyuksin >= 5 && pools.festival >= 5, '도청·혁신도시·축제 테마 풀 구성: ' + JSON.stringify(pools));
+  window.eval("VIEW_ANIM_MS=0; startGame('theme')");
+  check(window.eval('G.queue.length') === 12, '테마 큐 12문항');
+  check(window.eval('new Set(G.queue.map(x=>x.loc.accept[0])).size') === 12, '테마 큐 시·군 중복 없음');
+  check(window.eval('G.queue.every(x=>x.def && x.loc)'), '큐는 {def,loc} 형식');
+  window.eval('G.idx=0; nextQuestion();');
+  check(document.querySelector('#question-box .q-region').textContent.includes(window.eval('G.queue[0].def.label.slice(0,2)')), '문항에 테마 라벨 표시');
+  check(document.querySelector('#question-box .stat-card') !== null, '테마 설명(stat-card) 표시');
+  check(document.querySelectorAll('#choices-box .choice-btn').length === 0, '테마는 지도 탭형(선지 없음)');
+  // 정답 탭 → 점수
+  const tloc = window.eval('G.queue[0].loc');
+  const tm = document.querySelector(`#map-svg .muni[data-name="${tloc.accept[0]}"]`);
+  tm.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.score') > 0, '테마 정답 탭 → 점수 부여');
 }
 
 console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
