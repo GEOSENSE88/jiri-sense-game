@@ -412,7 +412,9 @@ function initHome(){
   const streakOn = store.load('geo_lastday','')===today;
   $('rank-badge').innerHTML=rank[1]+(streak>=1?` <span class="streak-chip">${streakOn?'🔥':'⏳'} ${streak}일 연속</span>`:'');
   $('xp-bar').style.width = next? Math.min(100,(xp-rank[0])/(next[0]-rank[0])*100)+'%' : '100%';
-  $('xp-text').textContent = next? `다음 계급까지 ${next[0]-xp} XP` : `최고 계급 달성!`;
+  if(next){ const remain=next[0]-xp; const games=Math.max(1,Math.ceil(remain/150));
+    $('xp-text').textContent=`다음 계급까지 ${remain} XP · 약 ${games}판`; }
+  else $('xp-text').textContent='최고 계급 달성!';
   const ml=$('mastery-list'); ml.innerHTML='';
   REGIONS.slice(1).forEach(r=>{
     const s=stats[r]||{c:0,t:0};
@@ -426,6 +428,8 @@ function initHome(){
   fetchServerBoard().then(b=>{ if(b) renderHomeBoard(); });   // 서버 공유 랭킹으로 갱신
   updateGachaUI();
   renderAccount();
+  renderPlayHero();
+  renderBeginnerGuide();
   renderRecommend();
   renderDaily();
   renderMission();
@@ -474,31 +478,58 @@ function renderAccount(){
 }
 
 // 🧭 마스코트 추천 도전 — 상태에 맞는 '오늘 할 것' 한 줄 제안
-function renderRecommend(){
-  const bubble=$('rec-bubble'), btn=$('rec-btn'); if(!bubble||!btn) return;
-  let text, label, action;
+// 추천 행동 한 가지 결정(보스 > 오답 수배 > 초보 탐색 > 약점 권역 > 기본)
+function recommendAction(){
   const bossCand=BOSS_REGIONS.filter(r=>bossUnlocked(r)&&!titles[r])
     .sort((a,b)=>bossMastery(b)-bossMastery(a))[0];
   const wn=Object.keys(wanted).length;
-  if(bossCand){
-    text=`${regionLabel(bossCand)} 숙련도 ${Math.round(bossMastery(bossCand)*100)}%! 보스전 도전 각이야 👹`;
-    label='보스전 도전'; action=()=>startGame('boss', bossCand);
-  } else if(wn>0){
-    text=`오답 ${wn}곳이 수배 중! 복습하고 코인까지 챙기자 🔍`;
-    label='수배 복습'; action=()=>{ G.region='전체'; startGame('wanted'); };
-  } else {
-    const weak=BOSS_REGIONS.filter(r=>{ const s=stats[r]; return s&&s.t>=3; })
-      .sort((a,b)=>bossMastery(a)-bossMastery(b))[0];
-    if(weak && bossMastery(weak)<0.7){
-      text=`${regionLabel(weak)}이 조금 약해. 위치 사냥으로 다져볼까? 💪`;
-      label=`${regionLabel(weak)} 연습`; action=()=>{ G.region=weak; startGame('location'); };
-    } else {
-      text='오늘의 미션부터 깨 보자! 작은 목표가 실력이 돼 🎯';
-      label='위치 사냥 시작'; action=()=>{ G.region='전체'; startGame('location'); };
-    }
-  }
-  bubble.textContent=text;
-  btn.textContent=label; btn.onclick=action;
+  if(bossCand) return {text:`${regionLabel(bossCand)} 숙련도 ${Math.round(bossMastery(bossCand)*100)}%! 보스전 도전 각이야 👹`,
+    label:'보스전 도전', action:()=>startGame('boss', bossCand)};
+  if(wn>0) return {text:`어제 틀린 지역 ${wn}곳이 수배 중! 이것부터 잡고 가자 🔍`,
+    label:`오답 ${wn}곳 복습`, action:()=>{ G.region='전체'; startGame('wanted'); }};
+  if(xp<300) return {text:'처음이라면 백지도 탐색으로 지도와 친해져 볼까? 🗺️',
+    label:'백지도 탐색', action:()=>startGame('explore')};
+  const weak=BOSS_REGIONS.filter(r=>{ const s=stats[r]; return s&&s.t>=3; })
+    .sort((a,b)=>bossMastery(a)-bossMastery(b))[0];
+  if(weak && bossMastery(weak)<0.7) return {text:`${regionLabel(weak)}이 조금 약해. 위치 사냥으로 다져볼까? 💪`,
+    label:`${regionLabel(weak)} 연습`, action:()=>{ G.region=weak; startGame('location'); }};
+  return {text:'오늘의 미션부터 깨 보자! 작은 목표가 실력이 돼 🎯',
+    label:'위치 사냥 시작', action:()=>{ G.region='전체'; startGame('location'); }};
+}
+function renderRecommend(){
+  const bubble=$('rec-bubble'), btn=$('rec-btn'); if(!bubble||!btn) return;
+  const r=recommendAction();
+  bubble.textContent=r.text; btn.textContent=r.label; btn.onclick=r.action;
+}
+// 🏠 첫 화면(플레이 탭) 추천 한 판 + 미션 요약 — "어디부터?" 고민 줄이기
+function renderPlayHero(){
+  const box=$('play-hero'); if(!box) return;
+  const r=recommendAction();
+  ensureMission();
+  const claimed=mission.list.filter(m=>m.claimed).length, total=mission.list.length;
+  box.innerHTML=
+    `<div class="ph-label">오늘의 추천 한 판</div>`+
+    `<div class="ph-text">${r.text}</div>`+
+    `<button class="ph-btn" id="ph-start">▶ ${r.label}</button>`+
+    `<button class="ph-mission" id="ph-mission">🎯 오늘의 미션 ${claimed}/${total} 완료 · 보러 가기 →</button>`;
+  $('ph-start').onclick=r.action;
+  $('ph-mission').onclick=()=>{ const t=document.querySelector('.tab-btn[data-tab="challenge"]'); if(t) t.click(); };
+}
+// 🔰 초보자 추천 순서 (계정/기록이 적을 때만)
+function renderBeginnerGuide(){
+  const box=$('beginner-guide'); if(!box) return;
+  if(xp>=300){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const steps=[
+    {m:'explore', n:'1 · 백지도 탐색', d:'지도와 친해지기'},
+    {m:'location', n:'2 · 위치 사냥', d:'위치 맞히기'},
+    {m:'muniname', n:'3 · 지역 판독', d:'이름 맞히기'},
+    {m:'mcq', n:'4 · 개념 퀴즈', d:'개념 정리'},
+    {m:'climate', n:'5 · 기후·통계', d:'비교 분석'},
+  ];
+  box.innerHTML='<div class="bg-title">🔰 처음이라면 이 순서를 추천해요</div>'+
+    '<div class="bg-steps">'+steps.map(s=>`<button class="bg-step" data-m="${s.m}"><b>${s.n}</b><small>${s.d}</small></button>`).join('')+'</div>';
+  box.querySelectorAll('.bg-step').forEach(b=>b.onclick=()=>startGame(b.dataset.m));
 }
 
 // 👹 권역 보스전 — 숙련도 게이트 + 칭호
@@ -1338,7 +1369,7 @@ function feedback(correct, head, body, pts){
   const face=`<img class="fb-mascot ${correct?'happy':'sad'}" src="${correct?'guide-correct.png':'guide-think.png'}${MASCOT_VER}" alt="">`;
   fb.className='feedback-box '+(correct?'good':'bad');
   const ptsTag = pts ? ` <span class="fb-pts${pts<0?' minus':''}">${pts>0?'+':''}${pts}점</span>` : '';
-  const note = !correct ? '<div class="fb-note">📌 지역 오답은 [도전] 탭 ‘오답 수배서’에서 다시 복습할 수 있어요</div>' : '';
+  const note = !correct ? '<div class="fb-note">📌 지역 오답은 [미션] 탭 ‘오답 수배서’에서 다시 복습할 수 있어요</div>' : '';
   fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${ptsTag}</div>${body}${note}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);

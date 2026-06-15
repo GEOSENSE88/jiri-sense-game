@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615z6">
+<link rel="stylesheet" href="style.css?v=20260615z7">
 </head>
 <body>
 
@@ -33,6 +33,8 @@
 
   <div class="home-tabs">
     <section class="panel tab-panel active" id="tab-play">
+      <div id="play-hero" class="play-hero"></div>
+      <div id="beginner-guide" class="beginner-guide hidden"></div>
       <h2>🎮 게임 모드 <span class="swipe-hint">밀거나 화살표로 선택</span></h2>
       <div class="carousel-wrap">
       <button class="car-arrow car-prev" id="car-prev" aria-label="이전">‹</button>
@@ -258,7 +260,7 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615z6" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615z7" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -340,7 +342,7 @@
   <nav class="tabbar" id="tabbar">
     <div class="tabbar-inner">
       <button class="tab-btn active" data-tab="play"><span class="ic">🎮</span><span>플레이</span></button>
-      <button class="tab-btn" data-tab="challenge"><span class="ic">⚔️</span><span>도전</span></button>
+      <button class="tab-btn" data-tab="challenge"><span class="ic">🎯</span><span>미션</span></button>
       <button class="tab-btn" data-tab="collection"><span class="ic">🎴</span><span>도감</span></button>
       <button class="tab-btn" data-tab="record"><span class="ic">📚</span><span>학습</span></button>
       <button class="tab-btn" data-tab="board"><span class="ic">🏆</span><span>기록</span></button>
@@ -352,7 +354,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615z6" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615z7" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -488,12 +490,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615z6"></script>
-<script src="stats-data.js?v=20260615z6"></script>
-<script src="freq-data.js?v=20260615z6"></script>
-<script src="match-sets.js?v=20260615z6"></script>
-<script src="questions.js?v=20260615z6"></script>
-<script src="mascots-data.js?v=20260615z6"></script>
-<script src="game.js?v=20260615z6"></script>
+<script src="map-data.js?v=20260615z7"></script>
+<script src="stats-data.js?v=20260615z7"></script>
+<script src="freq-data.js?v=20260615z7"></script>
+<script src="match-sets.js?v=20260615z7"></script>
+<script src="questions.js?v=20260615z7"></script>
+<script src="mascots-data.js?v=20260615z7"></script>
+<script src="game.js?v=20260615z7"></script>
 </body>
 </html>

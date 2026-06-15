@@ -98,6 +98,14 @@ check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학�
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
 check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
 check(document.querySelector('.topbar #coin-cnt') !== null, '상단바(코인)');
+check(document.querySelector('#play-hero #ph-start') !== null, '플레이 탭 추천 한 판 히어로 + 시작 버튼');
+check(document.getElementById('xp-text').textContent.includes('판'), 'XP 텍스트에 행동 단서(약 N판)');
+check(!document.getElementById('beginner-guide').classList.contains('hidden'), '초보자(XP<300) 추천 순서 노출');
+check(document.querySelectorAll('#beginner-guide .bg-step').length === 5, '초보자 추천 5단계');
+window.eval('xp=500; renderBeginnerGuide();');
+check(document.getElementById('beginner-guide').classList.contains('hidden'), 'XP≥300이면 초보자 가이드 숨김');
+window.eval('xp=0; store.save("geo_xp",0); renderBeginnerGuide();');
+check(document.querySelector('.tabbar .tab-btn[data-tab="challenge"]').textContent.includes('미션'), '하단 탭 라벨: 도전→미션');
 check(document.getElementById('tab-collection') !== null, '도감 탭 신설');
 check(document.querySelector('#tab-collection #btn-draw') !== null && document.querySelector('#tab-collection #btn-collection') !== null, '도감 탭 = 지역 도감 + 카드 뽑기');
 check(document.querySelector('#tab-challenge #mission-body') !== null, '미션이 도전 탭으로 통합');
