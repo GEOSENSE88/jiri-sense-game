@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615d">
+<link rel="stylesheet" href="style.css?v=20260615f">
 </head>
 <body>
 
@@ -35,6 +35,13 @@
 
   <div class="home-grid">
     <section class="panel modes-panel">
+      <div class="recommend-card">
+        <img class="mascot" src="icon-192.png" alt="지리센스 마스코트">
+        <div class="rec-wrap">
+          <div class="rec-bubble" id="rec-bubble"></div>
+          <button class="rec-btn" id="rec-btn"></button>
+        </div>
+      </div>
       <div class="mission-card">
         <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
         <div id="mission-body"></div>
@@ -47,7 +54,7 @@
         </button>
         <button class="learn-btn" id="btn-collection">
           <span class="mode-icon">🏞️</span>
-          <span><b>카드 컬렉션</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
+          <span><b>지역 도감</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
         </button>
       </div>
 
@@ -223,8 +230,12 @@
         <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 — 전국 지역 카드를 모아 보세요! (★전설 = 기출 최다 빈출 지역)</p>
       </div>
       <div class="mastery-box">
-        <h2>지역별 숙련도</h2>
+        <h2>🗺️ 나의 정복도</h2>
         <div id="mastery-list"></div>
+      </div>
+      <div class="boss-box">
+        <h2>👹 권역 보스전 <small>숙련도 60%↑ 도전</small></h2>
+        <div id="boss-body"></div>
       </div>
       <div class="wanted-box">
         <h2>🔍 오답 지역 수배서</h2>
@@ -289,6 +300,7 @@
   </div>
   <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
   <div id="warmup-tip" class="warmup-tip hidden"></div>
+  <div id="boss-bar" class="boss-bar hidden"></div>
 
   <div class="game-body" id="game-body">
     <div id="question-box" class="question-box"></div>
@@ -327,11 +339,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615d"></script>
-<script src="stats-data.js?v=20260615d"></script>
-<script src="freq-data.js?v=20260615d"></script>
-<script src="match-sets.js?v=20260615d"></script>
-<script src="questions.js?v=20260615d"></script>
-<script src="game.js?v=20260615d"></script>
+<script src="map-data.js?v=20260615f"></script>
+<script src="stats-data.js?v=20260615f"></script>
+<script src="freq-data.js?v=20260615f"></script>
+<script src="match-sets.js?v=20260615f"></script>
+<script src="questions.js?v=20260615f"></script>
+<script src="mascots-data.js?v=20260615f"></script>
+<script src="game.js?v=20260615f"></script>
 </body>
 </html>
