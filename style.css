@@ -206,8 +206,11 @@ button { font-family:inherit; }
   display:flex; flex-wrap:nowrap; gap:7px;
   overflow-x:auto; padding-bottom:4px;
   scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);
+  mask-image:linear-gradient(90deg,#000 88%,transparent);
 }
 .chips::-webkit-scrollbar { display:none; }
+.coin-chip { cursor:pointer; }
 .chip {
   padding:8px 15px; border-radius:99px; border:1.5px solid var(--line2);
   background:#fff; color:var(--dim); cursor:pointer; font-size:.84rem;
@@ -287,6 +290,48 @@ button { font-family:inherit; }
 .bingo-cell.target { background:#FFF1AE; border-color:var(--gold); animation:hitFlash .6s; }
 .bingo-cell.miss-pick { background:#FFD7D2; border-color:var(--red); color:var(--red); }
 .bingo-strike { float:right; font-size:.82rem; font-weight:800; color:var(--red); }
+
+/* 🔁 오늘의 도전 */
+.daily-mine { margin-top:8px; font-size:.85rem; color:var(--dim); font-weight:700; }
+.daily-board { margin-top:4px; }
+
+/* 🏅 업적 */
+.ach-count { font-size:.78rem; font-weight:800; color:var(--sea-d); background:#EAF6FF; border-radius:99px; padding:2px 9px; }
+.ach-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+@media (max-width:380px){ .ach-grid { grid-template-columns:1fr; } }
+.ach-item { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:12px;
+  border:1.5px solid var(--line2); background:#FAFCFE; opacity:.6; }
+.ach-item.on { opacity:1; background:linear-gradient(135deg,#FFF7E0,#FFEFC2); border-color:var(--gold); }
+.ach-ic { font-size:1.4rem; line-height:1; filter:grayscale(.6); }
+.ach-item.on .ach-ic { filter:none; }
+.ach-txt b { display:block; font-size:.82rem; color:var(--navy); }
+.ach-txt small { display:block; font-size:.68rem; color:var(--dim); line-height:1.25; margin-top:1px; }
+.ach-toast { position:fixed; left:50%; top:64px; transform:translate(-50%,-18px); z-index:120;
+  background:#fff; border:2px solid var(--gold); border-radius:14px; padding:11px 16px;
+  box-shadow:0 8px 28px rgba(245,166,35,.35); opacity:0; transition:opacity .35s, transform .35s;
+  min-width:180px; max-width:88vw; text-align:center; }
+.ach-toast.show { opacity:1; transform:translate(-50%,0); }
+.ach-toast .at-title { font-weight:900; color:var(--navy); font-size:.92rem; margin-bottom:5px; }
+.ach-toast .at-row { font-weight:800; color:var(--text); font-size:.86rem; }
+.ach-toast .at-ic { font-size:1.05rem; }
+.ach-toast .at-bonus { margin-top:5px; font-weight:900; color:var(--gold); font-size:.86rem; }
+
+/* 📋 전체 모드 보기 */
+.all-modes-btn { display:block; width:100%; margin:12px 0 2px; padding:11px; border-radius:12px;
+  border:1.5px dashed var(--line2); background:#F7FBFF; color:var(--navy); font-weight:800;
+  font-size:.86rem; cursor:pointer; transition:.13s; }
+.all-modes-btn:hover { border-color:var(--sea); background:#EFF8FF; }
+.wide-dialog { max-width:520px; }
+.modes-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:6px; }
+.mode-tile { text-align:left; padding:12px 13px; border-radius:13px; cursor:pointer;
+  border:1.5px solid var(--line2); border-left:5px solid var(--mc,#1278C2); background:#fff; transition:.13s; }
+.mode-tile:hover { transform:translateY(-2px); box-shadow:var(--shadow-sm); border-color:var(--mc,#1278C2); }
+.mode-tile:active { transform:scale(.97); }
+.mt-name { display:block; font-weight:800; color:var(--navy); font-size:.9rem; }
+.mt-desc { display:block; font-size:.72rem; color:var(--dim); line-height:1.3; margin-top:2px; }
+
+/* 피드백 오답 복습 안내 */
+.fb-note { margin-top:8px; font-size:.76rem; color:var(--sea-d); font-weight:700; }
 
 /* 점수 팝업 (+점수 튀어오름) */
 .hud .score { position:relative; overflow:visible; }
@@ -463,11 +508,11 @@ button { font-family:inherit; }
 
 .zoom-ctrl { position:absolute; right:13px; top:13px; display:flex; flex-direction:column; gap:6px; z-index:4; }
 .zoom-ctrl button {
-  width:38px; height:38px; border-radius:var(--r-sm); border:1.5px solid var(--line2);
-  background:#FFFFFFEB; color:var(--navy); font-size:1.1rem; cursor:pointer; font-weight:800;
-  backdrop-filter:blur(4px); transition:.13s; box-shadow:var(--shadow-sm);
+  width:34px; height:34px; border-radius:var(--r-sm); border:1.5px solid var(--line2);
+  background:#FFFFFFD0; color:var(--navy); font-size:1.05rem; cursor:pointer; font-weight:800;
+  backdrop-filter:blur(4px); transition:.13s; box-shadow:var(--shadow-sm); opacity:.72;
 }
-.zoom-ctrl button:hover { border-color:var(--sea); }
+.zoom-ctrl button:hover, .zoom-ctrl button:active { opacity:1; border-color:var(--sea); }
 .zoom-ctrl button:active { background:var(--sky); }
 
 .map-tooltip {

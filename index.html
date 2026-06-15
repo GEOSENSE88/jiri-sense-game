@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615z5">
+<link rel="stylesheet" href="style.css?v=20260615z6">
 </head>
 <body>
 
@@ -248,6 +248,7 @@
         </button>
       </div>
       </div>
+      <button id="btn-all-modes" class="all-modes-btn">📋 전체 모드 한눈에 보기 (11종)</button>
 
       <div class="region-filter">
         <h3>출제 범위</h3>
@@ -257,11 +258,15 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615z5" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615z6" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
         </div>
+      </div>
+      <div class="daily-box">
+        <h2>🔁 오늘의 도전 <small>매일 자정 갱신 · 전국 같은 문제</small></h2>
+        <div id="daily-body"></div>
       </div>
       <div class="mission-card">
         <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
@@ -292,7 +297,7 @@
         <div class="gacha-row">
           <button id="btn-draw" class="primary-btn draw-btn">카드 뽑기 <small>5🪙</small></button>
         </div>
-        <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 — 전국 지역 카드를 모아 보세요! (★전설 = 기출 최다 빈출 지역)</p>
+        <p class="freq-span" style="margin:8px 0 0">게임 점수 200점당 1🪙 — 전국 지역 카드를 모아 보세요! (★전설 = 기출 최다 빈출 지역)</p>
       </div>
     </section>
 
@@ -318,6 +323,10 @@
     </section>
 
     <section class="panel tab-panel" id="tab-board">
+      <div class="ach-box">
+        <h2>🏅 업적 <span id="ach-count" class="ach-count"></span></h2>
+        <div id="ach-list" class="ach-grid"></div>
+      </div>
       <div class="board-box">
         <h2>🏆 명예의 전당</h2>
         <div id="home-board"></div>
@@ -343,7 +352,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615z5" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615z6" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -373,6 +382,16 @@
       <button id="teacher-toggle" class="text-btn">처음이신가요? 교사 등록하기 →</button>
     </div>
     <div id="teacher-result" class="teacher-result"></div>
+  </div>
+</div>
+
+<!-- ===== 전체 모드 보기 모달 ===== -->
+<div id="modes-modal" class="modal hidden">
+  <div class="dialog wide-dialog">
+    <button id="modes-close" class="dialog-x" aria-label="닫기">✕</button>
+    <h2>🎮 전체 게임 모드</h2>
+    <p class="dialog-sub">원하는 모드를 골라 바로 시작하세요.</p>
+    <div id="modes-list" class="modes-grid"></div>
   </div>
 </div>
 
@@ -469,12 +488,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615z5"></script>
-<script src="stats-data.js?v=20260615z5"></script>
-<script src="freq-data.js?v=20260615z5"></script>
-<script src="match-sets.js?v=20260615z5"></script>
-<script src="questions.js?v=20260615z5"></script>
-<script src="mascots-data.js?v=20260615z5"></script>
-<script src="game.js?v=20260615z5"></script>
+<script src="map-data.js?v=20260615z6"></script>
+<script src="stats-data.js?v=20260615z6"></script>
+<script src="freq-data.js?v=20260615z6"></script>
+<script src="match-sets.js?v=20260615z6"></script>
+<script src="questions.js?v=20260615z6"></script>
+<script src="mascots-data.js?v=20260615z6"></script>
+<script src="game.js?v=20260615z6"></script>
 </body>
 </html>

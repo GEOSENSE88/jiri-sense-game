@@ -47,7 +47,7 @@ async function postServerScore(mode, name, score){
 let account = store.load('geo_account', null);   // {cls, nickname, token}
 
 // 동기화 대상 상태 한 묶음
-function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles }; }
+function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles, ach }; }
 function applyState(s){
   if(!s) return;
   if(typeof s.xp==='number') xp=s.xp;
@@ -57,9 +57,10 @@ function applyState(s){
   if(s.wanted) wanted=s.wanted;
   if(s.mission) mission=s.mission;
   if(s.titles) titles=s.titles;
+  if(s.ach) ach=s.ach;
   store.save('geo_xp',xp); store.save('geo_coins',coins); store.save('geo_stats',stats);
   store.save('geo_cards',cards); store.save('geo_wanted',wanted);
-  store.save('geo_mission',mission); store.save('geo_titles',titles);
+  store.save('geo_mission',mission); store.save('geo_titles',titles); store.save('geo_ach',ach);
 }
 // 서버 진도 vs 로컬 진도 병합 — 손실 없이 '더 풍부한 쪽' 채택
 function mergeState(server){
@@ -67,6 +68,7 @@ function mergeState(server){
   m.xp=Math.max(local.xp||0, server.xp||0);
   m.coins=Math.max(local.coins||0, server.coins||0);
   m.titles=Object.assign({}, server.titles||{}, local.titles||{});      // 칭호 합집합
+  m.ach=Object.assign({}, server.ach||{}, local.ach||{});               // 업적 합집합
   m.cards=Object.assign({}, server.cards||{});                          // 카드 최대 보유수
   for(const k in (local.cards||{})) m.cards[k]=Math.max(m.cards[k]||0, local.cards[k]);
   m.stats={};                                                          // 숙련도: 더 많이 푼 쪽
@@ -159,8 +161,9 @@ const MODE_INFO = {
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
   bingo:    {title:'🎰 빙고 게임', useMap:false, n:25, time:22},
   streak:   {title:'🔥 연승 모드', useMap:true, time:0},
+  daily:    {title:'🔁 오늘의 도전', useMap:true, n:10, time:26},
 };
-const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE',streak:'#E8590C'};
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE',streak:'#E8590C',daily:'#0CA678'};
 // 🏷️ 테마 게임: 테마를 고른 뒤 그 테마의 지역만 백지도에서 맞히는 퀴즈
 let THEMES_CACHE=null;
 function buildThemes(){
@@ -424,9 +427,12 @@ function initHome(){
   updateGachaUI();
   renderAccount();
   renderRecommend();
+  renderDaily();
   renderMission();
   renderBoss();
   renderWanted();
+  renderAchievements();
+  checkAchievements();   // 기존 진척에 대한 업적 소급 해금
   // 빈출 지역 TOP 12 — 특별·광역시 제외, 시·군 단위만
   $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수(시·군 기준) — 빈출 지역은 게임에서 더 자주 출제됩니다`;
   const fl=$('freq-list'); fl.innerHTML='';
@@ -548,10 +554,44 @@ function openThemeModal(){
   $('theme-modal').classList.remove('hidden');
 }
 $('theme-close')?.addEventListener('click', ()=>$('theme-modal').classList.add('hidden'));
+
+// 🎮 전체 모드 보기 (캐러셀에서 뒤쪽 모드를 놓치지 않도록 2열 그리드 제공)
+const PLAY_MODES=[
+  {m:'location', name:'📍 위치 사냥', desc:'이름·설명 보고 백지도 탭'},
+  {m:'theme',    name:'🏷️ 테마 게임', desc:'도청·축제·특산물 등 테마'},
+  {m:'bingo',    name:'🎰 빙고 게임', desc:'5×5 빙고판, 2번 틀리면 끝'},
+  {m:'streak',   name:'🔥 연승 모드', desc:'시간제한 없이, 틀리면 종료'},
+  {m:'muniname', name:'🔎 지역 판독', desc:'깜빡이는 시·군 이름 맞히기'},
+  {m:'detective',name:'🕵️ 지역 추리', desc:'힌트를 열며 추리'},
+  {m:'climate',  name:'🌡️ 기후 비교', desc:'두 지역 기후 상대 비교'},
+  {m:'stats',    name:'📊 통계 비교', desc:'두 시·도 통계 대결'},
+  {m:'mcq',      name:'📝 개념 퀴즈', desc:'4지선다 170여 문항'},
+  {m:'ox',       name:'⚡ 스피드 OX', desc:'60초 타임어택'},
+  {m:'battle',   name:'⚔️ 1:1 배틀', desc:'친구와 점수 대결'},
+];
+function openModesModal(){
+  const box=$('modes-list'); if(!box) return;
+  box.innerHTML='';
+  PLAY_MODES.forEach(pm=>{
+    const b=document.createElement('button');
+    b.className='mode-tile'; b.style.setProperty('--mc', MODE_COLOR[pm.m]||'#1278C2');
+    b.innerHTML=`<span class="mt-name">${pm.name}</span><span class="mt-desc">${pm.desc}</span>`;
+    b.onclick=()=>{ $('modes-modal').classList.add('hidden'); pm.m==='theme'?openThemeModal():startGame(pm.m); };
+    box.appendChild(b);
+  });
+  $('modes-modal').classList.remove('hidden');
+}
+$('btn-all-modes')?.addEventListener('click', openModesModal);
+$('modes-close')?.addEventListener('click', ()=>$('modes-modal').classList.add('hidden'));
+// 🪙 코인 칩 탭 → 도감(카드 뽑기) 탭으로 (코인 사용처 안내)
+document.querySelector('.coin-chip')?.addEventListener('click', ()=>{
+  const t=document.querySelector('.tab-btn[data-tab="collection"]'); if(t) t.click();
+});
 $('reset-data').onclick=()=>{
   if(confirm('모든 기록(점수·숙련도·랭킹·수배서)을 초기화할까요?')){
     store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board'); store.remove('geo_wanted'); store.remove('geo_mission'); store.remove('geo_titles');
-    stats={}; xp=0; board={}; wanted={}; mission=null; titles={}; initHome();
+    ['geo_ach','geo_daily_done','geo_daily_score','geo_maxcombo','geo_bingo_black','geo_beststreak'].forEach(k=>store.remove(k));
+    stats={}; xp=0; board={}; wanted={}; mission=null; titles={}; ach={}; initHome();
   }
 };
 
@@ -841,6 +881,99 @@ function streakRefill(n){
   return shuffle(out);
 }
 
+// 🔁 오늘의 도전 — 날짜 시드로 전국 학생이 같은 10문항을 받는다(공정한 일일 랭킹)
+function dayKey(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function seededRnd(str){ let s=hashStr(str)||1; return ()=>{ s^=s<<13; s^=s>>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
+function dailyQueue(){
+  const rnd=seededRnd('daily-'+dayKey());
+  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const locs=locPool().filter(l=>l.accept&&(l.fact||l.desc));
+  const munis=Object.keys(MUNIS);
+  const plan=['location','mcq','location','muniname','ox','location','mcq','muniname','ox','location'];
+  return plan.map(t=> t==='location'?{btype:'location',item:pick(locs)}
+                    : t==='muniname'?{btype:'muniname',item:pick(munis)}
+                    : t==='mcq'?{btype:'mcq',item:pick(MCQ)}
+                    : {btype:'ox',item:pick(OX)});
+}
+async function postDailyScore(day, name, score){
+  try{ const r=await fetch(LB_API+'/daily/score',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({day,name,score})}); return r.ok?await r.json():null; }catch(e){ return null; }
+}
+async function fetchDaily(day){
+  try{ const r=await fetch(LB_API+'/daily?day='+encodeURIComponent(day),{cache:'no-store'});
+    return r.ok?await r.json():null; }catch(e){ return null; }
+}
+function renderDaily(){
+  const box=$('daily-body'); if(!box) return;
+  const today=dayKey();
+  const done = store.load('geo_daily_done','')===today;
+  const myScore = store.load('geo_daily_score', null);
+  box.innerHTML =
+    `<button class="primary-btn" id="btn-daily">${done?'✓ 오늘 완료 — 다시 풀기(연습)':'🔁 오늘의 도전 시작 (10문제)'}</button>`+
+    (done&&myScore!=null?`<div class="daily-mine">오늘 내 기록: <b>${myScore}점</b></div>`:'')+
+    `<div id="daily-board" class="daily-board"><div class="t-msg" style="margin:8px 0 0">오늘의 랭킹 불러오는 중…</div></div>`;
+  $('btn-daily').onclick=()=>startGame('daily');
+  fetchDaily(today).then(d=>{
+    const el=$('daily-board'); if(!el) return;
+    const list=(d&&d.top)||[];
+    if(!list.length){ el.innerHTML='<div class="t-msg" style="margin:8px 0 0">아직 오늘 기록이 없어요. 첫 도전자가 되어 보세요!</div>'; return; }
+    const medal=['🥇','🥈','🥉'];
+    el.innerHTML='<div class="bd-head" style="margin-top:8px">오늘의 랭킹 TOP 5</div>'+
+      list.slice(0,5).map((e,i)=>`<div class="bd-row"><span class="bd-rk">${medal[i]||(i+1)}</span><span class="bd-name">${e.name}</span><b class="bd-score">${e.score}점</b></div>`).join('');
+  });
+}
+
+// ============================================================
+// 🏅 업적 · 칭호 뱃지
+// ============================================================
+let ach = store.load('geo_ach', {});
+const ACHIEVEMENTS=[
+  {id:'first', icon:'🌱', name:'첫 발걸음', desc:'게임을 처음 완료', reward:5,  check:()=>xp>0},
+  {id:'rank',  icon:'🗺️', name:'지도 읽는 자', desc:'XP 1600 달성', reward:10, check:()=>xp>=1600},
+  {id:'combo15',icon:'⚡', name:'콤보 마스터', desc:'한 게임 15콤보', reward:15, check:()=>store.load('geo_maxcombo',0)>=15},
+  {id:'streak10',icon:'🔥',name:'10연승', desc:'연승 모드 10연승', reward:15, check:()=>store.load('geo_beststreak',0)>=10},
+  {id:'streak25',icon:'🌋',name:'연승 괴물', desc:'연승 모드 25연승', reward:30, check:()=>store.load('geo_beststreak',0)>=25},
+  {id:'bingo', icon:'🎰', name:'빙고 블랙아웃', desc:'빙고판 25칸 완성', reward:20, check:()=>!!store.load('geo_bingo_black',false)},
+  {id:'daily', icon:'🔁', name:'오늘의 도전자', desc:'일일 도전 완료', reward:10, check:()=>!!store.load('geo_daily_done','')},
+  {id:'col50', icon:'📒', name:'수집가', desc:'지역 카드 50종 수집', reward:15, check:()=>Object.keys(cards).length>=50},
+  {id:'col100',icon:'🏞️', name:'도감 마스터', desc:'지역 카드 100종 수집', reward:30, check:()=>Object.keys(cards).length>=100},
+  {id:'legend',icon:'⭐', name:'전설 수집가', desc:'전설 등급 카드 획득', reward:15, check:()=>Object.keys(cards).some(n=>{const l=LOCATIONS.find(x=>x.name===n);return l&&rarityOf(l)==='전설';})},
+  {id:'boss1', icon:'👹', name:'권역 정복자', desc:'권역 보스 1곳 격파', reward:15, check:()=>Object.keys(titles).length>=1},
+  {id:'bossAll',icon:'👑',name:'국토 통일', desc:'모든 권역 보스 격파', reward:50, check:()=>BOSS_REGIONS.every(r=>titles[r])},
+  {id:'attend7',icon:'📅',name:'개근상', desc:'7일 연속 출석', reward:20, check:()=>store.load('geo_streak',0)>=7},
+];
+function checkAchievements(){
+  const newly=[];
+  ACHIEVEMENTS.forEach(a=>{ if(!ach[a.id]){ let ok=false; try{ ok=a.check(); }catch(e){} if(ok){ ach[a.id]=true; newly.push(a); } } });
+  if(newly.length){
+    store.save('geo_ach', ach);
+    const bonus=newly.reduce((s,a)=>s+(a.reward||0),0);
+    if(bonus){ coins+=bonus; store.save('geo_coins',coins); updateGachaUI(); }
+    achToast(newly, bonus);
+    renderAchievements();
+    scheduleSync();
+  }
+}
+function achToast(list, bonus){
+  const t=document.createElement('div'); t.className='ach-toast';
+  t.innerHTML=`<div class="at-title">🏅 업적 달성!</div>`+
+    list.map(a=>`<div class="at-row"><span class="at-ic">${a.icon}</span> ${a.name}</div>`).join('')+
+    (bonus?`<div class="at-bonus">보너스 +${bonus}🪙</div>`:'');
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),20);
+  setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),400); }, 3400);
+}
+function renderAchievements(){
+  const box=$('ach-list'); if(!box) return;
+  const got=ACHIEVEMENTS.filter(a=>ach[a.id]).length;
+  const cnt=$('ach-count'); if(cnt) cnt.textContent=`${got}/${ACHIEVEMENTS.length}`;
+  box.innerHTML=ACHIEVEMENTS.map(a=>{
+    const on=!!ach[a.id];
+    return `<div class="ach-item${on?' on':''}"><span class="ach-ic">${on?a.icon:'🔒'}</span>`+
+      `<div class="ach-txt"><b>${a.name}</b><small>${a.desc}</small></div></div>`;
+  }).join('');
+}
+
 function startGame(mode, opt){
   G.mode=mode; G.idx=0; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.locked=false;
   G.battle=null; G.bossRegion=null; G.noTimer=(mode==='streak'); G.lastCorrect=true;
@@ -895,6 +1028,8 @@ function startGame(mode, opt){
     renderBingoGrid();
   } else if(mode==='streak'){
     G.queue=streakRefill(30);
+  } else if(mode==='daily'){
+    G.queue=dailyQueue();
   } else if(mode==='theme'){
     const theme=themeByKey(opt) || buildThemes()[0];
     $('game-title').textContent=theme.label;
@@ -1134,7 +1269,7 @@ function nextQuestion(){
 
   hudUpdate();
   let item=G.queue[G.idx], type=G.mode;
-  if(G.mode==='battle'||G.mode==='boss'||G.mode==='streak'){
+  if(G.mode==='battle'||G.mode==='boss'||G.mode==='streak'||G.mode==='daily'){
     type=item.btype; item=item.item;
     const noMap=(type==='mcq'||type==='ox'||(type==='climate'&&item.kind==='order'));
     $('map-pane').style.display=noMap?'none':'block';
@@ -1203,7 +1338,8 @@ function feedback(correct, head, body, pts){
   const face=`<img class="fb-mascot ${correct?'happy':'sad'}" src="${correct?'guide-correct.png':'guide-think.png'}${MASCOT_VER}" alt="">`;
   fb.className='feedback-box '+(correct?'good':'bad');
   const ptsTag = pts ? ` <span class="fb-pts${pts<0?' minus':''}">${pts>0?'+':''}${pts}점</span>` : '';
-  fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${ptsTag}</div>${body}`;
+  const note = !correct ? '<div class="fb-note">📌 지역 오답은 [도전] 탭 ‘오답 수배서’에서 다시 복습할 수 있어요</div>' : '';
+  fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${ptsTag}</div>${body}${note}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);
   if(pts) scorePop(pts);
@@ -1238,7 +1374,7 @@ function askLocation(loc){
       `<span class="q-region">${regionLabel(loc.region)}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
   }
   $('choices-box').innerHTML='<div class="map-hint">💡 작으면 확대해서 콕! 가까우면 절반 점수</div>';
-  if(G.region!=='전체') dimOtherRegions(G.region);
+  if(G.region!=='전체' && G.mode!=='daily') dimOtherRegions(G.region);
   fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
@@ -1478,7 +1614,7 @@ function askDetective(loc){
     }
   };
   renderChoices();
-  if(G.region!=='전체') dimOtherRegions(G.region);
+  if(G.region!=='전체' && G.mode!=='daily') dimOtherRegions(G.region);
   fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
@@ -1523,7 +1659,7 @@ function askMuniName(name){
   $('question-box').innerHTML=
     `<span class="q-region">${m.region}</span> 지도에 <b style="color:var(--accent)">깜빡이는 시·군</b>의 이름은? <span class="map-hint">(${m.prov})</span>`;
   muniEl(name)?.classList.add('flash','pulse');
-  if(G.region!=='전체') dimOtherRegions(G.region);
+  if(G.region!=='전체' && G.mode!=='daily') dimOtherRegions(G.region);
   // 출제 시·군 주변으로 자동 확대 (이미 깜빡임으로 공개된 상태)
   {
     const bb=muniBBox(name);
@@ -2047,7 +2183,7 @@ function askOX(q){
     };
     row.appendChild(b);
   });
-  const sec = G.mode==='battle' ? 8 : Math.min(8,(G.oxEnd-Date.now())/1000);
+  const sec = (G.mode==='battle'||G.mode==='daily') ? 9 : Math.min(8,(G.oxEnd-Date.now())/1000);
   startTimer(Math.max(1,sec),()=>{ if(G.locked)return; G.locked=true;
     row.querySelectorAll('button').forEach(x=>x.disabled=true);
     award(false,0); recordStat(q.region,false);
@@ -2457,6 +2593,7 @@ function drawCard(){
   store.save('geo_cards',cards);
   updateGachaUI();
   missionProgress({isNew:!dup});
+  checkAchievements();
   scheduleSync();
   return {loc, dup, rar:rarityOf(loc)};
 }
@@ -2614,6 +2751,7 @@ function endGame(){
     } else if(G.mode==='bingo'){
       const done=G.bingo.cells.filter(c=>c.done).length;
       const lines=G.bingo.lineKeys.size, over=G.bingo.wrong>=2, blackout=done===25;
+      if(blackout) store.save('geo_bingo_black', true);
       $('result-title').textContent = blackout ? '🎰 빙고 블랙아웃!' : over ? '🎰 게임 오버 (2회 오답)' : '🎰 빙고 게임 결과';
       $('result-main').textContent = `${done}/25칸 · 빙고 ${lines}줄 · ${G.score}점`;
       detail.innerHTML=`정답 ${G.correctCnt} / ${answered}`+
@@ -2624,6 +2762,22 @@ function endGame(){
       if(G.score>0){
         $('name-entry').classList.remove('hidden');
         $('player-name').value = account ? `[${account.cls}] ${account.nickname}` : store.load('geo_lastname','');
+      }
+    } else if(G.mode==='daily'){
+      const today=dayKey(), first = store.load('geo_daily_done','')!==today;
+      $('result-title').textContent='🔁 오늘의 도전 완료!';
+      $('result-main').textContent=`${G.score}점 · 정답 ${G.correctCnt}/${answered}`;
+      detail.innerHTML=`정답률 ${acc}%`+
+        (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
+        `<br><span style="font-size:.86em">${first?'오늘 기록이 일일 랭킹에 등록됐어요! 🏆':'오늘은 이미 등록했어요(연습 기록).'}</span>`;
+      xp+=Math.max(0, Math.round(G.score/10));
+      if(acc>=70) confetti(document.querySelector('.result-card'));
+      if(first){
+        store.save('geo_daily_done', today); store.save('geo_daily_score', G.score);
+        if(G.score>0){
+          const nm = account ? `[${account.cls}] ${account.nickname}` : (store.load('geo_lastname','')||'무명');
+          postDailyScore(today, nm, G.score);
+        }
       }
     } else {
       $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
@@ -2640,6 +2794,8 @@ function endGame(){
     }
   }
   store.save('geo_xp',xp);
+  store.save('geo_maxcombo', Math.max(store.load('geo_maxcombo',0), G.maxCombo||0));
+  checkAchievements();
   scheduleSync();
 }
 

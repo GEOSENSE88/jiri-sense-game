@@ -77,6 +77,15 @@ def init_db():
                  UNIQUE(school_code, nickname))"""
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_teacher_token ON teachers(token)")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS daily(
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 day   TEXT NOT NULL,
+                 name  TEXT NOT NULL,
+                 score INTEGER NOT NULL,
+                 created TEXT NOT NULL DEFAULT (datetime('now','localtime')))"""
+        )
+        c.execute("CREATE INDEX IF NOT EXISTS idx_day_score ON daily(day, score DESC)")
 
 
 init_db()
@@ -219,6 +228,46 @@ def student_sync():
             (max(0, min(xp, 10_000_000)), blob, row["id"]),
         )
     return jsonify(ok=True, xp=xp)
+
+
+@app.get("/api/daily")
+def daily_board():
+    day = clean(request.args.get("day"), 10)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day or ""):
+        return jsonify(error="bad day"), 400
+    with db() as c:
+        rows = c.execute(
+            "SELECT name, score FROM daily WHERE day=? ORDER BY score DESC, id ASC LIMIT ?",
+            (day, TOP_N * 2),
+        ).fetchall()
+    return jsonify(day=day, top=[dict(r) for r in rows])
+
+
+@app.post("/api/daily/score")
+def daily_score():
+    d = request.get_json(silent=True) or {}
+    day = clean(d.get("day"), 10)
+    name = re.sub(r"[<>\r\n\t]", "", str(d.get("name", "")).strip())[:30] or "무명"
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day or ""):
+        return jsonify(error="bad day"), 400
+    try:
+        score = int(d.get("score"))
+    except (TypeError, ValueError):
+        return jsonify(error="bad score"), 400
+    if not (0 <= score <= 100000):
+        return jsonify(error="score out of range"), 400
+    with db() as c:
+        c.execute("INSERT INTO daily(day,name,score) VALUES(?,?,?)", (day, name, score))
+        # 날짜별 상위 200개만 보관
+        c.execute(
+            "DELETE FROM daily WHERE day=? AND id NOT IN ("
+            "  SELECT id FROM daily WHERE day=? ORDER BY score DESC, id ASC LIMIT 200)",
+            (day, day),
+        )
+        rank = c.execute(
+            "SELECT COUNT(*)+1 AS r FROM daily WHERE day=? AND score>?", (day, score)
+        ).fetchone()["r"]
+    return jsonify(ok=True, rank=rank)
 
 
 @app.post("/api/teacher/register")
