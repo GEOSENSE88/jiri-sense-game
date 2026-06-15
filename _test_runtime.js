@@ -251,8 +251,7 @@ check(!document.getElementById('turn-indicator').classList.contains('hidden'), '
 
 console.log('\n=== 탐색 모드 (넘기기 탐색) ===');
 window.eval("startGame('explore')");
-const locCount = window.eval('LOCATIONS.length');
-check(document.querySelectorAll('#map-svg .loc-dot').length === locCount, `지점 ${locCount}개 표시`);
+check(document.querySelectorAll('#map-svg .loc-dot').length === 0, '탐색 지도에 빨간 지점 점 없음(어수선함 제거)');
 // 시·군 탭 → 해당 지역으로 이동 + 확대
 const seosan = document.querySelector('#map-svg .muni[data-name="서산시"]');
 seosan.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));

@@ -1728,7 +1728,7 @@ function startExplore(){
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='hidden');
   $('timer-bar').style.width='0%';
 
-  $('question-box').innerHTML='<span class="q-region">학습 모드</span> 시·군이나 파란 점을 탭하거나, ◀ ▶ 로 지역을 넘겨 보세요.';
+  $('question-box').innerHTML='<span class="q-region">학습 모드</span> 지도에서 시·군을 탭하거나, ◀ ▶ 로 지역을 넘겨 보세요.';
   const box=$('choices-box');
   box.innerHTML='<div class="explore-controls" id="exp-chips"></div><div id="exp-info" class="exp-info">지역을 선택하면 핵심 정보가 여기에 표시됩니다.</div>';
   const chipBox=$('exp-chips');
@@ -1870,13 +1870,7 @@ function renderExploreDots(region){
   EXP.i=-1;
   $('exp-info').innerHTML='지역을 선택하거나 ◀ ▶ 로 넘겨 보세요.'+
     `<div class="exp-nav" style="margin-top:8px"><button class="ghost-btn" onclick="expShow(0)">첫 지역부터 보기 ▶</button></div>`;
-  const tip=$('map-tooltip');
-  EXP.list.forEach(l=>{
-    const d=addDot(l.x,l.y,4.5+Math.min(freqOf(l.name),30)*0.12,'loc-dot');  // 빈출 지역일수록 큰 점
-    d.dataset.name=l.name;
-    d.onmousemove=(e)=>{ if(matchMedia('(hover:hover)').matches){ tip.classList.remove('hidden'); tip.innerHTML=`<b>${l.name}</b><br>${l.fact}`; positionTip(e,tip); } };
-    d.onmouseleave=()=>tip.classList.add('hidden');
-  });
+  // 지도 위 빨간 지점 점은 표시하지 않음(시·군 폴리곤을 직접 탭해 학습) — 어수선함 제거
 }
 function positionTip(e,tip){
   const rect=$('map-pane').getBoundingClientRect();
