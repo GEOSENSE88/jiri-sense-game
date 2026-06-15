@@ -355,6 +355,15 @@ button { font-family:inherit; }
 .board-row { display:flex; justify-content:space-between; align-items:center; padding:5px 2px; border-bottom:1.5px dashed var(--line2); }
 .board-row .b-mode { color:var(--faint); font-size:.72rem; }
 .board-row b { color:var(--sea-d); }
+/* 명예의 전당 — 항목(모드)별 섹션 */
+.bd-group { margin-bottom:13px; }
+.bd-group:last-child { margin-bottom:0; }
+.bd-head { font-size:.82rem; font-weight:800; color:var(--navy); margin-bottom:5px; padding-bottom:4px;
+  border-bottom:2px solid var(--line); display:flex; align-items:center; gap:5px; }
+.bd-row { display:flex; align-items:center; gap:9px; padding:3px 2px; font-size:.84rem; }
+.bd-row .bd-rk { width:22px; text-align:center; font-weight:800; color:var(--faint); font-size:.8rem; }
+.bd-row .bd-name { flex:1; min-width:0; color:var(--text); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bd-row .bd-score { color:var(--sea-d); font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .text-btn { background:none; border:none; color:var(--faint); cursor:pointer; font-size:.8rem; margin-top:12px; text-decoration:underline; padding:6px; }
 .text-btn:hover { color:var(--red); }

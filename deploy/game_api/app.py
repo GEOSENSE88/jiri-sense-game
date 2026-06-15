@@ -20,7 +20,7 @@ DB = os.path.join(BASE, "scores.db")
 
 # 프런트의 MODE_INFO 키와 일치
 ALLOWED_MODES = {
-    "explore", "location", "muniname", "detective",
+    "explore", "location", "theme", "muniname", "detective",
     "climate", "stats", "mcq", "ox", "battle",
 }
 TOP_N = 10        # 응답으로 돌려주는 상위 개수

@@ -373,18 +373,21 @@ function sampleLocQueue(items, n){
 // ============================================================
 // 홈 화면
 // ============================================================
-// 명예의 전당 렌더 — 서버 공유 랭킹(serverBoard) 우선, 없으면 로컬(board)
+// 명예의 전당 렌더 — 항목(모드)별 섹션 + 상위 3명. 서버 공유 랭킹(serverBoard) 우선, 없으면 로컬(board)
+const BOARD_MODES=['location','theme','muniname','detective','climate','stats','mcq','ox','battle'];
 function renderHomeBoard(){
   const hb=$('home-board'); if(!hb) return;
   const src = serverBoard || board;
   hb.innerHTML=''; let any=false;
-  Object.keys(MODE_INFO).forEach(m=>{
-    const list=src[m]||[];
-    if(list.length){ any=true;
-      hb.insertAdjacentHTML('beforeend',
-        `<div class="board-row"><span>${list[0].name} — <b>${list[0].score}</b>점</span>
-         <span class="b-mode">${MODE_INFO[m].title.replace(/^[^\s]+\s/,'')}</span></div>`);
-    }
+  const medal=['🥇','🥈','🥉'];
+  BOARD_MODES.forEach(m=>{
+    const list=(src[m]||[]).slice(0,3);
+    if(!list.length) return;
+    any=true;
+    const rows=list.map((e,i)=>
+      `<div class="bd-row"><span class="bd-rk">${medal[i]||(i+1)}</span><span class="bd-name">${e.name}</span><b class="bd-score">${e.score}점</b></div>`).join('');
+    hb.insertAdjacentHTML('beforeend',
+      `<div class="bd-group"><div class="bd-head">${MODE_INFO[m].title}</div>${rows}</div>`);
   });
   if(!any) hb.innerHTML='<div style="color:var(--dim);font-size:.83rem">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>';
 }
