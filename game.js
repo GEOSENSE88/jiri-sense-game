@@ -2479,16 +2479,15 @@ const RARITY_META = {
 // ⚡ 카드 강화 — 다 모은 뒤에도 카드를 키우는 코인 소비 시스템(공정성 위해 게임 능력엔 영향 없음)
 let cardLv = store.load('geo_cardlv', {});          // {지역명: 강화 레벨 1~5}
 const CARD_MAX_LV = 5;
-const ENHANCE_COST = [0, 10, 20, 40, 80];           // 현재 레벨 → 다음 레벨 코인 비용
+const ENHANCE_NEED = 5;          // 같은 카드 5장을 합쳐 강화(4장 소모, 1장이 강화됨)
 function cardLevel(name){ return cardLv[name] || 1; }
-function enhanceCost(name){ const lv=cardLevel(name); return lv>=CARD_MAX_LV ? null : ENHANCE_COST[lv]; }
 function enhanceScore(){ return Object.keys(cards).reduce((s,n)=>s+(cardLevel(n)-1),0); }   // 도감 총 강화도
+function canEnhance(name){ return !!cards[name] && cardLevel(name)<CARD_MAX_LV && cards[name]>=ENHANCE_NEED; }
 function doEnhance(name){
-  if(!cards[name]) return false;
-  const lv=cardLevel(name); if(lv>=CARD_MAX_LV) return false;
-  const cost=ENHANCE_COST[lv]; if(coins<cost) return false;
-  coins-=cost; cardLv[name]=lv+1;
-  store.save('geo_coins',coins); store.save('geo_cardlv',cardLv);
+  if(!canEnhance(name)) return false;
+  cards[name]-=(ENHANCE_NEED-1);                // 5장 → 강화된 1장(4장 소모)
+  cardLv[name]=cardLevel(name)+1;
+  store.save('geo_cards',cards); store.save('geo_cardlv',cardLv);
   updateGachaUI(); checkAchievements(); scheduleSync();
   return true;
 }
@@ -2677,12 +2676,13 @@ function openCardDetail(loc){
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
   const pop=MUNIS[loc.accept[0]]?.pop;
   const pr=pop?popRank(loc.accept[0]):null;
-  const lv=cardLevel(loc.name), cost=enhanceCost(loc.name);
+  const lv=cardLevel(loc.name), copies=cards[loc.name]||1;
   const enhHTML=`<div class="enh-box"><span class="enh-stars">${starHTML(lv)}</span> <span class="enh-lv">Lv.${lv}</span>`+
-    (cost!=null
-      ? ` <button class="enh-btn" id="enh-btn" ${coins<cost?'disabled':''}>강화 (${cost}🪙)</button>`
-      : ` <span class="enh-max">✨ 최대 강화 달성</span>`)+
-    `</div>`;
+    (lv>=CARD_MAX_LV
+      ? ` <span class="enh-max">✨ 최대 강화 달성</span>`
+      : ` <button class="enh-btn" id="enh-btn" ${copies<ENHANCE_NEED?'disabled':''}>⚡ 강화 (같은 카드 ${Math.min(copies,ENHANCE_NEED)}/${ENHANCE_NEED}장)</button>`)+
+    `</div>`+
+    (lv<CARD_MAX_LV && copies<ENHANCE_NEED ? `<div class="enh-hint">같은 카드를 ${ENHANCE_NEED}장 모으면 강화할 수 있어요 (현재 ${copies}장)</div>` : '');
   $('gacha-msg').innerHTML=
     `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명 (전국 ${pr.nat}위 · ${regionLabel(loc.region)} ${pr.reg}위)`:''}<br>${loc.fact}</div>`+
     enhHTML+
@@ -2762,8 +2762,8 @@ function renderCollection(filter){
   _collFilter=filter;
   const grid=$('cards-grid'); grid.innerHTML='';
   const list=LOCATIONS.filter(l=>filter==='전체'||l.region===filter);
-  const ord={'전설':0,'희귀':1,'일반':2};
-  list.sort((a,b)=>(cards[b.name]?1:0)-(cards[a.name]?1:0) || ord[rarityOf(a)]-ord[rarityOf(b)] || a.name.localeCompare(b.name));
+  const popOf=l=>MUNIS[l.accept[0]]?.pop||0;
+  list.sort((a,b)=> popOf(b)-popOf(a) || a.name.localeCompare(b.name));   // 인구 많은 순
   list.forEach(l=>{
     const owned=!!cards[l.name];
     const el=document.createElement('div');

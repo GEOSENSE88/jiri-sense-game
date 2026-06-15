@@ -397,6 +397,7 @@ button { font-family:inherit; }
 .enh-btn:hover:not(:disabled) { filter:brightness(1.07); transform:translateY(-1px); }
 .enh-btn:disabled { background:#C9D2DA; cursor:default; }
 .enh-max { font-weight:800; color:var(--gold); font-size:.82rem; }
+.enh-hint { margin-top:6px; font-size:.74rem; color:var(--dim); text-align:center; }
 
 /* 점수 팝업 (+점수 튀어오름) */
 .hud .score { position:relative; overflow:visible; }

@@ -530,21 +530,28 @@ console.log('\n=== 🏅 업적 ===');
   window.eval("ACHIEVEMENTS.forEach(a=>ach[a.id]=true); store.save('geo_ach',ach);");
 }
 
-console.log('\n=== ⚡ 카드 강화 ===');
+console.log('\n=== ⚡ 카드 강화 (같은 카드 5장) ===');
 {
-  window.eval("cards={}; cards[LOCATIONS[0].name]=3; cardLv={}; coins=1000; store.save('geo_coins',1000); store.save('geo_cards',cards);");
+  window.eval("cards={}; cards[LOCATIONS[0].name]=4; cardLv={};");
   check(window.eval("cardLevel(LOCATIONS[0].name)") === 1, '신규 카드 강화 레벨 1');
-  check(window.eval("doEnhance(LOCATIONS[0].name)") === true && window.eval("cardLevel(LOCATIONS[0].name)") === 2, '강화 → 레벨 2');
-  check(window.eval('coins') === 990, '강화 비용 10코인 차감');
+  check(window.eval("doEnhance(LOCATIONS[0].name)") === false, '같은 카드 5장 미만이면 강화 불가');
+  window.eval("cards[LOCATIONS[0].name]=30;");
+  check(window.eval("doEnhance(LOCATIONS[0].name)") === true && window.eval("cardLevel(LOCATIONS[0].name)") === 2, '5장 이상 → 강화 레벨 2');
+  check(window.eval("cards[LOCATIONS[0].name]") === 26, '강화 시 같은 카드 4장 소모(30→26)');
   window.eval("doEnhance(LOCATIONS[0].name); doEnhance(LOCATIONS[0].name); doEnhance(LOCATIONS[0].name);");
   check(window.eval("cardLevel(LOCATIONS[0].name)") === 5, '최대 레벨 5 도달');
-  check(window.eval("doEnhance(LOCATIONS[0].name)") === false && window.eval("enhanceCost(LOCATIONS[0].name)") === null, '최대 레벨 초과 강화 불가');
+  check(window.eval("doEnhance(LOCATIONS[0].name)") === false, '최대 레벨 초과 강화 불가');
   check(window.eval('enhanceScore()') === 4, '도감 강화도 = (레벨-1) 합');
   const cardHtml = window.eval("cardHTML(LOCATIONS[0], true, 3)");
   check(cardHtml.includes('rcard-stars') && cardHtml.includes('maxed'), '★5 카드에 별·골드 표시');
   check(/\be2\b/.test(cardHtml) && /\be5\b/.test(cardHtml) && cardHtml.includes('rcard-fx') && cardHtml.includes('rcard-crown'), '강화 레벨별 일러스트 효과(e2~e5·홀로그램·왕관)');
   const cardHtml1 = window.eval("cardLv={}; cardHTML(LOCATIONS[0], true, 1)");
   check(!/\be2\b/.test(cardHtml1) && !cardHtml1.includes('rcard-crown'), 'Lv1 카드는 강화 효과·왕관 없음');
+  // 도감 인구 순 정렬
+  window.eval("cards={}; LOCATIONS.forEach(l=>cards[l.name]=1); cardLv={}; renderCollection('전체');");
+  const firstName = (document.querySelector('#cards-grid .rcard-name')||{}).textContent || '';
+  const topName = window.eval("cardDisplayName([...LOCATIONS].sort((a,b)=>(MUNIS[b.accept[0]]?MUNIS[b.accept[0]].pop:0)-(MUNIS[a.accept[0]]?MUNIS[a.accept[0]].pop:0))[0])");
+  check(firstName === topName, '도감 정렬: 인구 1위 지역이 맨 앞 (' + firstName + ')');
 }
 
 console.log('\n=== 🩹 약점 리포트 / 🗂️ 테마 학습 ===');
