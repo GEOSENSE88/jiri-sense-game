@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615f">
+<link rel="stylesheet" href="style.css?v=20260615g">
 </head>
 <body>
 
@@ -26,6 +26,7 @@
     <div class="hero-stats">
       <div id="rank-badge" class="hero-chip rank-badge"></div>
       <div class="hero-chip coin-chip"><span id="coin-cnt" class="coin-cnt">🪙 0</span></div>
+      <button id="account-chip" class="hero-chip account-chip" type="button">👤 로그인 · 기록 저장</button>
     </div>
     <div class="hero-xp">
       <div id="xp-bar-wrap" class="xp-bar-wrap"><div id="xp-bar"></div></div>
@@ -253,7 +254,36 @@
       </div>
     </section>
   </div>
-  <footer class="credit">제작: <b>산남고 이성훈</b> · 자료: 2027 EBS 수능특강·수능완성, 기상청 평년값, 통계청 · 지도: 통계청 행정구역</footer>
+  <footer class="credit">제작: <b>산남고 이성훈</b> · 자료: 2027 EBS 수능특강·수능완성, 기상청 평년값, 통계청 · 지도: 통계청 행정구역
+    <br><a href="#" id="teacher-link" class="teacher-link">👩‍🏫 교사용 — 우리 반 기록 보기</a></footer>
+</div>
+
+<!-- ===== 로그인 / 기록 저장 모달 ===== -->
+<div id="login-modal" class="modal hidden">
+  <div class="dialog">
+    <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
+    <h2>👤 로그인 · 기록 저장</h2>
+    <p class="dialog-sub">반·닉네임·PIN만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
+    <input id="login-class" class="dialog-input" type="text" placeholder="반 (예: 3-7)" maxlength="20" autocomplete="off">
+    <input id="login-nick" class="dialog-input" type="text" placeholder="닉네임" maxlength="16" autocomplete="off">
+    <input id="login-pin" class="dialog-input" type="password" inputmode="numeric" placeholder="PIN (숫자 4~8자리)" maxlength="8" autocomplete="off">
+    <div id="login-msg" class="dialog-msg"></div>
+    <button id="login-submit" class="primary-btn dialog-btn">로그인 / 가입</button>
+    <button id="login-guest" class="text-btn">로그인 없이 계속(게스트)</button>
+  </div>
+</div>
+
+<!-- ===== 교사 대시보드 모달 ===== -->
+<div id="teacher-modal" class="modal hidden">
+  <div class="dialog">
+    <button id="teacher-close" class="dialog-x" aria-label="닫기">✕</button>
+    <h2>👩‍🏫 우리 반 기록</h2>
+    <p class="dialog-sub">반과 교사 비밀번호를 입력하면 학생 진도를 볼 수 있습니다.</p>
+    <input id="teacher-class" class="dialog-input" type="text" placeholder="반 (예: 3-7)" maxlength="20" autocomplete="off">
+    <input id="teacher-pw" class="dialog-input" type="password" placeholder="교사 비밀번호" autocomplete="off">
+    <button id="teacher-submit" class="primary-btn dialog-btn">조회</button>
+    <div id="teacher-result" class="teacher-result"></div>
+  </div>
 </div>
 
 <!-- ===== 카드 뽑기 모달 ===== -->
@@ -339,12 +369,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615f"></script>
-<script src="stats-data.js?v=20260615f"></script>
-<script src="freq-data.js?v=20260615f"></script>
-<script src="match-sets.js?v=20260615f"></script>
-<script src="questions.js?v=20260615f"></script>
-<script src="mascots-data.js?v=20260615f"></script>
-<script src="game.js?v=20260615f"></script>
+<script src="map-data.js?v=20260615g"></script>
+<script src="stats-data.js?v=20260615g"></script>
+<script src="freq-data.js?v=20260615g"></script>
+<script src="match-sets.js?v=20260615g"></script>
+<script src="questions.js?v=20260615g"></script>
+<script src="mascots-data.js?v=20260615g"></script>
+<script src="game.js?v=20260615g"></script>
 </body>
 </html>
