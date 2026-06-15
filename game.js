@@ -159,25 +159,78 @@ const MODE_INFO = {
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
 };
 const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C'};
-// 🏷️ 테마 게임: fact 키워드로 분류한 테마 → 해당 지역을 백지도에서 탭
-const THEME_DEFS = [
-  {key:'docheong', label:'🏛️ 도청 소재지', test:f=>/도청/.test(f)},
-  {key:'hyuksin',  label:'🏢 혁신도시',     test:f=>/혁신도시/.test(f)},
-  {key:'gieop',    label:'💼 기업도시',     test:f=>/기업도시/.test(f)},
-  {key:'festival', label:'🎉 축제의 고장',  test:f=>/축제/.test(f)},
-  {key:'sandan',   label:'⚙️ 국가 산업 단지', test:f=>/국가 ?산업 ?단지|산업 ?단지|제철|석유 ?화학|중화학/.test(f)},
-  {key:'heritage', label:'🏯 세계유산·문화재', test:f=>/세계 ?(문화|자연)? ?유산|불국사|해인사|하회|법주사|고인돌|왕릉|청자|석굴암|도산서원|종묘/.test(f)},
-  {key:'port',     label:'⚓ 항구·해양 도시', test:f=>/항구|무역항|외항|어항|컨테이너|조선소|해수욕장/.test(f)},
-];
-let THEME_POOL=null;
-function themePool(){
-  if(THEME_POOL) return THEME_POOL;
-  THEME_POOL=[];
-  THEME_DEFS.forEach(def=>{
-    LOCATIONS.filter(l=>l.fact && def.test(l.fact)).forEach(l=>THEME_POOL.push({def, loc:l}));
+// 🏷️ 테마 게임: 테마를 고른 뒤 그 테마의 지역만 백지도에서 맞히는 퀴즈
+let THEMES_CACHE=null;
+function buildThemes(){
+  if(THEMES_CACHE) return THEMES_CACHE;
+  // 인구 1위(도별): 광역시 제외, 각 도(道) 내 최대 인구 시·군을 자료에서 계산
+  const provTop={};
+  Object.entries(MUNIS).forEach(([n,m])=>{
+    if(!m.pop || !m.prov || /특별시|광역시|특별자치시/.test(m.prov)) return;
+    if(!provTop[m.prov] || (MUNIS[provTop[m.prov]].pop||0) < m.pop) provTop[m.prov]=n;
   });
-  return THEME_POOL;
+  const pop1=Object.entries(provTop).map(([prov,n])=>({a:n, c:`${prov}에서 인구가 가장 많은 시·군`}));
+  THEMES_CACHE=[
+    {key:'docheong', label:'🏛️ 도청 소재지', items:[
+      {a:'수원시',c:'경기도의 도청 소재지'},
+      {a:'춘천시',c:'강원특별자치도의 도청 소재지'},
+      {a:'청주시',c:'충청북도의 도청 소재지'},
+      {a:'홍성군',c:'충청남도의 도청 소재지(내포 신도시)'},
+      {a:'전주시',c:'전북특별자치도의 도청 소재지'},
+      {a:'무안군',c:'전라남도의 도청 소재지(남악 신도시)'},
+      {a:'안동시',c:'경상북도의 도청 소재지'},
+      {a:'창원시',c:'경상남도의 도청 소재지'},
+      {a:'제주시',c:'제주특별자치도의 도청 소재지'},
+    ]},
+    {key:'innov', label:'🏢 혁신도시·기업도시', items:[
+      {a:'나주시',c:'광주·전남 공동 혁신도시(빛가람동, 한국전력 등)'},
+      {a:'김천시',c:'경북 혁신도시(한국도로공사 등)'},
+      {a:'진주시',c:'경남 혁신도시(LH 한국토지주택공사)'},
+      {a:'원주시',c:'강원 혁신도시(건강보험공단)이자 기업도시'},
+      {a:'음성군',c:'충북 혁신도시(진천·음성)'},
+      {a:'서귀포시',c:'제주 혁신도시'},
+      {a:'완주군',c:'전북 혁신도시(전주·완주)'},
+      {a:'태안군',c:'관광 레저형 기업도시'},
+      {a:'충주시',c:'지식 기반형 기업도시'},
+    ]},
+    {key:'festival', label:'🎉 축제', items:[
+      {a:'보령시',c:'대천 해수욕장의 머드 축제'},
+      {a:'진주시',c:'남강 유등 축제'},
+      {a:'함평군',c:'나비 축제'},
+      {a:'김제시',c:'지평선 축제(드넓은 평야)'},
+      {a:'화천군',c:'산천어 축제(겨울)'},
+      {a:'안동시',c:'국제 탈춤 페스티벌'},
+      {a:'강릉시',c:'단오제(유네스코 인류무형유산)'},
+      {a:'보성군',c:'다향 대축제(녹차밭)'},
+      {a:'무주군',c:'반딧불 축제(청정 자연)'},
+      {a:'광양시',c:'매화 축제'},
+      {a:'금산군',c:'인삼 축제'},
+      {a:'이천시',c:'도자기 축제'},
+      {a:'하동군',c:'야생차 문화 축제'},
+      {a:'영동군',c:'난계 국악·포도 축제'},
+    ]},
+    {key:'traffic', label:'✈️ 교통(공항·KTX)', items:[
+      {a:'인천광역시',c:'영종도 간척지에 건설된 인천 국제공항'},
+      {a:'서울특별시',c:'김포 국제공항'},
+      {a:'부산광역시',c:'김해 국제공항과 부산역(경부 KTX 종착)'},
+      {a:'제주시',c:'제주 국제공항'},
+      {a:'대구광역시',c:'대구 국제공항과 동대구역(KTX)'},
+      {a:'청주시',c:'청주 국제공항과 오송역(경부·호남 KTX 분기)'},
+      {a:'무안군',c:'무안 국제공항'},
+      {a:'양양군',c:'양양 국제공항(영동권 관문)'},
+      {a:'대전광역시',c:'대전역(경부·호남 KTX 분기)'},
+      {a:'광주광역시',c:'광주송정역(호남 KTX)'},
+      {a:'아산시',c:'천안아산역(KTX)'},
+      {a:'익산시',c:'익산역(호남·전라선 분기)'},
+      {a:'강릉시',c:'강릉역(경강선 KTX, 평창 올림픽)'},
+      {a:'경주시',c:'신경주역(경부 KTX)'},
+    ]},
+    {key:'pop1', label:'👥 인구 1위 지역(도별)', items:pop1},
+  ];
+  THEMES_CACHE.forEach(t=>{ t.items=t.items.filter(it=>MUNIS[it.a]); });   // 자료 안전: 없는 시·군 제외
+  return THEMES_CACHE;
 }
+function themeByKey(k){ return buildThemes().find(t=>t.key===k); }
 const BOSS_REGIONS = ['수도권','강원','충청','호남','영남','제주'];
 const BOSS_GATE = 0.6, BOSS_MIN_T = 5;   // 숙련도 60%↑(최소 5문항 풀이)면 도전 가능
 function bossMastery(r){ const s=stats[r]; return s&&s.t? s.c/s.t : 0; }
@@ -441,9 +494,23 @@ function renderWanted(){
 
 const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!'};
 document.querySelectorAll('.mode-card').forEach(c=>{
-  c.onclick=()=>startGame(c.dataset.mode);
+  c.onclick=()=> c.dataset.mode==='theme' ? openThemeModal() : startGame(c.dataset.mode);
   const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
 });
+// 🏷️ 테마 선택 모달
+function openThemeModal(){
+  const box=$('theme-list'); if(!box){ startGame('theme','docheong'); return; }
+  box.innerHTML='';
+  buildThemes().forEach(t=>{
+    const b=document.createElement('button');
+    b.className='theme-pick';
+    b.innerHTML=`<span class="tp-label">${t.label}</span><span class="tp-count">${t.items.length}개 지역</span>`;
+    b.onclick=()=>{ $('theme-modal').classList.add('hidden'); startGame('theme', t.key); };
+    box.appendChild(b);
+  });
+  $('theme-modal').classList.remove('hidden');
+}
+$('theme-close')?.addEventListener('click', ()=>$('theme-modal').classList.add('hidden'));
 $('reset-data').onclick=()=>{
   if(confirm('모든 기록(점수·숙련도·랭킹·수배서)을 초기화할까요?')){
     store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board'); store.remove('geo_wanted'); store.remove('geo_mission'); store.remove('geo_titles');
@@ -771,17 +838,11 @@ function startGame(mode, opt){
   } else if(mode==='boss'){
     G.queue=bossQueue(opt);
   } else if(mode==='theme'){
-    // 테마별로 고르게 섞기(테마 중복·지역 중복 회피)
-    const byTheme={}; themePool().forEach(p=>{ (byTheme[p.def.key]=byTheme[p.def.key]||[]).push(p); });
-    const keys=Object.keys(byTheme); const q=[]; const usedMuni=new Set();
-    let guard=0;
-    while(q.length<MODE_INFO.theme.n && guard++<400){
-      const k=keys[Math.floor(Math.random()*keys.length)];
-      const cand=byTheme[k][Math.floor(Math.random()*byTheme[k].length)];
-      if(usedMuni.has(cand.loc.accept[0])) continue;
-      usedMuni.add(cand.loc.accept[0]); q.push(cand);
-    }
-    G.queue=q;
+    const theme=themeByKey(opt) || buildThemes()[0];
+    $('game-title').textContent=theme.label;
+    const its=shuffle(theme.items).slice(0, Math.min(theme.items.length, MODE_INFO.theme.n));
+    G.queue=its.map(it=>{ const mu=MUNIS[it.a];
+      return {def:{label:theme.label}, loc:{name:it.a.replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:mu.region, accept:[it.a], fact:it.c}}; });
   } else {
     G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
   }

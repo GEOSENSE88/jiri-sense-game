@@ -252,6 +252,14 @@ button { font-family:inherit; }
 .dialog-msg { font-size:.78rem; color:var(--red); font-weight:700; min-height:18px; margin-bottom:6px; }
 .dialog-btn { width:100%; margin:4px 0 8px; }
 .dialog .text-btn { display:block; width:100%; text-align:center; color:var(--dim); }
+.theme-list { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.theme-pick { display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:13px 15px; border:1.5px solid var(--line2); border-radius:13px; background:#fff; cursor:pointer; transition:.13s; }
+.theme-pick:hover { border-color:var(--sea); transform:translateY(-1px); box-shadow:var(--shadow-sm); }
+.theme-pick:active { transform:scale(.98); }
+.theme-pick .tp-label { font-weight:800; color:var(--navy); font-size:.96rem; }
+.theme-pick .tp-count { font-size:.72rem; color:var(--faint); font-weight:700; white-space:nowrap; }
+
 .teacher-result { margin-top:12px; max-height:46vh; overflow:auto; }
 .t-msg { font-size:.8rem; color:var(--dim); font-weight:700; margin-bottom:8px; }
 .t-table { width:100%; border-collapse:collapse; font-size:.82rem; }

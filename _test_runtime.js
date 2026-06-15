@@ -393,23 +393,25 @@ console.log('\n=== 권역 보스전 ===');
   check(document.getElementById('result-title').textContent.includes('격파'), '결과: 보스 격파 표시');
 }
 
-console.log('\n=== 🏷️ 테마 게임 ===');
+console.log('\n=== 🏷️ 테마 게임 (테마 선택형) ===');
 {
-  const pools = JSON.parse(window.eval('JSON.stringify((function(){const by={};themePool().forEach(p=>by[p.def.key]=(by[p.def.key]||0)+1);return by;})())'));
-  check(pools.docheong >= 5 && pools.hyuksin >= 5 && pools.festival >= 5, '도청·혁신도시·축제 테마 풀 구성: ' + JSON.stringify(pools));
-  window.eval("VIEW_ANIM_MS=0; startGame('theme')");
-  check(window.eval('G.queue.length') === 12, '테마 큐 12문항');
-  check(window.eval('new Set(G.queue.map(x=>x.loc.accept[0])).size') === 12, '테마 큐 시·군 중복 없음');
-  check(window.eval('G.queue.every(x=>x.def && x.loc)'), '큐는 {def,loc} 형식');
+  const themes = JSON.parse(window.eval('JSON.stringify(buildThemes().map(t=>({key:t.key,n:t.items.length})))'));
+  check(themes.length === 5, '테마 5종: ' + themes.map(t=>t.key).join(','));
+  check(themes.find(t=>t.key==='docheong').n === 9, '도청 소재지 = 9개 도');
+  check(themes.find(t=>t.key==='pop1').n >= 8, '인구 1위(도별 자동계산): ' + themes.find(t=>t.key==='pop1').n + '개');
+  // 테마 선택 모달
+  window.eval('openThemeModal();');
+  check(document.querySelectorAll('#theme-list .theme-pick').length === 5, '테마 선택 모달 5개 버튼');
+  window.eval("document.getElementById('theme-modal').classList.add('hidden');");
+  // 도청 테마 선택 → 그 테마만 출제
+  window.eval("VIEW_ANIM_MS=0; startGame('theme','docheong')");
+  check(window.eval('G.queue.length') === 9 && window.eval('G.queue.every(x=>/도청/.test(x.loc.fact))'), '도청 테마 → 도청 문항만 9개');
   window.eval('G.idx=0; nextQuestion();');
-  check(document.querySelector('#question-box .q-region').textContent.includes(window.eval('G.queue[0].def.label.slice(0,2)')), '문항에 테마 라벨 표시');
-  check(document.querySelector('#question-box .stat-card') !== null, '테마 설명(stat-card) 표시');
-  check(document.querySelectorAll('#choices-box .choice-btn').length === 0, '테마는 지도 탭형(선지 없음)');
-  // 정답 탭 → 점수
+  check(document.querySelector('#question-box .q-region').textContent.includes('도청'), '문항 칩에 테마 라벨');
+  check(document.querySelector('#question-box .stat-card') !== null && document.querySelectorAll('#choices-box .choice-btn').length === 0, '테마는 설명+지도 탭형(선지 없음)');
   const tloc = window.eval('G.queue[0].loc');
-  const tm = document.querySelector(`#map-svg .muni[data-name="${tloc.accept[0]}"]`);
-  tm.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  check(window.eval('G.score') > 0, '테마 정답 탭 → 점수 부여');
+  document.querySelector(`#map-svg .muni[data-name="${tloc.accept[0]}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.score') > 0, '테마 정답 탭 → 점수');
 }
 
 console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
