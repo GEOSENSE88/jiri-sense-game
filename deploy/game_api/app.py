@@ -107,7 +107,7 @@ def leaderboard():
 def add_score():
     data = request.get_json(silent=True) or {}
     mode = str(data.get("mode", ""))
-    name = re.sub(r"[<>\r\n\t]", "", str(data.get("name", "")).strip())[:10] or "무명"
+    name = re.sub(r"[<>\r\n\t]", "", str(data.get("name", "")).strip())[:30] or "무명"
     try:
         score = int(data.get("score"))
     except (TypeError, ValueError):
@@ -138,7 +138,7 @@ def student_login():
     nick = clean(d.get("nickname"), 16)
     pin = clean(d.get("pin"), 8)
     if not cls or not nick or not re.fullmatch(r"\d{4,8}", pin or ""):
-        return jsonify(error="반·닉네임·비밀번호(숫자 4~8자리)를 확인하세요"), 400
+        return jsonify(error="학교명·닉네임·비밀번호(숫자 4~8자리)를 확인하세요"), 400
     ph = pin_hash(pin)
     with db() as c:
         row = c.execute(

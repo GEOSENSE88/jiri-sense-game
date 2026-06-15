@@ -86,7 +86,7 @@ button { font-family:inherit; }
 .home-tabs { max-width:680px; margin:0 auto; padding:10px 16px calc(80px + env(safe-area-inset-bottom)); }
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
-#tab-challenge.active, #tab-record.active { display:flex; flex-direction:column; gap:18px; }
+#tab-challenge.active, #tab-collection.active, #tab-record.active { display:flex; flex-direction:column; gap:18px; }
 .tabbar {
   position:fixed; left:0; right:0; bottom:0; z-index:40; background:#fff;
   border-top:1.5px solid var(--line); box-shadow:0 -4px 18px rgba(18,120,194,.12);
@@ -132,6 +132,7 @@ button { font-family:inherit; }
 
 /* 학습 영역 */
 .learn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.learn-btn.wide { grid-column:1 / -1; }
 @media (max-width:480px){ .learn-row { grid-template-columns:1fr; } }
 .learn-btn {
   display:flex; align-items:center; gap:11px; text-align:left;

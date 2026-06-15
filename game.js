@@ -875,9 +875,12 @@ function startGame(mode, opt){
   } else if(mode==='theme'){
     const theme=themeByKey(opt) || buildThemes()[0];
     $('game-title').textContent=theme.label;
+    const useMCQ = theme.key==='special';                 // 특산물은 지도 대신 4지선다
     const its=shuffle(theme.items).slice(0, Math.min(theme.items.length, MODE_INFO.theme.n));
+    const allNames=theme.items.map(it=>it.a.replace(/\(.+\)$/,''));
     G.queue=its.map(it=>{ const mu=MUNIS[it.a];
-      return {def:{label:theme.label}, loc:{name:it.a.replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:mu.region, accept:[it.a], fact:it.c}}; });
+      return {def:{label:theme.label}, mcq:useMCQ, siblings:allNames,
+        loc:{name:it.a.replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:mu.region, accept:[it.a], fact:it.c}}; });
   } else {
     G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
   }
@@ -1108,9 +1111,14 @@ function nextQuestion(){
     $('map-pane').style.display=noMap?'none':'block';
     $('game-body').classList.toggle('no-map', noMap);
   }
+  if(G.mode==='theme'){     // 특산물 등 4지선다 테마는 지도 불필요
+    const noMap=!!item.mcq;
+    $('map-pane').style.display=noMap?'none':'block';
+    $('game-body').classList.toggle('no-map', noMap);
+  }
 
   if(type==='location'||type==='wanted') askLocation(item);
-  else if(type==='theme') askTheme(item);
+  else if(type==='theme') item.mcq ? askThemeMCQ(item) : askTheme(item);
   else if(type==='muniname') askMuniName(item);
   else if(type==='detective') askDetective(item);
   else if(type==='climate') askClimate(item);
@@ -1266,6 +1274,39 @@ function askTheme(item){
     feedback(false,'⏰ 아깝다, 시간 초과!', exp(), 0);
     hudUpdate(); afterAnswer();
   });
+}
+
+// --- 테마(특산물): 지도 대신 4지선다로 주산지를 고른다 ---
+function askThemeMCQ(item){
+  const info=MODE_INFO[G.mode];
+  const {def, loc, siblings}=item;
+  const answer=loc.name;
+  const distract=shuffle((siblings||[]).filter(n=>n!==answer)).slice(0,3);
+  const opts=shuffle([answer, ...distract]);
+  $('question-box').innerHTML=
+    `<span class="q-region">${def.label}</span> 다음 특산물의 주산지로 옳은 지역은?`+
+    `<div class="stat-card" style="font-weight:600">${loc.fact}</div>`;
+  const box=$('choices-box'); box.innerHTML='';
+  const exp=()=>`${def.label} — <b>${answer}</b> · ${loc.fact}`+studyExtra(answer);
+  const finish=(correct, head, btn)=>{
+    box.querySelectorAll('button').forEach(b=>{ b.disabled=true;
+      if(b.textContent===answer) b.classList.add('correct');
+      else if(b===btn) b.classList.add('wrong'); });
+    const pts=award(correct, 120);
+    recordStat(loc.region, correct);
+    logResult(loc.accept[0], correct);
+    feedback(correct, head, exp(), pts);
+    hudUpdate(); afterAnswer();
+  };
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='choice-btn'; b.textContent=o;
+    b.onclick=()=>{ if(G.locked)return; G.locked=true; stopTimer();
+      finish(o===answer, o===answer?'🎯 정답!':`❌ 아쉬워요 — 정답은 ${answer}`, b); };
+    box.appendChild(b);
+  });
+  startTimer(info.time||30,()=>{ if(G.locked)return; G.locked=true;
+    finish(false,'⏰ 아깝다, 시간 초과!', null); });
 }
 
 // --- 지역 추리: 힌트를 하나씩 열며 지역을 추리해 탭 (힌트를 아낄수록 고득점) ---
@@ -2436,7 +2477,7 @@ function endGame(){
       if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
       if(G.score>0 && G.mode!=='wanted'){   // 수배 복습은 개인 연습 — 공개 랭킹 등록 생략
         $('name-entry').classList.remove('hidden');
-        $('player-name').value=store.load('geo_lastname','');
+        $('player-name').value = account ? `[${account.cls}] ${account.nickname}` : store.load('geo_lastname','');
       }
     }
   }
@@ -2445,7 +2486,7 @@ function endGame(){
 }
 
 $('btn-save-score').onclick=()=>{
-  const name=($('player-name').value.trim()||'무명').slice(0,10);
+  const name=($('player-name').value.trim()||'무명').slice(0,30);
   const mode=G.mode, score=G.score;
   store.save('geo_lastname',name);
   const list=board[mode]||(board[mode]=[]);
@@ -2517,7 +2558,7 @@ $('login-guest')?.addEventListener('click', ()=>$('login-modal').classList.add('
 $('login-submit')?.addEventListener('click', async ()=>{
   const cls=$('login-class').value.trim(), nick=$('login-nick').value.trim(), pin=$('login-pin').value.trim();
   const msg=$('login-msg');
-  if(!cls||!nick||!/^\d{4,8}$/.test(pin)){ msg.textContent='반·닉네임·비밀번호(숫자 4~8자리)를 입력하세요'; return; }
+  if(!cls||!nick||!/^\d{4,8}$/.test(pin)){ msg.textContent='학교명·닉네임·비밀번호(숫자 4~8자리)를 입력하세요'; return; }
   $('login-submit').disabled=true; msg.textContent='연결 중…';
   const res=await doLogin(cls, nick, pin);
   $('login-submit').disabled=false;
@@ -2532,11 +2573,11 @@ $('teacher-close')?.addEventListener('click', ()=>$('teacher-modal').classList.a
 $('teacher-submit')?.addEventListener('click', async ()=>{
   const cls=$('teacher-class').value.trim(), pw=$('teacher-pw').value;
   const box=$('teacher-result');
-  if(!cls||!pw){ box.innerHTML='<div class="t-msg">반과 비밀번호를 입력하세요</div>'; return; }
+  if(!cls||!pw){ box.innerHTML='<div class="t-msg">학교명과 교사 비밀번호를 입력하세요</div>'; return; }
   box.innerHTML='<div class="t-msg">조회 중…</div>';
   const res=await apiRoster(cls, pw);
   if(res.error){ box.innerHTML=`<div class="t-msg">${res.error}</div>`; return; }
-  if(!res.students.length){ box.innerHTML=`<div class="t-msg">‘${cls}’ 반에 저장된 학생이 없습니다</div>`; return; }
+  if(!res.students.length){ box.innerHTML=`<div class="t-msg">‘${cls}’ 학교에 저장된 학생이 없습니다</div>`; return; }
   box.innerHTML=`<div class="t-msg">${cls} · ${res.count}명 (XP순)</div>`+
     '<table class="t-table"><tr><th>#</th><th>닉네임</th><th>XP</th><th>최근 접속</th></tr>'+
     res.students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.nickname}</td><td>${s.xp}</td><td>${s.updated||'-'}</td></tr>`).join('')+

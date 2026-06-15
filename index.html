@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615w">
+<link rel="stylesheet" href="style.css?v=20260615x">
 </head>
 <body>
 
@@ -32,20 +32,6 @@
   </div>
 
   <div class="home-tabs">
-    <section class="panel tab-panel" id="tab-mission">
-      <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615w" alt="지리센스 마스코트">
-        <div class="rec-wrap">
-          <div class="rec-bubble" id="rec-bubble"></div>
-          <button class="rec-btn" id="rec-btn"></button>
-        </div>
-      </div>
-      <div class="mission-card">
-        <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
-        <div id="mission-body"></div>
-      </div>
-    </section>
-
     <section class="panel tab-panel active" id="tab-play">
       <h2>🎮 게임 모드 <span class="swipe-hint">밀거나 화살표로 선택</span></h2>
       <div class="carousel-wrap">
@@ -230,6 +216,17 @@
     </section>
 
     <section class="panel tab-panel" id="tab-challenge">
+      <div class="recommend-card">
+        <img class="mascot" src="guide-hello.png?v=20260615x" alt="지리센스 마스코트">
+        <div class="rec-wrap">
+          <div class="rec-bubble" id="rec-bubble"></div>
+          <button class="rec-btn" id="rec-btn"></button>
+        </div>
+      </div>
+      <div class="mission-card">
+        <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
+        <div id="mission-body"></div>
+      </div>
       <div class="boss-box">
         <h2>👹 권역 보스전 <small>숙련도 60%↑ 도전</small></h2>
         <div id="boss-body"></div>
@@ -240,26 +237,34 @@
       </div>
     </section>
 
-    <section class="panel tab-panel" id="tab-record">
+    <section class="panel tab-panel" id="tab-collection">
       <div class="learn-section">
-        <h2>📖 학습 · 수집</h2>
+        <h2>🎴 지역 도감</h2>
         <div class="learn-row">
-          <button class="learn-btn" id="btn-explore">
-            <span class="mode-icon">🔍</span>
-            <span><b>백지도 탐색</b><small>시·군 경계와 위치를 자유롭게 학습</small></span>
-          </button>
-          <button class="learn-btn" id="btn-collection">
+          <button class="learn-btn wide" id="btn-collection">
             <span class="mode-icon">🏞️</span>
-            <span><b>지역 도감</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
+            <span><b>지역 도감 열기</b><small id="coll-progress">수집한 지역으로 백지도 채우기</small></span>
           </button>
         </div>
       </div>
       <div class="gacha-box">
-        <h2>🏞️ 카드 뽑기</h2>
+        <h2>🎁 카드 뽑기</h2>
         <div class="gacha-row">
           <button id="btn-draw" class="primary-btn draw-btn">카드 뽑기 <small>5🪙</small></button>
         </div>
         <p class="freq-span" style="margin:8px 0 0">게임 점수 100점당 1🪙 — 전국 지역 카드를 모아 보세요! (★전설 = 기출 최다 빈출 지역)</p>
+      </div>
+    </section>
+
+    <section class="panel tab-panel" id="tab-record">
+      <div class="learn-section">
+        <h2>📖 백지도 학습</h2>
+        <div class="learn-row">
+          <button class="learn-btn wide" id="btn-explore">
+            <span class="mode-icon">🔍</span>
+            <span><b>백지도 탐색</b><small>시·군 경계와 위치를 자유롭게 학습</small></span>
+          </button>
+        </div>
       </div>
       <div class="mastery-box">
         <h2>🗺️ 나의 정복도</h2>
@@ -282,9 +287,9 @@
 
   <nav class="tabbar" id="tabbar">
     <div class="tabbar-inner">
-      <button class="tab-btn" data-tab="mission"><span class="ic">🎯</span><span>미션</span></button>
       <button class="tab-btn active" data-tab="play"><span class="ic">🎮</span><span>플레이</span></button>
       <button class="tab-btn" data-tab="challenge"><span class="ic">⚔️</span><span>도전</span></button>
+      <button class="tab-btn" data-tab="collection"><span class="ic">🎴</span><span>도감</span></button>
       <button class="tab-btn" data-tab="record"><span class="ic">📚</span><span>학습</span></button>
     </div>
   </nav>
@@ -294,10 +299,10 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615w" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615x" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
-    <p class="dialog-sub">반·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
-    <input id="login-class" class="dialog-input" type="text" placeholder="반 (예: 3-7)" maxlength="20" autocomplete="off">
+    <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
+    <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
     <input id="login-nick" class="dialog-input" type="text" placeholder="닉네임" maxlength="16" autocomplete="off">
     <input id="login-pin" class="dialog-input" type="password" inputmode="numeric" placeholder="비밀번호 (숫자 4~8자리)" maxlength="8" autocomplete="off">
     <div id="login-msg" class="dialog-msg"></div>
@@ -311,8 +316,8 @@
   <div class="dialog">
     <button id="teacher-close" class="dialog-x" aria-label="닫기">✕</button>
     <h2>👩‍🏫 우리 반 기록</h2>
-    <p class="dialog-sub">반과 교사 비밀번호를 입력하면 학생 진도를 볼 수 있습니다.</p>
-    <input id="teacher-class" class="dialog-input" type="text" placeholder="반 (예: 3-7)" maxlength="20" autocomplete="off">
+    <p class="dialog-sub">학교명과 교사 비밀번호를 입력하면 학생 진도를 볼 수 있습니다.</p>
+    <input id="teacher-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
     <input id="teacher-pw" class="dialog-input" type="password" placeholder="교사 비밀번호" autocomplete="off">
     <button id="teacher-submit" class="primary-btn dialog-btn">조회</button>
     <div id="teacher-result" class="teacher-result"></div>
@@ -401,7 +406,7 @@
     <div id="result-main"></div>
     <div id="result-detail"></div>
     <div id="name-entry" class="name-entry hidden">
-      <input id="player-name" maxlength="10" placeholder="이름 입력 (랭킹 등록)">
+      <input id="player-name" maxlength="30" placeholder="이름 (랭킹 등록 · 로그인 시 [학교명] 닉네임)">
       <button id="btn-save-score" class="primary-btn">등록</button>
     </div>
     <div class="result-actions">
@@ -412,12 +417,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615w"></script>
-<script src="stats-data.js?v=20260615w"></script>
-<script src="freq-data.js?v=20260615w"></script>
-<script src="match-sets.js?v=20260615w"></script>
-<script src="questions.js?v=20260615w"></script>
-<script src="mascots-data.js?v=20260615w"></script>
-<script src="game.js?v=20260615w"></script>
+<script src="map-data.js?v=20260615x"></script>
+<script src="stats-data.js?v=20260615x"></script>
+<script src="freq-data.js?v=20260615x"></script>
+<script src="match-sets.js?v=20260615x"></script>
+<script src="questions.js?v=20260615x"></script>
+<script src="mascots-data.js?v=20260615x"></script>
+<script src="game.js?v=20260615x"></script>
 </body>
 </html>
