@@ -157,8 +157,9 @@ const MODE_INFO = {
   theme:    {title:'🏷️ 테마 게임', useMap:true, n:12, time:30},
   wanted:   {title:'🔍 오답 수배 복습', useMap:true, n:12, time:30},
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
+  bingo:    {title:'🎰 빙고 게임', useMap:false, n:25, time:22},
 };
-const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C'};
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE'};
 // 🏷️ 테마 게임: 테마를 고른 뒤 그 테마의 지역만 백지도에서 맞히는 퀴즈
 let THEMES_CACHE=null;
 function buildThemes(){
@@ -374,7 +375,7 @@ function sampleLocQueue(items, n){
 // 홈 화면
 // ============================================================
 // 명예의 전당 렌더 — 항목(모드)별 섹션 + 상위 3명. 서버 공유 랭킹(serverBoard) 우선, 없으면 로컬(board)
-const BOARD_MODES=['location','theme','muniname','detective','climate','stats','mcq','ox','battle'];
+const BOARD_MODES=['location','theme','bingo','muniname','detective','climate','stats','mcq','ox','battle'];
 function renderHomeBoard(){
   const hb=$('home-board'); if(!hb) return;
   const src = serverBoard || board;
@@ -527,7 +528,7 @@ function renderWanted(){
   $('btn-wanted-review').onclick=()=>{ G.region='전체'; startGame('wanted'); };
 }
 
-const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!'};
+const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!',bingo:'빙고 도전!'};
 document.querySelectorAll('.mode-card').forEach(c=>{
   c.onclick=()=> c.dataset.mode==='theme' ? openThemeModal() : startGame(c.dataset.mode);
   const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
@@ -872,6 +873,11 @@ function startGame(mode, opt){
     G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
   } else if(mode==='boss'){
     G.queue=bossQueue(opt);
+  } else if(mode==='bingo'){
+    const cells=buildBingo();
+    G.bingo={cells, wrong:0, lineKeys:new Set(), targetIdx:-1};
+    G.queue=shuffle(cells.slice());
+    renderBingoGrid();
   } else if(mode==='theme'){
     const theme=themeByKey(opt) || buildThemes()[0];
     $('game-title').textContent=theme.label;
@@ -1118,6 +1124,7 @@ function nextQuestion(){
   }
 
   if(type==='location'||type==='wanted') askLocation(item);
+  else if(type==='bingo') askBingo(item);
   else if(type==='theme') item.mcq ? askThemeMCQ(item) : askTheme(item);
   else if(type==='muniname') askMuniName(item);
   else if(type==='detective') askDetective(item);
@@ -1307,6 +1314,89 @@ function askThemeMCQ(item){
   });
   startTimer(info.time||30,()=>{ if(G.locked)return; G.locked=true;
     finish(false,'⏰ 아깝다, 시간 초과!', null); });
+}
+
+// --- 🎰 빙고 게임: 5×5 지역명 빙고판, 설명에 맞는 칸을 순차 선택. 2회 오답 시 강제 종료 ---
+function bingoLabel(muni){ return muni.replace(/\(.+\)$/,'').replace(/(특별자치시|특별시|광역시)$/,''); }
+function buildBingo(){
+  const seen=new Set(), uniq=[];
+  shuffle(locPool().slice()).forEach(l=>{
+    const k=l.accept&&l.accept[0]; if(!k||seen.has(k)) return;
+    const raw=l.desc||l.fact; if(!raw) return;
+    seen.add(k);
+    uniq.push({region:l.region, name:bingoLabel(k), accept:l.accept, raw, clue:maskName(raw,l), done:false});
+  });
+  return uniq.slice(0,25);
+}
+function renderBingoGrid(){
+  const box=$('choices-box');
+  box.innerHTML='<div class="bingo-grid" id="bingo-grid"></div>';
+  const grid=$('bingo-grid');
+  G.bingo.cells.forEach((cell,i)=>{
+    const b=document.createElement('button');
+    b.className='bingo-cell'; b.dataset.i=i;
+    b.innerHTML=`<span>${cell.name}</span>`;
+    b.onclick=()=>bingoTap(i);
+    grid.appendChild(b);
+  });
+}
+function bingoCellEl(i){ return document.querySelector(`.bingo-cell[data-i="${i}"]`); }
+function bingoLines(){
+  const c=G.bingo.cells, done=i=>c[i].done, lines=[];
+  for(let r=0;r<5;r++) lines.push(['R'+r,[0,1,2,3,4].map(k=>r*5+k)]);
+  for(let k=0;k<5;k++) lines.push(['C'+k,[0,1,2,3,4].map(r=>r*5+k)]);
+  lines.push(['D0',[0,6,12,18,24]]); lines.push(['D1',[4,8,12,16,20]]);
+  let neu=0;
+  lines.forEach(([key,idxs])=>{
+    if(idxs.every(done) && !G.bingo.lineKeys.has(key)){
+      G.bingo.lineKeys.add(key); neu++;
+      idxs.forEach(i=>bingoCellEl(i)?.classList.add('line'));
+    }
+  });
+  return neu;
+}
+function askBingo(cell){
+  const info=MODE_INFO.bingo;
+  G.bingo.targetIdx=G.bingo.cells.indexOf(cell);
+  $('question-box').innerHTML=
+    `<span class="q-region">${regionLabel(cell.region)}</span> 설명에 맞는 지역을 빙고판에서 찾아 탭!`+
+    `<span class="bingo-strike">❌ ${G.bingo.wrong}/2</span>`+
+    `<div class="stat-card" style="font-weight:600">${cell.clue}</div>`;
+  startTimer(info.time||22, ()=>{ if(G.locked)return; G.locked=true; bingoResolve(false,-1); });
+}
+function bingoTap(i){
+  if(G.locked) return;
+  if(G.bingo.cells[i].done && i!==G.bingo.targetIdx) return;   // 이미 채운 칸 오탭은 무시(관대)
+  G.locked=true; stopTimer();
+  bingoResolve(i===G.bingo.targetIdx, i);
+}
+function bingoResolve(correct, tappedIdx){
+  const ti=G.bingo.targetIdx, target=G.bingo.cells[ti];
+  let head, pts=0;
+  if(correct){
+    target.done=true; bingoCellEl(ti)?.classList.add('done');
+    pts=award(true,90);
+    const nl=bingoLines();
+    if(nl>0){ const bonus=50*nl; G.score+=bonus; pts+=bonus; scorePop(bonus); }
+    head=`🎯 정답! ${target.name}`+(nl>0?` · 🎉 빙고 ${nl}줄! +${50*nl}`:'');
+  } else {
+    G.bingo.wrong++;
+    if(tappedIdx>=0) bingoCellEl(tappedIdx)?.classList.add('miss-pick');
+    bingoCellEl(ti)?.classList.add('target');
+    award(false,0);
+    head = tappedIdx<0 ? `⏰ 시간 초과! 정답은 ${target.name}` : `❌ 오답! 정답은 ${target.name}`;
+  }
+  recordStat(target.region, correct);
+  logResult(target.accept[0], correct);
+  const sc=document.querySelector('.bingo-strike'); if(sc) sc.textContent=`❌ ${G.bingo.wrong}/2`;
+  feedback(correct, head, `<b>${target.name}</b> · ${target.raw}`+studyExtra(target.name), correct?pts:0);
+  hudUpdate();
+  if(G.bingo.wrong>=2 && !correct){      // 2회 오답 → 강제 종료
+    G.idx++; $('btn-next').classList.add('hidden');
+    setTimeout(()=>endGame(), 1500);
+  } else {
+    afterAnswer();
+  }
 }
 
 // --- 지역 추리: 힌트를 하나씩 열며 지역을 추리해 탭 (힌트를 아낄수록 고득점) ---
@@ -2467,6 +2557,20 @@ function endGame(){
         `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
       xp+=Math.round(G.score/10);
       if(win) confetti(document.querySelector('.result-card'));
+    } else if(G.mode==='bingo'){
+      const done=G.bingo.cells.filter(c=>c.done).length;
+      const lines=G.bingo.lineKeys.size, over=G.bingo.wrong>=2, blackout=done===25;
+      $('result-title').textContent = blackout ? '🎰 빙고 블랙아웃!' : over ? '🎰 게임 오버 (2회 오답)' : '🎰 빙고 게임 결과';
+      $('result-main').textContent = `${done}/25칸 · 빙고 ${lines}줄 · ${G.score}점`;
+      detail.innerHTML=`정답 ${G.correctCnt} / ${answered}`+
+        (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
+        `<br><span style="font-size:.86em">${over?'2회 오답으로 종료됐어요. 다시 도전해 보세요!':resultComment(acc)}</span>`;
+      xp+=Math.round(G.score/10);
+      if(blackout||lines>=3) confetti(document.querySelector('.result-card'));
+      if(G.score>0){
+        $('name-entry').classList.remove('hidden');
+        $('player-name').value = account ? `[${account.cls}] ${account.nickname}` : store.load('geo_lastname','');
+      }
     } else {
       $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
       $('result-main').textContent=G.score+'점';

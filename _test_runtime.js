@@ -87,7 +87,8 @@ check(window.eval('view.w') === 776, '문제 전환 시 지도 자동 원위치'
 
 console.log('\n=== 홈 재배치 (캐러셀·학습 분리) ===');
 check(document.getElementById('mode-carousel') !== null, '게임 모드 캐러셀 존재');
-check(document.querySelectorAll('#mode-carousel .mode-card').length === 9, '캐러셀에 게임 9종(테마 게임 포함)');
+check(document.querySelectorAll('#mode-carousel .mode-card').length === 10, '캐러셀에 게임 10종(테마·빙고 포함)');
+check(document.querySelector('#mode-carousel [data-mode="bingo"]') !== null, '캐러셀에 빙고 게임 카드');
 check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
 check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
@@ -433,6 +434,31 @@ console.log('\n=== 🏷️ 테마 게임 (테마 선택형) ===');
     target.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     check(window.eval('G.score') > 0, '특산물 정답 클릭 → 점수');
   }
+}
+
+console.log('\n=== 🎰 빙고 게임 ===');
+{
+  window.eval("VIEW_ANIM_MS=0; startGame('bingo')");
+  check(window.eval('G.bingo.cells.length') === 25 && window.eval('G.queue.length') === 25, '5×5=25칸 + 25문제');
+  check(document.querySelectorAll('#bingo-grid .bingo-cell').length === 25, '빙고판 25칸 렌더');
+  check(window.eval("document.getElementById('map-pane').style.display==='none'"), '빙고는 지도 미사용');
+  window.eval('G.idx=0; nextQuestion();');
+  check(document.querySelector('#question-box .stat-card') !== null, '문제에 지역 설명 단서');
+  // 정답 칸 탭 → 해당 칸 done + 점수
+  let ti = window.eval('G.bingo.targetIdx');
+  document.querySelector(`#bingo-grid .bingo-cell[data-i="${ti}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.bingo.cells[G.bingo.targetIdx].done') === true && window.eval('G.score') > 0, '정답 칸 → 채워지고 점수');
+  // 오답 2회 → 강제 종료
+  window.eval("VIEW_ANIM_MS=0; startGame('bingo'); G.idx=0; nextQuestion();");
+  const wrongCell = (t)=>{ for(let i=0;i<25;i++){ if(i!==t) return i; } };
+  window.eval('G.idx=0; nextQuestion();');
+  let t1 = window.eval('G.bingo.targetIdx');
+  document.querySelector(`#bingo-grid .bingo-cell[data-i="${wrongCell(t1)}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.bingo.wrong') === 1, '오답 1회 기록');
+  document.getElementById('btn-next').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  let t2 = window.eval('G.bingo.targetIdx');
+  document.querySelector(`#bingo-grid .bingo-cell[data-i="${wrongCell(t2)}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.bingo.wrong') === 2, '오답 2회 → 강제 종료 트리거');
 }
 
 console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
