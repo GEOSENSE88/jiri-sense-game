@@ -651,7 +651,7 @@ function onMuniTap(fn){
 // ============================================================
 // 공통 흐름
 // ============================================================
-function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); try{ window.scrollTo(0,0); }catch(e){} }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
 function pool(mode){
@@ -668,9 +668,7 @@ function pool(mode){
   if(mode==='climate'){
     const stReg=n=>CLIMATE.find(c=>c.name===n)?.region;
     let M=CLIMATE_SETS.filter(s=>r==='전체'||s.st.some(n=>stReg(n)===r)).map(s=>({kind:'match',set:s}));
-    let O=ORDER_SETS.filter(s=>r==='전체'||s.st.some(n=>stReg(n)===r)).map(s=>({kind:'order',set:s}));
-    const all=M.concat(O);
-    return all.length>=4?all:CLIMATE_SETS.map(s=>({kind:'match',set:s})).concat(ORDER_SETS.map(s=>({kind:'order',set:s})));
+    return M.length>=4?M:CLIMATE_SETS.map(s=>({kind:'match',set:s}));   // 순서형 제거: 지도 탭형만
   }
   if(mode==='stats'){
     let P=STAT_SETS.filter(s=>r==='전체'||s.sd.some(n=>PROVINCES[n]?.region===r));
@@ -1428,7 +1426,7 @@ function askClimateMatch(set){
   const stmts=pairStatements(
     allKeys.map(k=>climVal(markers[0],k)), allKeys.map(k=>climVal(markers[1],k)),
     allKeys, k=>CLIM_INDS[k]);
-  const qtype = (stmts && Math.random()>=0.62) ? 'stmt' : 'tap';
+  const qtype = 'tap';   // 모바일 편의: 항상 지도 탭형(진술형 선지 스크롤 제거)
 
   // 차트 유형 다양화
   const chartLabels = qtype==='tap' ? ['(가)','(나)'] : ['A','B'];
@@ -1577,7 +1575,7 @@ function askStats(set){
   const stmts=pairStatements(
     allKeys.map(k=>statVal(markers[0],k)), allKeys.map(k=>statVal(markers[1],k)),
     allKeys, k=>STAT_INDS[k]);
-  const qtype = (stmts && Math.random()>=0.62) ? 'stmt' : 'tap';
+  const qtype = 'tap';   // 모바일 편의: 항상 지도 탭형(진술형 선지 스크롤 제거)
 
   // 인구 변화 그래프 사용 조건: 탭형 + 둘 다 시계열 보유 + 2020 상댓값 차이가 충분
   const canPop = markers.every(s=>s.popSeries) && Math.abs(markers[0].popSeries[9]-markers[1].popSeries[9])>=12;

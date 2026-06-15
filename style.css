@@ -337,12 +337,12 @@ button { font-family:inherit; }
 #map-pane { grid-area:map; }
 #quiz-pane { grid-area:quiz; }
 @media (max-width:820px){
-  .game-body { grid-template-columns:1fr; grid-template-areas:"question" "map" "quiz"; grid-template-rows:none; gap:10px; }
+  .game-body { grid-template-columns:minmax(0,1fr); grid-template-areas:"question" "map" "quiz"; grid-template-rows:none; gap:10px; }
   .game-body.no-map { grid-template-areas:"question" "quiz"; }
 }
 
 .map-pane {
-  position:relative; background:var(--panel);
+  position:relative; background:var(--panel); min-width:0;
   border:1.5px solid var(--line); border-radius:var(--r-lg); padding:8px; box-shadow:var(--shadow);
   touch-action:none;            /* 지도 위 제스처가 페이지 스크롤을 움직이지 않게 */
   overscroll-behavior:contain;
@@ -387,7 +387,7 @@ button { font-family:inherit; }
 }
 .map-tooltip b { color:var(--sea-d); }
 
-.quiz-pane { display:flex; flex-direction:column; gap:11px; }
+.quiz-pane { display:flex; flex-direction:column; gap:11px; min-width:0; }
 .question-box {
   background:var(--panel); border:1.5px solid var(--line); border-radius:var(--r-lg);
   border-left:4px solid var(--mode-c, var(--sea)); padding:16px 18px;
