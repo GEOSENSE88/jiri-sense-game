@@ -2285,10 +2285,10 @@ $('btn-save-score').onclick=()=>{
   postServerScore(mode, name, score).then(res=>{ if(res) fetchServerBoard().then(b=>{ if(b) renderHomeBoard(); }); });
 };
 $('btn-retry').onclick=()=>startGame(G.mode);
-$('btn-home').onclick=()=>{ initHome(); show('screen-home'); };
+$('btn-home').onclick=()=>{ initHome(); show('screen-home'); resetHomeTab(); };
 $('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=null;
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
-  initHome(); show('screen-home');
+  initHome(); show('screen-home'); resetHomeTab();
 };
 
 // ---------- 게임 모드 캐러셀: 화살표·드래그·휠 가로 스크롤 ----------
@@ -2370,6 +2370,19 @@ $('teacher-submit')?.addEventListener('click', async ()=>{
     res.students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.nickname}</td><td>${s.xp}</td><td>${s.updated||'-'}</td></tr>`).join('')+
     '</table>';
 });
+
+// ---------- 하단 탭 네비게이션 ----------
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  const t=b.dataset.tab;
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+t));
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.toggle('active', x===b));
+  try{ window.scrollTo(0,0); }catch(e){}
+}));
+// 홈 복귀 시 항상 '플레이' 탭으로
+function resetHomeTab(){
+  const pb=document.querySelector('.tab-btn[data-tab="play"]');
+  if(pb) pb.click();
+}
 
 // ---------- 시작 ----------
 buildMap();
