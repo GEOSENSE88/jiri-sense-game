@@ -2555,6 +2555,7 @@ function openLogin(){
 $('account-chip')?.addEventListener('click', openLogin);
 $('login-close')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
 $('login-guest')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
+$('login-teacher')?.addEventListener('click', ()=>{ $('login-modal').classList.add('hidden'); openTeacher(); });
 $('login-submit')?.addEventListener('click', async ()=>{
   const cls=$('login-class').value.trim(), nick=$('login-nick').value.trim(), pin=$('login-pin').value.trim();
   const msg=$('login-msg');

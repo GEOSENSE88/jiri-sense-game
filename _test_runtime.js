@@ -453,6 +453,12 @@ console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
   window.eval("account={cls:'3-7',nickname:'길동',token:'TK'}; renderAccount();");
   check(document.getElementById('account-chip').textContent.includes('길동'), '로그인 시 계정 칩 표시');
   check(!!document.getElementById('login-modal') && !!document.getElementById('teacher-modal'), '로그인·교사 모달 존재');
+  check(document.querySelector('#login-modal #login-teacher') !== null, '로그인 창에 교사 로그인/등록 진입 버튼');
+  // 상단 로그인 → 교사 진입 클릭 시 교사 모달 열림
+  window.eval("document.getElementById('login-modal').classList.remove('hidden');");
+  document.getElementById('login-teacher').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(document.getElementById('login-modal').classList.contains('hidden') && !document.getElementById('teacher-modal').classList.contains('hidden'), '교사 진입 → 로그인 닫히고 교사 모달 열림');
+  window.eval("document.getElementById('teacher-modal').classList.add('hidden');");
   window.eval("account=null; renderAccount();");
 }
 
