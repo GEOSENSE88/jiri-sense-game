@@ -2567,21 +2567,96 @@ $('login-submit')?.addEventListener('click', async ()=>{
   renderAccount();
   alert(res.isNew? `환영해요, ${nick}님! 이제 기록이 저장됩니다.` : `${nick}님 기록을 불러왔어요!`);
 });
-// ---------- 교사 대시보드 ----------
-$('teacher-link')?.addEventListener('click', (e)=>{ e.preventDefault(); $('teacher-result').innerHTML=''; $('teacher-modal').classList.remove('hidden'); });
-$('teacher-close')?.addEventListener('click', ()=>$('teacher-modal').classList.add('hidden'));
-$('teacher-submit')?.addEventListener('click', async ()=>{
-  const cls=$('teacher-class').value.trim(), pw=$('teacher-pw').value;
+// ---------- 교사 대시보드 (학교별 교사 계정) ----------
+let teacherAcct = store.load('geo_teacher', null);   // {school, nickname, token}
+let teacherMode = 'login';                           // 'login' | 'register'
+
+async function apiTeacher(path, body){
+  try{
+    const r=await fetch(LB_API+'/teacher/'+path,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    return r.ok? j : {error: j.error||'요청 실패'};
+  }catch(e){ return {error:'서버에 연결할 수 없습니다'}; }
+}
+async function apiTeacherRoster(token){
+  try{
+    const r=await fetch(LB_API+'/teacher/roster?token='+encodeURIComponent(token));
+    const j=await r.json().catch(()=>({}));
+    return r.ok? j : {error: j.error||'조회 실패'};
+  }catch(e){ return {error:'서버에 연결할 수 없습니다'}; }
+}
+function teacherSetMode(mode){
+  teacherMode=mode;
+  $('teacher-code').classList.toggle('hidden', mode!=='register');
+  $('teacher-submit').textContent = mode==='register' ? '교사 등록' : '로그인';
+  $('teacher-toggle').textContent = mode==='register' ? '← 이미 등록하셨나요? 로그인' : '처음이신가요? 교사 등록하기 →';
+  $('teacher-sub').textContent = mode==='register'
+    ? '학교명·교사 닉네임·비밀번호와 교사 등록 코드를 입력하면 교사 계정이 만들어집니다.'
+    : '학교명·교사 닉네임·비밀번호로 로그인하면 우리 학교 학생들의 기록을 볼 수 있습니다.';
+  $('teacher-msg').textContent='';
+}
+function teacherFooter(){
+  return '<div class="t-foot"><button id="teacher-refresh" class="text-btn">🔄 새로고침</button>'+
+         '<button id="teacher-logout" class="text-btn">로그아웃</button></div>';
+}
+function renderRoster(res){
   const box=$('teacher-result');
-  if(!cls||!pw){ box.innerHTML='<div class="t-msg">학교명과 교사 비밀번호를 입력하세요</div>'; return; }
-  box.innerHTML='<div class="t-msg">조회 중…</div>';
-  const res=await apiRoster(cls, pw);
-  if(res.error){ box.innerHTML=`<div class="t-msg">${res.error}</div>`; return; }
-  if(!res.students.length){ box.innerHTML=`<div class="t-msg">‘${cls}’ 학교에 저장된 학생이 없습니다</div>`; return; }
-  box.innerHTML=`<div class="t-msg">${cls} · ${res.count}명 (XP순)</div>`+
-    '<table class="t-table"><tr><th>#</th><th>닉네임</th><th>XP</th><th>최근 접속</th></tr>'+
-    res.students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.nickname}</td><td>${s.xp}</td><td>${s.updated||'-'}</td></tr>`).join('')+
-    '</table>';
+  const head=`<div class="t-msg">🏫 ${res.school} · 👩‍🏫 ${res.teacher} · 학생 ${res.count}명 (XP순)</div>`;
+  if(!res.students || !res.students.length){
+    box.innerHTML=head+'<div class="t-msg" style="color:var(--dim)">아직 우리 학교 학생 기록이 없습니다. 학생들이 같은 학교명으로 로그인하면 여기에 표시됩니다.</div>'+teacherFooter();
+  } else {
+    box.innerHTML=head+
+      '<table class="t-table"><tr><th>#</th><th>닉네임</th><th>XP</th><th>최근 접속</th></tr>'+
+      res.students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.nickname}</td><td>${s.xp}</td><td>${s.updated||'-'}</td></tr>`).join('')+
+      '</table>'+teacherFooter();
+  }
+  $('teacher-refresh')&&($('teacher-refresh').onclick=teacherLoadRoster);
+  $('teacher-logout')&&($('teacher-logout').onclick=teacherLogout);
+}
+function teacherLogout(){
+  teacherAcct=null; store.remove('geo_teacher');
+  $('teacher-result').innerHTML='';
+  $('teacher-auth').classList.remove('hidden');
+  teacherSetMode('login');
+}
+async function teacherLoadRoster(){
+  if(!teacherAcct||!teacherAcct.token) return;
+  $('teacher-result').innerHTML='<div class="t-msg">조회 중…</div>';
+  const res=await apiTeacherRoster(teacherAcct.token);
+  if(res.error){ teacherLogout(); $('teacher-msg').textContent=res.error; return; }
+  $('teacher-auth').classList.add('hidden');
+  renderRoster(res);
+}
+function openTeacher(){
+  $('teacher-msg').textContent='';
+  if(account&&account.cls&&!$('teacher-school').value) $('teacher-school').value=account.cls;
+  $('teacher-modal').classList.remove('hidden');
+  if(teacherAcct&&teacherAcct.token){ teacherLoadRoster(); }
+  else { $('teacher-result').innerHTML=''; $('teacher-auth').classList.remove('hidden'); teacherSetMode('login'); }
+}
+$('teacher-link')?.addEventListener('click', (e)=>{ e.preventDefault(); openTeacher(); });
+$('teacher-close')?.addEventListener('click', ()=>$('teacher-modal').classList.add('hidden'));
+$('teacher-toggle')?.addEventListener('click', ()=>teacherSetMode(teacherMode==='login'?'register':'login'));
+$('teacher-submit')?.addEventListener('click', async ()=>{
+  const school=$('teacher-school').value.trim(), nick=$('teacher-nick').value.trim(), pw=$('teacher-pw').value.trim();
+  const msg=$('teacher-msg');
+  if(!school||!nick||!pw){ msg.textContent='학교명·교사 닉네임·비밀번호를 입력하세요'; return; }
+  if(pw.length<4){ msg.textContent='비밀번호는 4자 이상 입력하세요'; return; }
+  $('teacher-submit').disabled=true; msg.textContent='연결 중…';
+  let res;
+  if(teacherMode==='register'){
+    const code=$('teacher-code').value.trim();
+    if(!code){ msg.textContent='교사 등록 코드를 입력하세요'; $('teacher-submit').disabled=false; return; }
+    res=await apiTeacher('register',{school,nickname:nick,pw,code});
+  } else {
+    res=await apiTeacher('login',{school,nickname:nick,pw});
+  }
+  $('teacher-submit').disabled=false;
+  if(res.error){ msg.textContent=res.error; return; }
+  teacherAcct={school:res.school, nickname:res.nickname, token:res.token};
+  store.save('geo_teacher', teacherAcct);
+  await teacherLoadRoster();
 });
 
 // ---------- 하단 탭 네비게이션 ----------

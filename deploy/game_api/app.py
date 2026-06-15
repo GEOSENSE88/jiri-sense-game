@@ -6,7 +6,10 @@
 #   POST /api/score {mode,name,score} -> {ok:true, rank:N}
 #   POST /api/student/login {class,nickname,pin} -> {ok,token,xp,data,isNew}
 #   POST /api/student/sync  {token,xp,data}      -> {ok,xp}
-#   GET  /api/class/roster?class=3-7&pw=...      -> {students:[{nickname,xp,updated}]}  (교사용)
+#   POST /api/teacher/register {school,nickname,pw,code} -> {ok,token}  (code=교사 등록 코드)
+#   POST /api/teacher/login    {school,nickname,pw}      -> {ok,token}
+#   GET  /api/teacher/roster?token=...           -> {school,teacher,students:[...]}  (우리 학교)
+#   GET  /api/class/roster?class=&pw=...         -> {students:[...]}  (구버전, 전역 PW)
 import os, re, json, hashlib, secrets, sqlite3
 from flask import Flask, request, jsonify
 
@@ -62,6 +65,18 @@ def init_db():
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_class ON students(class_code, xp DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_token ON students(token)")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS teachers(
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 school_code TEXT NOT NULL,
+                 nickname    TEXT NOT NULL,
+                 pw_hash     TEXT NOT NULL,
+                 token       TEXT NOT NULL,
+                 created     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                 updated     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                 UNIQUE(school_code, nickname))"""
+        )
+        c.execute("CREATE INDEX IF NOT EXISTS idx_teacher_token ON teachers(token)")
 
 
 init_db()
@@ -204,6 +219,78 @@ def student_sync():
             (max(0, min(xp, 10_000_000)), blob, row["id"]),
         )
     return jsonify(ok=True, xp=xp)
+
+
+@app.post("/api/teacher/register")
+def teacher_register():
+    # 학교별 교사 자체 등록. 학생이 교사로 가장하는 것을 막기 위해
+    # 등록 시에만 교사 등록 코드(TEACHER_PW)를 요구한다(로그인은 불필요).
+    d = request.get_json(silent=True) or {}
+    school = clean(d.get("school"), 20)
+    nick = clean(d.get("nickname"), 16)
+    pw = clean(d.get("pw"), 32)
+    code = str(d.get("code", ""))
+    if code != TEACHER_PW:
+        return jsonify(error="교사 등록 코드가 올바르지 않습니다"), 403
+    if not school or not nick or len(pw) < 4:
+        return jsonify(error="학교명·닉네임·비밀번호(4자 이상)를 확인하세요"), 400
+    with db() as c:
+        if c.execute(
+            "SELECT id FROM teachers WHERE school_code=? AND nickname=?", (school, nick)
+        ).fetchone():
+            return jsonify(error="이미 등록된 교사입니다. 로그인해 주세요"), 409
+        token = secrets.token_hex(16)
+        c.execute(
+            "INSERT INTO teachers(school_code,nickname,pw_hash,token) VALUES(?,?,?,?)",
+            (school, nick, pin_hash(pw), token),
+        )
+    return jsonify(ok=True, token=token, school=school, nickname=nick)
+
+
+@app.post("/api/teacher/login")
+def teacher_login():
+    d = request.get_json(silent=True) or {}
+    school = clean(d.get("school"), 20)
+    nick = clean(d.get("nickname"), 16)
+    pw = clean(d.get("pw"), 32)
+    if not school or not nick or not pw:
+        return jsonify(error="학교명·교사 닉네임·비밀번호를 입력하세요"), 400
+    with db() as c:
+        row = c.execute(
+            "SELECT * FROM teachers WHERE school_code=? AND nickname=?", (school, nick)
+        ).fetchone()
+        if row is None:
+            return jsonify(error="등록된 교사가 없습니다. 먼저 교사 등록을 해주세요"), 404
+        if row["pw_hash"] != pin_hash(pw):
+            return jsonify(error="비밀번호가 일치하지 않습니다"), 403
+        token = secrets.token_hex(16)
+        c.execute(
+            "UPDATE teachers SET token=?, updated=datetime('now','localtime') WHERE id=?",
+            (token, row["id"]),
+        )
+    return jsonify(ok=True, token=token, school=school, nickname=nick)
+
+
+@app.get("/api/teacher/roster")
+def teacher_roster():
+    token = clean(request.args.get("token"), 40)
+    if not token:
+        return jsonify(error="no token"), 401
+    with db() as c:
+        t = c.execute(
+            "SELECT school_code, nickname FROM teachers WHERE token=?", (token,)
+        ).fetchone()
+        if t is None:
+            return jsonify(error="세션이 만료되었습니다. 다시 로그인해 주세요"), 401
+        rows = c.execute(
+            "SELECT nickname, xp, substr(updated,1,16) AS updated "
+            "FROM students WHERE class_code=? ORDER BY xp DESC, nickname ASC LIMIT 500",
+            (t["school_code"],),
+        ).fetchall()
+    return jsonify(
+        school=t["school_code"], teacher=t["nickname"],
+        count=len(rows), students=[dict(r) for r in rows],
+    )
 
 
 @app.get("/api/class/roster")

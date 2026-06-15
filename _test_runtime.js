@@ -95,9 +95,11 @@ check(document.querySelector('.topbar #coin-cnt') !== null, '상단바(코인)')
 check(document.getElementById('tab-collection') !== null, '도감 탭 신설');
 check(document.querySelector('#tab-collection #btn-draw') !== null && document.querySelector('#tab-collection #btn-collection') !== null, '도감 탭 = 지역 도감 + 카드 뽑기');
 check(document.querySelector('#tab-challenge #mission-body') !== null, '미션이 도전 탭으로 통합');
-check(document.querySelector('#tab-record #home-board') !== null && document.querySelector('#tab-record #btn-explore') !== null, '학습 탭 = 백지도 탐색 + 명예의 전당');
+check(document.querySelector('#tab-record #btn-explore') !== null && document.querySelector('#tab-record #mastery-list') !== null, '학습 탭 = 백지도 탐색 + 정복도');
+check(document.querySelector('#tab-board #home-board') !== null, '명예의 전당이 별도 [기록] 탭으로 분리');
 check(document.querySelector('.tabbar .tab-btn[data-tab="collection"]') !== null && document.querySelector('.tabbar .tab-btn[data-tab="mission"]') === null, '하단 탭: 도감 추가·미션 탭 제거');
-check(document.querySelectorAll('.tabbar .tab-btn').length === 4, '하단 탭 4개(플레이·도전·도감·학습)');
+check(document.querySelector('.tabbar .tab-btn[data-tab="board"]') !== null, '하단 탭에 [기록] 추가');
+check(document.querySelectorAll('.tabbar .tab-btn').length === 5, '하단 탭 5개(플레이·도전·도감·학습·기록)');
 
 console.log('\n=== 위치 사냥 (시·군 탭) ===');
 window.eval("startGame('location')");

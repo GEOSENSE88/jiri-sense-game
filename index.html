@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615y">
+<link rel="stylesheet" href="style.css?v=20260615z">
 </head>
 <body>
 
@@ -217,7 +217,7 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615y" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615z" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -275,13 +275,16 @@
         <p id="freq-span" class="freq-span"></p>
         <div id="freq-list"></div>
       </div>
+    </section>
+
+    <section class="panel tab-panel" id="tab-board">
       <div class="board-box">
         <h2>🏆 명예의 전당</h2>
         <div id="home-board"></div>
         <button id="reset-data" class="text-btn">기록 초기화</button>
       </div>
       <footer class="credit">제작: <b>산남고 이성훈</b> · 자료: 2027 EBS 수능특강·수능완성, 기상청 평년값, 통계청 · 지도: 통계청 행정구역
-        <br><a href="#" id="teacher-link" class="teacher-link">👩‍🏫 교사용 — 우리 반 기록 보기</a></footer>
+        <br><a href="#" id="teacher-link" class="teacher-link">👩‍🏫 교사용 — 우리 학교 기록 보기</a></footer>
     </section>
   </div><!-- home-tabs -->
 
@@ -291,6 +294,7 @@
       <button class="tab-btn" data-tab="challenge"><span class="ic">⚔️</span><span>도전</span></button>
       <button class="tab-btn" data-tab="collection"><span class="ic">🎴</span><span>도감</span></button>
       <button class="tab-btn" data-tab="record"><span class="ic">📚</span><span>학습</span></button>
+      <button class="tab-btn" data-tab="board"><span class="ic">🏆</span><span>기록</span></button>
     </div>
   </nav>
 </div>
@@ -299,7 +303,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615y" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615z" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -315,11 +319,17 @@
 <div id="teacher-modal" class="modal hidden">
   <div class="dialog">
     <button id="teacher-close" class="dialog-x" aria-label="닫기">✕</button>
-    <h2>👩‍🏫 우리 반 기록</h2>
-    <p class="dialog-sub">학교명과 교사 비밀번호를 입력하면 학생 진도를 볼 수 있습니다.</p>
-    <input id="teacher-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
-    <input id="teacher-pw" class="dialog-input" type="password" placeholder="교사 비밀번호" autocomplete="off">
-    <button id="teacher-submit" class="primary-btn dialog-btn">조회</button>
+    <h2>👩‍🏫 교사 — 우리 학교 기록</h2>
+    <div id="teacher-auth">
+      <p class="dialog-sub" id="teacher-sub">학교명·교사 닉네임·비밀번호로 로그인하면 우리 학교 학생들의 기록을 볼 수 있습니다.</p>
+      <input id="teacher-school" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
+      <input id="teacher-nick" class="dialog-input" type="text" placeholder="교사 닉네임" maxlength="16" autocomplete="off">
+      <input id="teacher-pw" class="dialog-input" type="password" placeholder="비밀번호 (4자 이상)" maxlength="32" autocomplete="off">
+      <input id="teacher-code" class="dialog-input hidden" type="password" placeholder="교사 등록 코드 (관리자에게 문의)" maxlength="40" autocomplete="off">
+      <div id="teacher-msg" class="dialog-msg"></div>
+      <button id="teacher-submit" class="primary-btn dialog-btn">로그인</button>
+      <button id="teacher-toggle" class="text-btn">처음이신가요? 교사 등록하기 →</button>
+    </div>
     <div id="teacher-result" class="teacher-result"></div>
   </div>
 </div>
@@ -417,12 +427,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615y"></script>
-<script src="stats-data.js?v=20260615y"></script>
-<script src="freq-data.js?v=20260615y"></script>
-<script src="match-sets.js?v=20260615y"></script>
-<script src="questions.js?v=20260615y"></script>
-<script src="mascots-data.js?v=20260615y"></script>
-<script src="game.js?v=20260615y"></script>
+<script src="map-data.js?v=20260615z"></script>
+<script src="stats-data.js?v=20260615z"></script>
+<script src="freq-data.js?v=20260615z"></script>
+<script src="match-sets.js?v=20260615z"></script>
+<script src="questions.js?v=20260615z"></script>
+<script src="mascots-data.js?v=20260615z"></script>
+<script src="game.js?v=20260615z"></script>
 </body>
 </html>

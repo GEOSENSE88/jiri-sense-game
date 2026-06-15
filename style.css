@@ -86,7 +86,7 @@ button { font-family:inherit; }
 .home-tabs { max-width:680px; margin:0 auto; padding:10px 16px calc(80px + env(safe-area-inset-bottom)); }
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
-#tab-challenge.active, #tab-collection.active, #tab-record.active { display:flex; flex-direction:column; gap:18px; }
+#tab-challenge.active, #tab-collection.active, #tab-record.active, #tab-board.active { display:flex; flex-direction:column; gap:18px; }
 .tabbar {
   position:fixed; left:0; right:0; bottom:0; z-index:40; background:#fff;
   border-top:1.5px solid var(--line); box-shadow:0 -4px 18px rgba(18,120,194,.12);
@@ -267,6 +267,8 @@ button { font-family:inherit; }
 .t-table th { text-align:left; color:var(--faint); font-weight:700; padding:4px 6px; border-bottom:1.5px solid var(--line); }
 .t-table td { padding:5px 6px; border-bottom:1px solid var(--line); color:var(--text); }
 .t-table td:nth-child(3) { font-weight:800; color:var(--sea-d); font-variant-numeric:tabular-nums; }
+.t-foot { display:flex; justify-content:space-between; gap:10px; margin-top:12px; }
+.t-foot .text-btn { margin:0; }
 
 /* 점수 팝업 (+점수 튀어오름) */
 .hud .score { position:relative; overflow:visible; }
