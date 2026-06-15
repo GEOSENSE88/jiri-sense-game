@@ -554,9 +554,11 @@ console.log('\n=== 카드 컬렉션 ===');
   const cq = JSON.parse(window.eval('const _c=conquestMapSVG(); JSON.stringify({owned:_c.owned,total:_c.total,hasFill:_c.svg.includes("#A795E0")||_c.svg.includes("#F08A80")})'));
   check(cq.owned === 2 && cq.total > 100, `정복 지도: 보유 시·군 ${cq.owned}/${cq.total} 채움`);
   check(cq.hasFill, '정복 지도에 권역 색 채움');
-  // 결과 화면 코인 적립
+  // 결과 화면 코인 적립 (둔화: floor(score/200))
   window.eval("G.mode='mcq'; G.battle=null; G.idx=5; G.correctCnt=4; G.score=620; G.maxCombo=3; coins=0; endGame()");
-  check(window.eval('coins') === 6, '결과: 620점 → 6🪙 적립');
+  check(window.eval('coins') === 3, '결과: 620점 → 3🪙 적립(코인 둔화)');
+  // 오답 감점: 점수가 마이너스도 가능
+  check(window.eval('G.battle=null; G.mode="mcq"; G.score=20; award(false,0); G.score') === -10, '오답 시 -30 감점(20 → -10)');
   check(document.getElementById('result-detail').textContent.includes('카드 코인'), '결과 화면에 코인 표시');
   document.getElementById('btn-home').click();
 }

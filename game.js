@@ -971,6 +971,7 @@ function stopTimer(){ if(G.timer){ clearInterval(G.timer); G.timer=null; } }
 function timeBonus(){ return G.noTimer||!G.timeMax ? 0 : Math.round(Math.max(0,G.timeLeft)/G.timeMax*50); }
 
 // ---------- 점수 ----------
+const WRONG_PENALTY = 30;          // 오답 시 감점(점수가 마이너스가 될 수도 있음)
 function award(correct, base){
   let pts=0;
   if(G.battle){
@@ -979,14 +980,14 @@ function award(correct, base){
       G.battle.combos[i]++; G.battle.correct[i]++;
       pts=base+timeBonus()+G.battle.combos[i]*10;
       G.battle.scores[i]+=pts;
-    } else G.battle.combos[i]=0;
+    } else { G.battle.combos[i]=0; pts=-WRONG_PENALTY; G.battle.scores[i]+=pts; }
   } else {
     G.lastCorrect=correct;
     if(correct){
       G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.correctCnt++;
       pts=base+timeBonus()+G.combo*10;
       G.score+=pts;
-    } else G.combo=0;
+    } else { G.combo=0; pts=-WRONG_PENALTY; G.score+=pts; }
     missionProgress({mode:G.mode, correct, combo:G.combo});
   }
   return pts;
@@ -1182,9 +1183,9 @@ function studyExtra(name){
 
 // 점수 +N 튀어오름 (HUD 점수 위)
 function scorePop(pts){
-  const host=document.querySelector('.hud .score'); if(!host) return;
+  const host=document.querySelector('.hud .score'); if(!host||!pts) return;
   const el=document.createElement('span');
-  el.className='score-pop'; el.textContent='+'+pts;
+  el.className='score-pop'+(pts<0?' minus':''); el.textContent=(pts>0?'+':'')+pts;
   host.appendChild(el);
   setTimeout(()=>el.remove(), 1000);
 }
@@ -1201,10 +1202,11 @@ function feedback(correct, head, body, pts){
   }
   const face=`<img class="fb-mascot ${correct?'happy':'sad'}" src="${correct?'guide-correct.png':'guide-think.png'}${MASCOT_VER}" alt="">`;
   fb.className='feedback-box '+(correct?'good':'bad');
-  fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
+  const ptsTag = pts ? ` <span class="fb-pts${pts<0?' minus':''}">${pts>0?'+':''}${pts}점</span>` : '';
+  fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${ptsTag}</div>${body}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);
-  if(correct && pts>0) scorePop(pts);
+  if(pts) scorePop(pts);
   // 모바일: 해설이 보이도록 자동 스크롤 + 가벼운 진동
   if(window.innerWidth<=820){
     setTimeout(()=>fb.scrollIntoView({behavior:'smooth', block:'center'}),60);
@@ -1411,13 +1413,13 @@ function bingoResolve(correct, tappedIdx){
     G.bingo.wrong++;
     if(tappedIdx>=0) bingoCellEl(tappedIdx)?.classList.add('miss-pick');
     bingoCellEl(ti)?.classList.add('target');
-    award(false,0);
+    pts=award(false,0);
     head = tappedIdx<0 ? `⏰ 시간 초과! 정답은 ${target.name}` : `❌ 오답! 정답은 ${target.name}`;
   }
   recordStat(target.region, correct);
   logResult(target.accept[0], correct);
   const sc=document.querySelector('.bingo-strike'); if(sc) sc.textContent=`❌ ${G.bingo.wrong}/2`;
-  feedback(correct, head, `<b>${target.name}</b> · ${target.raw}`+studyExtra(target.name), correct?pts:0);
+  feedback(correct, head, `<b>${target.name}</b> · ${target.raw}`+studyExtra(target.name), pts);
   hudUpdate();
   if(G.bingo.wrong>=2 && !correct){      // 2회 오답 → 강제 종료
     G.idx++; $('btn-next').classList.add('hidden');
@@ -2569,15 +2571,15 @@ function endGame(){
     detail.innerHTML=`${tag}<table class="vs-table">
       <tr><td><b>${b.names[0]}</b></td><td>${b.scores[0]}점</td><td>정답 ${b.correct[0]}/${Math.ceil(G.queue.length/2)}</td></tr>
       <tr><td><b>${b.names[1]}</b></td><td>${b.scores[1]}점</td><td>정답 ${b.correct[1]}/${Math.floor(G.queue.length/2)}</td></tr></table>`;
-    xp+=Math.round((b.scores[0]+b.scores[1])/20);
-    const earned=Math.max(1, Math.round((b.scores[0]+b.scores[1])/200));
+    xp+=Math.round((Math.max(0,b.scores[0])+Math.max(0,b.scores[1]))/20);
+    const earned=Math.max(0, Math.floor((Math.max(0,b.scores[0])+Math.max(0,b.scores[1]))/320));
     coins+=earned; store.save('geo_coins',coins); updateGachaUI();
     detail.innerHTML+=`<div style="margin-top:6px">🪙 카드 코인 +${earned} (보유 ${coins})</div>`;
     confetti(document.querySelector('.result-card'));
   } else {
     const answered = G.idx;
     const acc = answered? Math.round(G.correctCnt/answered*100):0;
-    const earned=Math.max(answered>=3?1:0, Math.round(G.score/100));
+    const earned=Math.max(0, Math.floor(G.score/200));   // 코인 적립 둔화(이전 /100·최소1 → /200·바닥0)
     coins+=earned; store.save('geo_coins',coins); updateGachaUI();
     if(G.mode==='boss'){
       const need=Math.ceil(G.queue.length*0.7), win=G.correctCnt>=need;
@@ -2590,7 +2592,7 @@ function endGame(){
              : `${need}타 이상 명중하면 격파! 한 번 더 도전하세요.`)+
         `<br>🪙 카드 코인 +${earned} (보유 ${coins})`+
         `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
-      xp+=Math.round(G.score/10);
+      xp+=Math.max(0, Math.round(G.score/10));
       if(win) confetti(document.querySelector('.result-card'));
     } else if(G.mode==='streak'){
       const streak=G.correctCnt;
@@ -2603,7 +2605,7 @@ function endGame(){
       detail.innerHTML=`점수 <b>${G.score}</b> · 최고 기록 <b>${best}</b>연승`+
         (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
         `<br><span style="font-size:.86em">${streakComment(streak)}</span>`;
-      xp+=Math.round(G.score/10);
+      xp+=Math.max(0, Math.round(G.score/10));
       if(streak>=10||newRec) confetti(document.querySelector('.result-card'));
       if(G.score>0){
         $('name-entry').classList.remove('hidden');
@@ -2617,7 +2619,7 @@ function endGame(){
       detail.innerHTML=`정답 ${G.correctCnt} / ${answered}`+
         (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
         `<br><span style="font-size:.86em">${over?'2회 오답으로 종료됐어요. 다시 도전해 보세요!':resultComment(acc)}</span>`;
-      xp+=Math.round(G.score/10);
+      xp+=Math.max(0, Math.round(G.score/10));
       if(blackout||lines>=3) confetti(document.querySelector('.result-card'));
       if(G.score>0){
         $('name-entry').classList.remove('hidden');
@@ -2629,7 +2631,7 @@ function endGame(){
       detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥`+
         (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins}${coins>=DRAW_COST?' — 뽑기 가능!':''})`:'')+
         `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
-      xp+=Math.round(G.score/10);
+      xp+=Math.max(0, Math.round(G.score/10));
       if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
       if(G.score>0 && G.mode!=='wanted'){   // 수배 복습은 개인 연습 — 공개 랭킹 등록 생략
         $('name-entry').classList.remove('hidden');

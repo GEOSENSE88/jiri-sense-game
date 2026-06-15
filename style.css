@@ -296,6 +296,7 @@ button { font-family:inherit; }
 @keyframes scorePop { 0%{ opacity:0; transform:translate(-50%,6px) scale(.7); }
   25%{ opacity:1; transform:translate(-50%,-14px) scale(1.15); }
   100%{ opacity:0; transform:translate(-50%,-40px) scale(1); } }
+.score-pop.minus { color:var(--red); text-shadow:0 1px 0 #fff,0 0 8px rgba(226,87,76,.5); }
 
 /* 마스코트 추천 배너 (홈) */
 .recommend-card { display:flex; align-items:center; gap:11px; padding:11px 13px; margin-bottom:16px;
@@ -554,6 +555,7 @@ button { font-family:inherit; }
 .feedback-box.good .fb-head { color:#1F8C3F; }
 .feedback-box.bad .fb-head { color:var(--bad); }
 .fb-pts { color:var(--gold); font-weight:800; }
+.fb-pts.minus { color:var(--red); }
 .fb-extra { margin-top:8px; padding-top:8px; border-top:1.5px dashed var(--line2); font-size:.8rem; color:var(--dim); }
 .fb-extra b { color:var(--sea-d); }
 .img-link {
