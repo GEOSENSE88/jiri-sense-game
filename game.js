@@ -158,8 +158,9 @@ const MODE_INFO = {
   wanted:   {title:'🔍 오답 수배 복습', useMap:true, n:12, time:30},
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
   bingo:    {title:'🎰 빙고 게임', useMap:false, n:25, time:22},
+  streak:   {title:'🔥 연승 모드', useMap:true, time:0},
 };
-const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE'};
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE',streak:'#E8590C'};
 // 🏷️ 테마 게임: 테마를 고른 뒤 그 테마의 지역만 백지도에서 맞히는 퀴즈
 let THEMES_CACHE=null;
 function buildThemes(){
@@ -375,7 +376,7 @@ function sampleLocQueue(items, n){
 // 홈 화면
 // ============================================================
 // 명예의 전당 렌더 — 항목(모드)별 섹션 + 상위 3명. 서버 공유 랭킹(serverBoard) 우선, 없으면 로컬(board)
-const BOARD_MODES=['location','theme','bingo','muniname','detective','climate','stats','mcq','ox','battle'];
+const BOARD_MODES=['location','streak','theme','bingo','muniname','detective','climate','stats','mcq','ox','battle'];
 function renderHomeBoard(){
   const hb=$('home-board'); if(!hb) return;
   const src = serverBoard || board;
@@ -528,7 +529,7 @@ function renderWanted(){
   $('btn-wanted-review').onclick=()=>{ G.region='전체'; startGame('wanted'); };
 }
 
-const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!',bingo:'빙고 도전!'};
+const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!',bingo:'빙고 도전!',streak:'연승 도전!'};
 document.querySelectorAll('.mode-card').forEach(c=>{
   c.onclick=()=> c.dataset.mode==='theme' ? openThemeModal() : startGame(c.dataset.mode);
   const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
@@ -826,9 +827,23 @@ function bossQueue(region){
   return shuffle(q).slice(0, MODE_INFO.boss.n);
 }
 
+// 🔥 연승 모드 출제 — 위치·판독·개념·OX 혼합을 끝없이 보충(시간 제한 없음)
+function streakRefill(n){
+  const out=[];
+  const locs  = sampleLocQueue(pool('location'), Math.ceil(n*0.5));
+  const munis = weightedSample(pool('muniname'), Math.ceil(n*0.2), x=>x);
+  const mcqs  = shuffle(pool('mcq')).slice(0, Math.ceil(n*0.2));
+  const oxs   = shuffle(pool('ox')).slice(0, Math.ceil(n*0.15));
+  locs.forEach(l=>l&&out.push({btype:'location', item:l}));
+  munis.forEach(m=>m&&out.push({btype:'muniname', item:m}));
+  mcqs.forEach(m=>m&&out.push({btype:'mcq', item:m}));
+  oxs.forEach(o=>o&&out.push({btype:'ox', item:o}));
+  return shuffle(out);
+}
+
 function startGame(mode, opt){
   G.mode=mode; G.idx=0; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.locked=false;
-  G.battle=null; G.bossRegion=null;
+  G.battle=null; G.bossRegion=null; G.noTimer=(mode==='streak'); G.lastCorrect=true;
   if(mode==='boss'){ G.bossRegion=opt; G.region=opt; }
   if(!svgBuilt){ buildMap(); initMapGestures(); }
   clearMapExtras(); resetView();
@@ -878,6 +893,8 @@ function startGame(mode, opt){
     G.bingo={cells, wrong:0, lineKeys:new Set(), targetIdx:-1};
     G.queue=shuffle(cells.slice());
     renderBingoGrid();
+  } else if(mode==='streak'){
+    G.queue=streakRefill(30);
   } else if(mode==='theme'){
     const theme=themeByKey(opt) || buildThemes()[0];
     $('game-title').textContent=theme.label;
@@ -896,7 +913,7 @@ function startGame(mode, opt){
 }
 
 function hudUpdate(){
-  const total = G.mode==='ox' ? '∞' : G.queue.length;
+  const total = (G.mode==='ox'||G.mode==='streak') ? '∞' : G.queue.length;
   $('hud-qnum').textContent=Math.min(G.idx+1, G.queue.length);
   $('hud-qtotal').textContent=total;
   if(G.battle){
@@ -924,6 +941,13 @@ function hudUpdate(){
 // ---------- 타이머 ----------
 function startTimer(sec, onTimeout){
   stopTimer();
+  const wrap=$('timer-bar-wrap');
+  if(G.noTimer){   // 🔥 연승 모드: 시간 제한 없음 — 타이머 바 숨김, 타임아웃 없음
+    if(wrap) wrap.style.display='none';
+    const t=$('warmup-tip'); if(t) t.classList.add('hidden');
+    return;
+  }
+  if(wrap) wrap.style.display='';
   // 런 첫 문항 워밍업(지도 조작 모드만): 시간 넉넉하게 + 안내 배지
   const warm = G.idx===0 && WARMUP_MODES.has(G.mode);
   if(warm) sec = Math.round(sec*WARMUP_MULT)+WARMUP_ADD;
@@ -944,7 +968,7 @@ function startTimer(sec, onTimeout){
   },100);
 }
 function stopTimer(){ if(G.timer){ clearInterval(G.timer); G.timer=null; } }
-function timeBonus(){ return Math.round(Math.max(0,G.timeLeft)/G.timeMax*50); }
+function timeBonus(){ return G.noTimer||!G.timeMax ? 0 : Math.round(Math.max(0,G.timeLeft)/G.timeMax*50); }
 
 // ---------- 점수 ----------
 function award(correct, base){
@@ -957,6 +981,7 @@ function award(correct, base){
       G.battle.scores[i]+=pts;
     } else G.battle.combos[i]=0;
   } else {
+    G.lastCorrect=correct;
     if(correct){
       G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.correctCnt++;
       pts=base+timeBonus()+G.combo*10;
@@ -1102,11 +1127,13 @@ function nextQuestion(){
 
   if(G.mode==='ox'){
     if(Date.now()>=G.oxEnd || G.idx>=G.queue.length) return endGame();
+  } else if(G.mode==='streak'){
+    if(G.idx>=G.queue.length-2) G.queue=G.queue.concat(streakRefill(30));   // 끝없이 보충
   } else if(G.idx>=G.queue.length) return endGame();
 
   hudUpdate();
   let item=G.queue[G.idx], type=G.mode;
-  if(G.mode==='battle'||G.mode==='boss'){
+  if(G.mode==='battle'||G.mode==='boss'||G.mode==='streak'){
     type=item.btype; item=item.item;
     const noMap=(type==='mcq'||type==='ox'||(type==='climate'&&item.kind==='order'));
     $('map-pane').style.display=noMap?'none':'block';
@@ -1137,6 +1164,7 @@ function nextQuestion(){
 function afterAnswer(){
   G.idx++;
   if(G.battle) G.battle.turn = G.battle.turn===1?2:1;
+  if(G.mode==='streak' && !G.lastCorrect){ $('btn-next').classList.add('hidden'); setTimeout(()=>endGame(), 1300); return; }
   if(G.mode==='ox'){ setTimeout(nextQuestion, 900); }
   else $('btn-next').classList.remove('hidden');
 }
@@ -2513,6 +2541,13 @@ function resultComment(acc){
   if(acc>=50) return '기본기 장착 완료. 빈출 지역부터 한 번 더 돌아봐요 📚';
   return '오늘 틀린 지역이 수능날의 점수가 됩니다. 탐색 모드부터 차근차근! 🌱';
 }
+function streakComment(n){
+  if(n>=25) return '괴물 같은 집중력! 백지도가 완전히 손에 익었어요 🏆';
+  if(n>=15) return '엄청난 연승! 지리 감각이 폭발하고 있어요 🔥🔥';
+  if(n>=8)  return '훌륭해요! 조금만 더 가면 두 자릿수 연승 💪';
+  if(n>=3)  return '좋은 출발! 침착하게 한 문제씩 쌓아 봐요 📚';
+  return '한 문제에 끝! 다시 도전해서 연승을 쌓아 보세요 🌱';
+}
 
 function endGame(){
   stopTimer();
@@ -2557,6 +2592,23 @@ function endGame(){
         `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
       xp+=Math.round(G.score/10);
       if(win) confetti(document.querySelector('.result-card'));
+    } else if(G.mode==='streak'){
+      const streak=G.correctCnt;
+      const prevBest=store.load('geo_beststreak',0);
+      const best=Math.max(streak, prevBest);
+      store.save('geo_beststreak', best);
+      const newRec = streak>prevBest && streak>0;
+      $('result-title').textContent = newRec ? '🔥 최고 연승 기록!' : '🔥 연승 종료!';
+      $('result-main').textContent = `${streak}연승`;
+      detail.innerHTML=`점수 <b>${G.score}</b> · 최고 기록 <b>${best}</b>연승`+
+        (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
+        `<br><span style="font-size:.86em">${streakComment(streak)}</span>`;
+      xp+=Math.round(G.score/10);
+      if(streak>=10||newRec) confetti(document.querySelector('.result-card'));
+      if(G.score>0){
+        $('name-entry').classList.remove('hidden');
+        $('player-name').value = account ? `[${account.cls}] ${account.nickname}` : store.load('geo_lastname','');
+      }
     } else if(G.mode==='bingo'){
       const done=G.bingo.cells.filter(c=>c.done).length;
       const lines=G.bingo.lineKeys.size, over=G.bingo.wrong>=2, blackout=done===25;

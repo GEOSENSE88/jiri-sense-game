@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615z3">
+<link rel="stylesheet" href="style.css?v=20260615z4">
 </head>
 <body>
 
@@ -95,6 +95,25 @@
           </svg>
           <span class="mode-name">빙고 게임</span>
           <span class="mode-desc">5×5 빙고판에서 설명에 맞는 지역 찾기! 2번 틀리면 게임 끝</span>
+          <span class="mode-play">PLAY ▶</span>
+        </button>
+        <button class="mode-card" data-mode="streak" style="--mc:#E8590C">
+          <svg class="mode-art" viewBox="0 0 160 92" xmlns="http://www.w3.org/2000/svg">
+            <rect width="160" height="92" fill="#FFE8D6"/>
+            <path d="M0 74 Q20 68 40 74 T80 74 T120 74 T160 74 V92 H0 Z" fill="#FCCFA8"/>
+            <path d="M46 72 Q30 60 40 42 Q45 33 42 24 Q56 32 55 45 Q62 36 60 25 Q74 37 71 56 Q68 72 56 74 Q50 76 46 72 Z" fill="#FF6B35" stroke="#fff" stroke-width="3"/>
+            <path d="M49 70 Q42 61 48 50 Q51 57 55 50 Q60 59 55 68 Q52 72 49 70 Z" fill="#FFD23F"/>
+            <g fill="#E8590C" stroke="#fff" stroke-width="2">
+              <rect x="88" y="56" width="10" height="16" rx="2"/>
+              <rect x="103" y="44" width="10" height="28" rx="2"/>
+              <rect x="118" y="30" width="10" height="42" rx="2"/>
+            </g>
+            <path d="M86 52 L132 22" stroke="#E2574C" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+            <path d="M132 22 l-8 0 4 -6 Z" fill="#E2574C"/>
+            <text x="100" y="18" text-anchor="middle" font-size="11" font-weight="900" fill="#E8590C">WIN</text>
+          </svg>
+          <span class="mode-name">연승 모드</span>
+          <span class="mode-desc">시간제한 없이 끝없이 출제! 한 번 틀리면 종료</span>
           <span class="mode-play">PLAY ▶</span>
         </button>
         <button class="mode-card" data-mode="muniname" style="--mc:#2FA34F">
@@ -238,7 +257,7 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615z3" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615z4" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -324,7 +343,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615z3" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615z4" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -450,12 +469,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615z3"></script>
-<script src="stats-data.js?v=20260615z3"></script>
-<script src="freq-data.js?v=20260615z3"></script>
-<script src="match-sets.js?v=20260615z3"></script>
-<script src="questions.js?v=20260615z3"></script>
-<script src="mascots-data.js?v=20260615z3"></script>
-<script src="game.js?v=20260615z3"></script>
+<script src="map-data.js?v=20260615z4"></script>
+<script src="stats-data.js?v=20260615z4"></script>
+<script src="freq-data.js?v=20260615z4"></script>
+<script src="match-sets.js?v=20260615z4"></script>
+<script src="questions.js?v=20260615z4"></script>
+<script src="mascots-data.js?v=20260615z4"></script>
+<script src="game.js?v=20260615z4"></script>
 </body>
 </html>

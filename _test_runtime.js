@@ -87,8 +87,9 @@ check(window.eval('view.w') === 776, '문제 전환 시 지도 자동 원위치'
 
 console.log('\n=== 홈 재배치 (캐러셀·학습 분리) ===');
 check(document.getElementById('mode-carousel') !== null, '게임 모드 캐러셀 존재');
-check(document.querySelectorAll('#mode-carousel .mode-card').length === 10, '캐러셀에 게임 10종(테마·빙고 포함)');
+check(document.querySelectorAll('#mode-carousel .mode-card').length === 11, '캐러셀에 게임 11종(테마·빙고·연승 포함)');
 check(document.querySelector('#mode-carousel [data-mode="bingo"]') !== null, '캐러셀에 빙고 게임 카드');
+check(document.querySelector('#mode-carousel [data-mode="streak"]') !== null, '캐러셀에 연승 모드 카드');
 check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
 check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
@@ -459,6 +460,28 @@ console.log('\n=== 🎰 빙고 게임 ===');
   let t2 = window.eval('G.bingo.targetIdx');
   document.querySelector(`#bingo-grid .bingo-cell[data-i="${wrongCell(t2)}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   check(window.eval('G.bingo.wrong') === 2, '오답 2회 → 강제 종료 트리거');
+}
+
+console.log('\n=== 🔥 연승 모드 ===');
+{
+  window.eval("VIEW_ANIM_MS=0; startGame('streak')");
+  check(window.eval('G.noTimer') === true, '연승: 시간 제한 없음(noTimer)');
+  check(window.eval("document.getElementById('timer-bar-wrap').style.display") === 'none', '연승: 타이머 바 숨김');
+  check(window.eval('G.queue.length') > 0 && window.eval('G.queue[0].btype !== undefined'), '연승: 혼합 큐(btype) 생성');
+  check(window.eval("document.getElementById('hud-qtotal').textContent") === '∞', '연승: 문제 수 무한(∞) 표시');
+  // 정답 → 연승 유지 + 다음 진행
+  window.eval("startGame('streak'); G.queue[0]={btype:'location', item: sampleLocQueue(pool('location'),1)[0]}; G.idx=0; nextQuestion();");
+  const tgt = window.eval('G.queue[0].item').accept[0];
+  document.querySelector(`#map-svg .muni[data-name="${tgt}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.lastCorrect') === true && window.eval('G.correctCnt') >= 1, '연승: 정답 시 연승 유지');
+  check(!document.getElementById('btn-next').classList.contains('hidden'), '연승: 정답 후 계속 진행 버튼');
+  // 오답 → 종료 트리거(다음 버튼 숨김)
+  window.eval("startGame('streak'); G.queue[0]={btype:'location', item: sampleLocQueue(pool('location'),1)[0]}; G.idx=0; nextQuestion();");
+  const tgt2 = window.eval('G.queue[0].item').accept[0];
+  const wrongMuni = [...document.querySelectorAll('#map-svg .muni')].find(m => m.dataset.name && m.dataset.name !== tgt2);
+  wrongMuni.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval('G.lastCorrect') === false, '연승: 오답 인식');
+  check(document.getElementById('btn-next').classList.contains('hidden'), '연승: 오답 시 종료 트리거(다음 숨김)');
 }
 
 console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
