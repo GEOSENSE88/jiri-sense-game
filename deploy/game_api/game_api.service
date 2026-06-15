@@ -1,0 +1,22 @@
+[Unit]
+Description=Jiri SENSE Game Leaderboard API (Flask + Gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/game_api
+RuntimeDirectory=game_api
+RuntimeDirectoryMode=0755
+ExecStart=/var/www/game_api/venv/bin/gunicorn \
+    --workers 2 --threads 2 --timeout 30 \
+    --bind unix:/run/game_api/gunicorn.sock \
+    app:application
+Restart=always
+RestartSec=5
+MemoryHigh=150M
+MemoryMax=250M
+
+[Install]
+WantedBy=multi-user.target

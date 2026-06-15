@@ -181,6 +181,36 @@ button { font-family:inherit; }
 .mastery-row .m-fill { height:100%; background:linear-gradient(90deg, var(--grass), var(--grass-d)); border-radius:99px; }
 .mastery-row .m-val { width:64px; text-align:right; color:var(--faint); font-size:.7rem; font-variant-numeric:tabular-nums; }
 
+/* 오늘의 지리 미션 */
+.mission-card { background:linear-gradient(135deg, #FFF7DB, #FFF1EC); border:1.5px solid var(--yellow);
+  border-radius:14px; padding:12px 14px; margin-bottom:18px; }
+.mission-card h2 { margin:0 0 10px; }
+.mission-card h2 small { font-size:.66rem; font-weight:700; color:var(--faint); }
+.mission-row { margin-bottom:9px; }
+.mission-row:last-child { margin-bottom:0; }
+.mission-row.done .ms-label { color:var(--grass-d); }
+.ms-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.ms-label { font-size:.82rem; font-weight:800; color:var(--navy); }
+.ms-prog { font-size:.72rem; font-weight:800; color:var(--faint); font-variant-numeric:tabular-nums; }
+.ms-claimed { font-size:.72rem; font-weight:800; color:var(--grass-d); }
+.ms-claim { border:none; border-radius:99px; padding:3px 11px; font-size:.72rem; font-weight:800; cursor:pointer;
+  background:linear-gradient(95deg, var(--gold), var(--yellow)); color:#5A3D00; animation:msPulse 1.2s ease-in-out infinite; }
+.ms-claim:active { transform:scale(.96); }
+@keyframes msPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(245,166,35,.5); } 50%{ box-shadow:0 0 0 5px rgba(245,166,35,0); } }
+.ms-bar { height:7px; background:#fff; border:1px solid #EAD9A8; border-radius:99px; overflow:hidden; }
+.ms-fill { height:100%; background:linear-gradient(90deg, var(--grass), var(--grass-d)); border-radius:99px; transition:width .4s; }
+
+/* 오답 지역 수배서 */
+.wanted-empty { font-size:.76rem; color:var(--faint); line-height:1.55; }
+.wanted-sub { font-size:.74rem; color:var(--dim); margin-bottom:8px; }
+.wanted-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.wanted-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:99px;
+  background:var(--bg2); border:1.5px solid #E3CFA0; color:var(--navy); font-size:.78rem; font-weight:800; }
+.wanted-chip small { color:var(--faint); font-weight:700; font-size:.66rem; }
+.wanted-chip.danger { background:#FDECEA; border-color:var(--red); color:#A33327; }
+.wanted-chip.danger small { color:var(--red); }
+.wanted-box .primary-btn { width:100%; font-size:.84rem; padding:9px; }
+
 .freq-span { font-size:.71rem; color:var(--faint); margin:-8px 0 12px; line-height:1.55; }
 .freq-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:.8rem; }
 .freq-row .f-rank { width:18px; text-align:right; color:var(--red); font-weight:800; }
@@ -217,6 +247,10 @@ button { font-family:inherit; }
 #timer-bar-wrap { height:6px; background:#D8EEFB; max-width:1150px; margin:0 auto; border-radius:99px; overflow:hidden; }
 #timer-bar { height:100%; width:100%; background:linear-gradient(90deg, var(--grass), var(--grass-d)); transition:width .2s linear; border-radius:99px; }
 #timer-bar.danger { background:linear-gradient(90deg, var(--yellow), var(--red)); }
+.warmup-tip { max-width:1150px; margin:6px auto 0; padding:5px 12px; border-radius:99px;
+  background:#FFF7DB; border:1.5px solid var(--yellow); color:#7A5B00;
+  font-size:.8rem; font-weight:800; text-align:center; line-height:1.3; }
+.warmup-tip.hidden { display:none; }
 
 .game-body {
   display:grid; gap:14px; max-width:1150px; margin:14px auto 32px; padding:0 16px;

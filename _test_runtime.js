@@ -55,7 +55,7 @@ const muniCount = Object.keys(window.eval('MUNIS')).length;
 console.log('\n=== 홈 화면 / 지도 ===');
 check(document.querySelectorAll('#map-svg .muni').length === muniCount, `시·군 path ${muniCount}개 렌더링`);
 check(document.querySelectorAll('#map-svg .prov-border').length === 17, '시·도 외곽선 17개 오버레이');
-check(document.querySelectorAll('#region-chips .chip').length === 9, '출제 범위 칩 9개');
+check(document.querySelectorAll('#region-chips .chip').length === 8, '출제 범위 칩 8개');
 check([...document.querySelectorAll('#region-chips .chip')].some(c=>c.textContent==='충청권'), "홈 칩 '충청권' 표기");
 check(window.eval('LOCATIONS.every(l=>Array.isArray(l.accept)&&l.accept.every(a=>MUNIS[a]))'), '모든 지점이 유효한 시·군에 매핑');
 
@@ -325,6 +325,37 @@ console.log('\n=== 위치 사냥 중복 방지 ===');
   const arr2 = JSON.parse(window.eval("JSON.stringify(G.queue.map(l=>l.accept[0]))"));
   const overlap = arr2.filter(a=>arr.includes(a)).length;
   check(overlap <= 4, `직전 런과 겹침 최소화 (겹침 ${overlap}/${arr2.length})`);
+}
+
+console.log('\n=== 오답 지역 수배서 ===');
+{
+  window.eval("localStorage.removeItem('geo_wanted'); wanted={};");
+  window.eval("localStorage.removeItem('geo_recent_locs'); startGame('location');");
+  const wloc = window.eval('G.queue[0]');
+  const key = wloc.accept[0];
+  // 정답에서 가장 먼 시·군을 탭 → 오답 → 수배 등록
+  const far = Object.entries(window.eval('MUNIS')).reduce((best,[n,m])=>{
+    const d = Math.hypot(m.cx-wloc.x, m.cy-wloc.y); return d > best.d ? {n,d} : best;
+  }, {n:null,d:-1}).n;
+  document.querySelector(`#map-svg .muni[data-name="${far}"]`)
+    .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  check(window.eval(`!!wanted[${JSON.stringify(key)}]`), '오답 시·군이 수배서에 등록: ' + key);
+  check(window.eval(`wanted[${JSON.stringify(key)}].miss`) === 1, '오답 횟수 miss=1 기록');
+  // 홈 수배서 패널 렌더
+  window.eval('renderWanted();');
+  check(document.querySelectorAll('#wanted-body .wanted-chip').length >= 1, '수배서 패널에 칩 표시');
+  check(!!document.getElementById('btn-wanted-review'), '수배 복습 버튼 표시');
+  // 복습 모드: 큐가 수배 지역으로만 구성
+  window.eval("startGame('wanted');");
+  const wq = JSON.parse(window.eval('JSON.stringify(G.queue.map(l=>l.accept[0]))'));
+  const wkeys = JSON.parse(window.eval('JSON.stringify(Object.keys(wanted))'));
+  check(wq.length >= 1, `수배 복습 큐 생성 (${wq.length}문제)`);
+  check(wq.every(a => wkeys.includes(a)), '복습 큐가 수배 지역으로만 구성');
+  // 정확 정답은 수배서 판정에 반영(near-miss·정답률과 별개)
+  window.eval(`logResult(${JSON.stringify(key)}, true);`);
+  check(window.eval(`wanted[${JSON.stringify(key)}].streak`) === 1, '정답 1회 → streak=1 (아직 수배 유지)');
+  window.eval(`logResult(${JSON.stringify(key)}, true);`);
+  check(window.eval(`!wanted[${JSON.stringify(key)}]`), '2연속 정답 시 수배 해제');
 }
 
 console.log('\n=== 카드 컬렉션 ===');

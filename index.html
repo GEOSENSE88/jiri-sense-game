@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260615d">
 </head>
 <body>
 
@@ -35,6 +35,10 @@
 
   <div class="home-grid">
     <section class="panel modes-panel">
+      <div class="mission-card">
+        <h2>🎯 오늘의 지리 미션 <small>매일 자정 갱신</small></h2>
+        <div id="mission-body"></div>
+      </div>
       <h2>📖 학습 · 수집</h2>
       <div class="learn-row">
         <button class="learn-btn" id="btn-explore">
@@ -222,6 +226,10 @@
         <h2>지역별 숙련도</h2>
         <div id="mastery-list"></div>
       </div>
+      <div class="wanted-box">
+        <h2>🔍 오답 지역 수배서</h2>
+        <div id="wanted-body"></div>
+      </div>
       <div class="freq-box">
         <h2>🔥 5개년 기출 빈출 지역</h2>
         <p id="freq-span" class="freq-span"></p>
@@ -280,6 +288,7 @@
     </div>
   </div>
   <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+  <div id="warmup-tip" class="warmup-tip hidden"></div>
 
   <div class="game-body" id="game-body">
     <div id="question-box" class="question-box"></div>
@@ -318,11 +327,11 @@
   </div>
 </div>
 
-<script src="map-data.js"></script>
-<script src="stats-data.js"></script>
-<script src="freq-data.js"></script>
-<script src="match-sets.js"></script>
-<script src="questions.js"></script>
-<script src="game.js"></script>
+<script src="map-data.js?v=20260615d"></script>
+<script src="stats-data.js?v=20260615d"></script>
+<script src="freq-data.js?v=20260615d"></script>
+<script src="match-sets.js?v=20260615d"></script>
+<script src="questions.js?v=20260615d"></script>
+<script src="game.js?v=20260615d"></script>
 </body>
 </html>
