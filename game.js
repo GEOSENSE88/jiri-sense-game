@@ -1011,7 +1011,8 @@ function startGame(mode, opt){
   if(mode==='boss'){ G.bossRegion=opt; G.region=opt; }
   if(!svgBuilt){ buildMap(); initMapGestures(); }
   clearMapExtras(); resetView();
-  stopTimer();
+  stopTimer(); clearMapTap();
+  { const ms=$('map-svg'); if(ms) ms.onclick=null; }   // 탐색 모드 등 이전 클릭 핸들러 잔류 방지
   { const tip=$('warmup-tip'); if(tip) tip.classList.add('hidden'); }
   { const bb=$('boss-bar'); if(bb) bb.classList.toggle('hidden', mode!=='boss'); }
 
@@ -1288,6 +1289,7 @@ function nextQuestion(){
   $('feedback-box').classList.add('hidden');
   $('btn-next').classList.add('hidden');
   clearMapExtras();
+  try{ window.scrollTo(0,0); }catch(e){}   // 새 문제는 항상 상단(상단 바·문제)부터 보이도록
   // 문제 전환 시 지도를 즉시 원위치 (비교 모드는 이후 자체적으로 자동 확대)
   if(viewAnimId){ cancelAnimationFrame(viewAnimId); viewAnimId=null; }
   view={...VIEW0}; applyView();
@@ -2331,7 +2333,7 @@ function popBadgeHTML(muniName, region){
     `<span class="exp-rank rk-reg">${regionLabel(region||m.region)} ${r.reg}위</span>`;
 }
 function expShow(i){
-  if(!EXP.list.length) return;
+  if(!EXP.list.length || !$('exp-info')) return;   // 탐색 화면이 아니면 안전 종료
   EXP.i=(i+EXP.list.length)%EXP.list.length;
   const l=EXP.list[EXP.i];
   // 지도: 해당 시·군 강조 + 확대
@@ -2637,6 +2639,7 @@ function openGacha(){
   card.classList.remove('flipped','legend-glow');
   $('gcard-front').innerHTML=cardHTML(res.loc,true,cards[res.loc.name]);
   $('gacha-msg').innerHTML='';
+  $('btn-draw-again').disabled=true;   // 애니메이션 중 연타로 추가 뽑기 방지
   setTimeout(()=>{
     card.classList.add('flipped');
     if(res.rar==='전설'){ card.classList.add('legend-glow'); confetti(modal.querySelector('.gacha-stage')); }

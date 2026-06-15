@@ -28,6 +28,7 @@ window.SVGElement.prototype.getBoundingClientRect = function(){
 window.prompt = (msg, def) => def || 'T';
 window.confirm = () => true;
 window.matchMedia = window.matchMedia || (q => ({ matches: false }));
+window.scrollTo = () => {};   // jsdom 'Not implemented' 로그 제거(브라우저에선 정상 동작)
 
 let failures = 0;
 const check = (cond, name) => {
@@ -94,6 +95,10 @@ check(document.getElementById('btn-all-modes') !== null, '전체 모드 보기 �
 window.eval('openModesModal();');
 check(document.querySelectorAll('#modes-list .mode-tile').length === 11, '전체 모드 그리드 11종');
 window.eval("document.getElementById('modes-modal').classList.add('hidden');");
+// 방어: 탐색 화면이 아닐 때 expShow 호출해도 예외 없이 종료(가드)
+let _expThrew=false;
+try{ window.eval("VIEW_ANIM_MS=0; startGame('mcq'); EXP.list=[{name:'x',accept:['x'],region:'영남'}]; expShow(0);"); }catch(e){ _expThrew=true; }
+check(!_expThrew, 'expShow: 탐색 UI 없을 때 예외 없이 종료(가드)');
 check(document.getElementById('btn-explore') !== null, '백지도 탐색이 학습 영역으로 분리');
 check(document.querySelector('#mode-carousel [data-mode="explore"]') === null, '캐러셀에 탐색 모드 없음');
 check(document.querySelector('.progress-strip #rank-badge') !== null, '진행 스트립(계급)');
@@ -554,11 +559,13 @@ console.log('\n=== 카드 컬렉션 ===');
   check(r && r.loc && r.loc.name, '카드 뽑기 → 카드 획득: ' + r.loc.name + ` (${r.rar})`);
   check(window.eval('coins') === 15, '뽑기 비용 5🪙 차감');
   check(window.eval(`cards[${JSON.stringify(r.loc.name)}]`) === 1, '보유 카드 기록');
-  // 중복 환급
+  // 중복 환급 — 업적 보너스 코인이 환급 검증을 흔들지 않도록 전 업적 선해금
+  window.eval("ACHIEVEMENTS.forEach(a=>ach[a.id]=true); store.save('geo_ach',ach);");
   window.eval(`Math._g=Math.random; Math.random=()=>0.99;`); // 일반 카드 고정 시도
-  const before = window.eval('coins');
   window.eval('cards={}; LOCATIONS.slice(0,200).forEach(l=>cards[l.name]=1); store.save("geo_cards",cards);'); // 전부 보유 → 무조건 중복
-  window.eval('drawCard()');
+  const before = window.eval('coins');
+  const drew = JSON.parse(window.eval('JSON.stringify(drawCard())'));
+  check(drew.dup === true, '전부 보유 상태 → 중복 판정(dup=true)');
   check(window.eval('coins') === before - 5 + 2, '중복 카드 → +2🪙 환급');
   window.eval('Math.random=Math._g;');
   const html = window.eval(`cardHTML(LOCATIONS.find(l=>l.name==='울산'), true, 1)`);
