@@ -181,6 +181,61 @@ button { font-family:inherit; }
 .mastery-row .m-fill { height:100%; background:linear-gradient(90deg, var(--grass), var(--grass-d)); border-radius:99px; }
 .mastery-row .m-val { width:64px; text-align:right; color:var(--faint); font-size:.7rem; font-variant-numeric:tabular-nums; }
 
+/* 계정 칩 + 로그인/교사 모달 */
+.account-chip { cursor:pointer; border:2px solid var(--line2); font-size:.82rem; transition:.15s; }
+.account-chip:hover { border-color:var(--sea); }
+.account-chip.on { background:var(--navy); color:#fff; border-color:var(--navy); }
+.account-chip small { opacity:.8; font-weight:700; margin-left:3px; }
+.teacher-link { display:inline-block; margin-top:8px; color:var(--sea-d); font-weight:700; text-decoration:none; font-size:.78rem; }
+.teacher-link:hover { text-decoration:underline; }
+.dialog { position:relative; background:#fff; border-radius:18px; padding:22px 20px;
+  width:min(360px,92vw); box-shadow:0 18px 50px rgba(14,42,64,.4); text-align:left; }
+.dialog-mascot { display:block; width:auto; height:62px; margin:2px auto 4px; }
+.dialog h2 { font-size:1.05rem; font-weight:900; color:var(--navy); margin-bottom:5px; text-align:center; }
+.dialog-sub { font-size:.78rem; color:var(--dim); line-height:1.5; margin-bottom:14px; }
+.dialog-x { position:absolute; top:12px; right:13px; border:none; background:none; font-size:1.1rem;
+  color:var(--faint); cursor:pointer; }
+.dialog-input { width:100%; padding:11px 13px; margin-bottom:9px; border:1.5px solid var(--line2);
+  border-radius:11px; font-size:.92rem; font-family:inherit; color:var(--text); }
+.dialog-input:focus { outline:none; border-color:var(--sea); }
+.dialog-msg { font-size:.78rem; color:var(--red); font-weight:700; min-height:18px; margin-bottom:6px; }
+.dialog-btn { width:100%; margin:4px 0 8px; }
+.dialog .text-btn { display:block; width:100%; text-align:center; color:var(--dim); }
+.teacher-result { margin-top:12px; max-height:46vh; overflow:auto; }
+.t-msg { font-size:.8rem; color:var(--dim); font-weight:700; margin-bottom:8px; }
+.t-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.t-table th { text-align:left; color:var(--faint); font-weight:700; padding:4px 6px; border-bottom:1.5px solid var(--line); }
+.t-table td { padding:5px 6px; border-bottom:1px solid var(--line); color:var(--text); }
+.t-table td:nth-child(3) { font-weight:800; color:var(--sea-d); font-variant-numeric:tabular-nums; }
+
+/* 점수 팝업 (+점수 튀어오름) */
+.hud .score { position:relative; overflow:visible; }
+.score-pop { position:absolute; left:50%; top:-2px; transform:translateX(-50%);
+  font-weight:900; font-size:1.05rem; color:var(--gold); pointer-events:none; white-space:nowrap;
+  text-shadow:0 1px 0 #fff,0 0 8px rgba(245,166,35,.5); animation:scorePop 1s ease-out forwards; }
+@keyframes scorePop { 0%{ opacity:0; transform:translate(-50%,6px) scale(.7); }
+  25%{ opacity:1; transform:translate(-50%,-14px) scale(1.15); }
+  100%{ opacity:0; transform:translate(-50%,-40px) scale(1); } }
+
+/* 마스코트 추천 배너 (홈) */
+.recommend-card { display:flex; align-items:center; gap:11px; padding:11px 13px; margin-bottom:16px;
+  background:linear-gradient(120deg,#E8F7FF,#F3FBE8); border:1.5px solid var(--sky); border-radius:14px; }
+.recommend-card .mascot { width:auto; height:64px; flex-shrink:0; animation:bob 2.6s ease-in-out infinite; }
+.rec-wrap { flex:1; min-width:0; }
+.rec-bubble { position:relative; background:#fff; border:1.5px solid var(--line2); border-radius:12px;
+  padding:7px 11px; font-size:.83rem; font-weight:700; color:var(--navy); line-height:1.4; }
+.rec-bubble::before { content:''; position:absolute; left:-7px; top:15px; width:0; height:0;
+  border:6px solid transparent; border-right-color:#fff; filter:drop-shadow(-1px 0 0 var(--line2)); }
+.rec-btn { margin-top:7px; border:none; border-radius:99px; padding:5px 14px; font-size:.78rem; font-weight:800;
+  cursor:pointer; background:linear-gradient(95deg,var(--sea-d),var(--grass-d)); color:#fff; }
+.rec-btn:active { transform:scale(.97); }
+
+/* 인게임 마스코트 반응 (피드백 헤더) */
+.fb-mascot { width:auto; height:38px; vertical-align:middle; margin-right:5px; }
+.fb-mascot.happy { animation:bob .6s ease 2; }
+.fb-mascot.sad { animation:shake .5s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+
 /* 오늘의 지리 미션 */
 .mission-card { background:linear-gradient(135deg, #FFF7DB, #FFF1EC); border:1.5px solid var(--yellow);
   border-radius:14px; padding:12px 14px; margin-bottom:18px; }
@@ -199,6 +254,24 @@ button { font-family:inherit; }
 @keyframes msPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(245,166,35,.5); } 50%{ box-shadow:0 0 0 5px rgba(245,166,35,0); } }
 .ms-bar { height:7px; background:#fff; border:1px solid #EAD9A8; border-radius:99px; overflow:hidden; }
 .ms-fill { height:100%; background:linear-gradient(90deg, var(--grass), var(--grass-d)); border-radius:99px; transition:width .4s; }
+
+/* 권역 보스전 */
+#boss-body { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.boss-btn { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:9px 11px;
+  border:1.5px solid var(--line); border-radius:11px; background:#fff; cursor:pointer; font-family:inherit; }
+.boss-btn .boss-name { font-weight:800; color:var(--navy); font-size:.86rem; }
+.boss-btn .boss-go { font-size:.7rem; font-weight:800; color:var(--red); }
+.boss-btn .boss-lock { font-size:.68rem; font-weight:700; color:var(--faint); }
+.boss-btn .boss-tag { font-size:.68rem; font-weight:800; color:var(--grass-d); }
+.boss-btn:not([disabled]):hover { border-color:var(--red); transform:translateY(-1px); }
+.boss-btn.locked { background:var(--bg2); cursor:not-allowed; }
+.boss-btn.cleared { background:linear-gradient(135deg,#F1F9E6,#FFFDF0); border-color:var(--grass); }
+
+/* 게임 화면 보스 HP 바 */
+.boss-bar { max-width:1150px; margin:8px auto 0; }
+.boss-top { display:flex; justify-content:space-between; font-size:.76rem; font-weight:800; color:#8A2B22; margin-bottom:3px; }
+.boss-hp { height:11px; background:#F3D7D2; border-radius:99px; overflow:hidden; border:1px solid #E0A89F; }
+.boss-hp-fill { height:100%; background:linear-gradient(90deg, #E2574C, #B5342A); border-radius:99px; transition:width .35s; }
 
 /* 오답 지역 수배서 */
 .wanted-empty { font-size:.76rem; color:var(--faint); line-height:1.55; }
@@ -280,6 +353,9 @@ button { font-family:inherit; }
 .muni { fill:var(--map-fill); stroke:var(--map-line); stroke-width:.55; cursor:pointer; transition:fill .13s; }
 @media (hover:hover){ .muni:hover { fill:var(--map-hover); } }
 .muni.correct { fill:var(--good) !important; }
+.muni.hit { animation:hitFlash .65s ease-out; }
+@keyframes hitFlash {
+  0%{ fill:#FFE680 !important; } 35%{ fill:#FFE680 !important; } 100%{ fill:var(--good) !important; } }
 .muni.wrong { fill:var(--red) !important; }
 .muni.flash { fill:var(--yellow) !important; }
 .muni.dim-region { opacity:.38; pointer-events:none; }
@@ -314,12 +390,13 @@ button { font-family:inherit; }
 .quiz-pane { display:flex; flex-direction:column; gap:11px; }
 .question-box {
   background:var(--panel); border:1.5px solid var(--line); border-radius:var(--r-lg);
-  padding:16px 18px; font-size:clamp(.93rem, 3.6vw, 1.05rem); font-weight:600; line-height:1.55;
+  border-left:4px solid var(--mode-c, var(--sea)); padding:16px 18px;
+  font-size:clamp(.93rem, 3.6vw, 1.05rem); font-weight:600; line-height:1.55;
   box-shadow:var(--shadow); color:var(--text);
 }
 .question-box .q-region {
   display:inline-block; font-size:.68rem; font-weight:800; color:#fff;
-  background:var(--sea); border-radius:99px; padding:3px 11px; margin:0 6px 8px 0;
+  background:var(--mode-c, var(--sea)); border-radius:99px; padding:3px 11px; margin:0 6px 8px 0;
   vertical-align:2px;
 }
 .choices-box { display:flex; flex-direction:column; gap:8px; }
@@ -363,6 +440,19 @@ button { font-family:inherit; }
   font-size:.85rem; font-weight:400; line-height:1.9;
 }
 .stat-card b { color:var(--sea-d); }
+.mascot-clue {
+  display:flex; align-items:center; justify-content:center;
+  min-height:132px; margin:9px 0 10px; padding:10px;
+  background:#fff; border:1.5px solid var(--line); border-radius:var(--r-md);
+}
+.mascot-clue img {
+  display:block; max-width:min(220px, 82vw); max-height:190px;
+  width:auto; height:auto; object-fit:contain;
+}
+@media (max-width:560px){
+  .mascot-clue { min-height:112px; }
+  .mascot-clue img { max-height:150px; }
+}
 
 .feedback-box {
   border-radius:var(--r-md); padding:14px 16px; font-size:.85rem; line-height:1.6;

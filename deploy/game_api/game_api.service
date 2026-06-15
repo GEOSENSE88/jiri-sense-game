@@ -9,6 +9,9 @@ Group=www-data
 WorkingDirectory=/var/www/game_api
 RuntimeDirectory=game_api
 RuntimeDirectoryMode=0755
+# 비밀값(GEO_TEACHER_PW, GEO_PIN_SALT)은 저장소에 두지 않고 서버 전용 파일에 둠.
+# 서버에서: sudo nano /etc/game_api.env  (예: GEO_TEACHER_PW=...) 후 systemctl restart game_api
+EnvironmentFile=-/etc/game_api.env
 ExecStart=/var/www/game_api/venv/bin/gunicorn \
     --workers 2 --threads 2 --timeout 30 \
     --bind unix:/run/game_api/gunicorn.sock \

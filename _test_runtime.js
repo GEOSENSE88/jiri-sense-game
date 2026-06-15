@@ -138,7 +138,7 @@ console.log('\n=== 위치 사냥 (설명형) ===');
 window.eval("Math._rl=Math.random; Math.random=()=>0;");   // descForm 강제
 window.eval("startGame('location')");
 const dloc = window.eval('G.queue[0]');
-check(document.getElementById('question-box').textContent.includes('설명에 해당하는'), '설명형 발문');
+check(document.getElementById('question-box').textContent.includes('어느 지역일까'), '설명형 발문');
 check(document.querySelector('#question-box .stat-card') !== null, '설명 카드 표시');
 {
   const stem = dloc.name.replace(/\(.+\)$/,'').replace(/[시군구]$/,'');
@@ -356,6 +356,79 @@ console.log('\n=== 오답 지역 수배서 ===');
   check(window.eval(`wanted[${JSON.stringify(key)}].streak`) === 1, '정답 1회 → streak=1 (아직 수배 유지)');
   window.eval(`logResult(${JSON.stringify(key)}, true);`);
   check(window.eval(`!wanted[${JSON.stringify(key)}]`), '2연속 정답 시 수배 해제');
+}
+
+console.log('\n=== 오늘의 지리 미션 ===');
+{
+  window.eval("localStorage.removeItem('geo_mission'); mission=null; ensureMission();");
+  check(window.eval('mission.list.length') === 3, '오늘의 미션 3개 생성');
+  const a = window.eval('JSON.stringify(pickMissions("Mon Jan 01 2026",3).map(m=>m.id))');
+  const b = window.eval('JSON.stringify(pickMissions("Mon Jan 01 2026",3).map(m=>m.id))');
+  check(a === b, '같은 날짜 시드 → 동일 미션(결정적)');
+  // 알려진 미션 세트로 고정해 진행·보상 검증
+  window.eval(`mission={date:new Date().toDateString(), list:[
+    {id:'reg-jeju',prog:0,done:false,claimed:false,seen:[]},
+    {id:'card-new',prog:0,done:false,claimed:false,seen:[]},
+    {id:'freq-top',prog:0,done:false,claimed:false,seen:[]}]}; store.save('geo_mission',mission);`);
+  window.eval('renderMission();');
+  check(document.querySelectorAll('#mission-body .mission-row').length === 3, '미션 패널 3행 렌더');
+  window.eval("for(let i=0;i<5;i++) recordStat('제주', true);");
+  check(window.eval("mission.list.find(m=>m.id==='reg-jeju').done") === true, '제주권 5문제 → 미션 완료');
+  window.eval("missionProgress({isNew:true});");
+  check(window.eval("mission.list.find(m=>m.id==='card-new').done") === true, '카드 1장 → 미션 완료');
+  const tops = JSON.parse(window.eval('JSON.stringify([...freqTopSet()])')).slice(0,3);
+  window.eval(`${JSON.stringify(tops)}.forEach(m=>{ missionProgress({muni:m,correct:true}); missionProgress({muni:m,correct:true}); });`);
+  check(window.eval("mission.list.find(m=>m.id==='freq-top').prog") === 3, '빈출 TOP10 3곳(중복 무시) → prog=3');
+  const c0 = window.eval('coins'), x0 = window.eval('xp');
+  window.eval("claimMission('reg-jeju');");
+  check(window.eval('coins') > c0 && window.eval('xp') > x0, '보상 수령 → 코인·XP 증가');
+  const c1 = window.eval('coins');
+  window.eval("claimMission('reg-jeju');");
+  check(window.eval('coins') === c1, '이미 받은 미션 재수령 불가');
+}
+
+console.log('\n=== 권역 보스전 ===');
+{
+  window.eval("localStorage.removeItem('geo_titles'); titles={};");
+  window.eval("stats={}; store.save('geo_stats',stats);");
+  check(window.eval("bossUnlocked('강원')") === false, '숙련도 없으면 잠금');
+  window.eval("stats={'강원':{c:5,t:6}}; store.save('geo_stats',stats);");  // 약 83%
+  check(window.eval("bossUnlocked('강원')") === true, '숙련도 60%↑ → 잠금 해제');
+  window.eval('renderBoss();');
+  check(document.querySelectorAll('#boss-body .boss-btn').length === 6, '보스전 6권역 버튼');
+  const gw = document.querySelector('#boss-body .boss-btn[data-region="강원"]');
+  check(gw && !gw.disabled, '강원 버튼 활성화');
+  window.eval("startGame('boss','강원');");
+  check(window.eval('G.mode') === 'boss' && window.eval('G.bossRegion') === '강원', '보스전 시작(강원)');
+  const qlen = window.eval('G.queue.length');
+  check(qlen >= 6 && qlen <= 10, `보스 큐 ${qlen}문항 구성`);
+  check(window.eval('G.queue.every(x=>x.btype&&x.item)') === true, '보스 큐는 {btype,item} 혼합형');
+  check(!document.getElementById('boss-bar').classList.contains('hidden'), '보스 HP 바 표시');
+  // 70% 이상 격파 시 칭호 획득
+  window.eval("G.correctCnt=Math.ceil(G.queue.length*0.7); G.idx=G.queue.length; endGame();");
+  check(window.eval("!!titles['강원']") === true, '70%↑ 격파 → 칭호 획득');
+  check(document.getElementById('result-title').textContent.includes('격파'), '결과: 보스 격파 표시');
+}
+
+console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
+{
+  window.eval("xp=100; coins=10; stats={'제주':{c:2,t:3}}; cards={'제주':1}; wanted={'태백시':{miss:2,streak:0}}; titles={'강원':true}; mission={date:new Date().toDateString(),list:[{id:'x',prog:1}]};");
+  const g = JSON.parse(window.eval('JSON.stringify(gatherState())'));
+  check(g.xp === 100 && g.cards['제주'] === 1 && g.titles['강원'] === true, 'gatherState 상태 묶음');
+  const sv = "{xp:500,coins:3,cards:{'제주':2,'부산':1},titles:{'제주':true},stats:{'제주':{c:9,t:10}},wanted:{'태백시':{miss:1,streak:0}},mission:null}";
+  const m = JSON.parse(window.eval(`JSON.stringify(mergeState(${sv}))`));
+  check(m.xp === 500, 'merge: xp는 max(서버 500)');
+  check(m.cards['제주'] === 2 && m.cards['부산'] === 1, 'merge: 카드 합집합·최대 보유');
+  check(m.titles['강원'] && m.titles['제주'], 'merge: 칭호 합집합');
+  check(m.stats['제주'].t === 10, 'merge: 숙련도 더 많이 푼 쪽');
+  check(m.wanted['태백시'].miss === 2, 'merge: 수배 더 많이 틀린 쪽(로컬 2)');
+  window.eval(`applyState(${sv})`);
+  check(window.eval('xp') === 500 && window.eval("cards['부산']") === 1, 'applyState로 상태 적용');
+  check(window.eval("JSON.parse(localStorage.getItem('geo_xp'))") === 500, 'applyState가 localStorage 저장');
+  window.eval("account={cls:'3-7',nickname:'길동',token:'TK'}; renderAccount();");
+  check(document.getElementById('account-chip').textContent.includes('길동'), '로그인 시 계정 칩 표시');
+  check(!!document.getElementById('login-modal') && !!document.getElementById('teacher-modal'), '로그인·교사 모달 존재');
+  window.eval("account=null; renderAccount();");
 }
 
 console.log('\n=== 카드 컬렉션 ===');

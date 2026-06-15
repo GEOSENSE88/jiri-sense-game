@@ -17,6 +17,7 @@ let stats = store.load('geo_stats', {});
 let xp    = store.load('geo_xp', 0);
 let board = store.load('geo_board', {});
 let wanted = store.load('geo_wanted', {});   // 오답 지역 수배서 {accept키: {miss, streak}}
+let titles = store.load('geo_titles', {});   // 권역 보스전 클리어 칭호 {권역: true}
 let serverBoard = null;   // 서버 공유 명예의 전당(있으면 우선 표시, 없으면 로컬 fallback)
 
 // ---------- 공유 명예의 전당 API ----------
@@ -38,6 +39,96 @@ async function postServerScore(mode, name, score){
     return r.ok ? await r.json() : null;
   }catch(e){ return null; }
 }
+
+// ============================================================
+// 👤 학생 계정 — 가벼운 신원(반+닉네임+비밀번호)으로 서버에 진도 동기화
+//   로그인은 선택: 안 하면 게스트로 로컬 저장만(기존 동작). 기기 바뀌면 로그인으로 복원.
+// ============================================================
+let account = store.load('geo_account', null);   // {cls, nickname, token}
+
+// 동기화 대상 상태 한 묶음
+function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles }; }
+function applyState(s){
+  if(!s) return;
+  if(typeof s.xp==='number') xp=s.xp;
+  if(typeof s.coins==='number') coins=s.coins;
+  if(s.stats) stats=s.stats;
+  if(s.cards) cards=s.cards;
+  if(s.wanted) wanted=s.wanted;
+  if(s.mission) mission=s.mission;
+  if(s.titles) titles=s.titles;
+  store.save('geo_xp',xp); store.save('geo_coins',coins); store.save('geo_stats',stats);
+  store.save('geo_cards',cards); store.save('geo_wanted',wanted);
+  store.save('geo_mission',mission); store.save('geo_titles',titles);
+}
+// 서버 진도 vs 로컬 진도 병합 — 손실 없이 '더 풍부한 쪽' 채택
+function mergeState(server){
+  const local=gatherState(); const m={v:1};
+  m.xp=Math.max(local.xp||0, server.xp||0);
+  m.coins=Math.max(local.coins||0, server.coins||0);
+  m.titles=Object.assign({}, server.titles||{}, local.titles||{});      // 칭호 합집합
+  m.cards=Object.assign({}, server.cards||{});                          // 카드 최대 보유수
+  for(const k in (local.cards||{})) m.cards[k]=Math.max(m.cards[k]||0, local.cards[k]);
+  m.stats={};                                                          // 숙련도: 더 많이 푼 쪽
+  new Set([...Object.keys(local.stats||{}),...Object.keys(server.stats||{})]).forEach(r=>{
+    const a=(local.stats||{})[r]||{c:0,t:0}, b=(server.stats||{})[r]||{c:0,t:0}; m.stats[r]=(a.t>=b.t)?a:b; });
+  m.wanted={};                                                         // 수배: muni별 더 많이 틀린 쪽
+  new Set([...Object.keys(local.wanted||{}),...Object.keys(server.wanted||{})]).forEach(k=>{
+    const a=(local.wanted||{})[k], b=(server.wanted||{})[k]; m.wanted[k]=(!b||(a&&a.miss>=b.miss))?a:b; });
+  const today=new Date().toDateString();                               // 미션: 오늘자 진행 많은 쪽
+  const lm=local.mission, sm=server.mission;
+  const lp=lm&&lm.date===today? lm.list.reduce((s,i)=>s+(i.prog||0),0):-1;
+  const sp=sm&&sm.date===today? sm.list.reduce((s,i)=>s+(i.prog||0),0):-1;
+  m.mission= sp>lp? sm : (lm||sm);
+  return m;
+}
+async function apiLogin(cls, nickname, pin){
+  try{
+    const r=await fetch(LB_API+'/student/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({class:cls, nickname, pin})});
+    const j=await r.json().catch(()=>({}));
+    return r.ok? j : {error: j.error||'로그인 실패'};
+  }catch(e){ return {error:'서버에 연결할 수 없습니다. 게스트(로컬 저장)로 계속 플레이됩니다.'}; }
+}
+async function apiSync(){
+  if(!account||!account.token) return null;
+  try{
+    const r=await fetch(LB_API+'/student/sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:account.token, xp, data:gatherState()})});
+    return r.ok? await r.json() : null;
+  }catch(e){ return null; }
+}
+async function apiRoster(cls, pw){
+  try{
+    const r=await fetch(LB_API+'/class/roster?class='+encodeURIComponent(cls)+'&pw='+encodeURIComponent(pw));
+    const j=await r.json().catch(()=>({}));
+    return r.ok? j : {error: j.error||'조회 실패'};
+  }catch(e){ return {error:'서버에 연결할 수 없습니다'}; }
+}
+async function doLogin(cls, nickname, pin){
+  const res=await apiLogin(cls, nickname, pin);
+  if(res.error) return res;
+  account={cls, nickname, token:res.token};
+  store.save('geo_account', account);
+  if(!res.isNew) applyState(mergeState({xp:res.xp, ...(res.data||{})}));
+  await apiSync();                 // 병합 결과(또는 신규 로컬)를 서버에 반영
+  initHome();
+  return {ok:true, isNew:res.isNew};
+}
+function logoutAccount(){ account=null; store.remove('geo_account'); renderAccount(); initHome(); }
+// 앱 시작 시: 로그인 상태면 서버 최신 진도를 끌어와 병합(다른 기기에서 한 기록 반영)
+async function syncOnLoad(){
+  if(!account||!account.token) return;
+  try{
+    const r=await fetch(LB_API+'/student/me?token='+encodeURIComponent(account.token));
+    if(!r.ok){ if(r.status===401){ /* 토큰 만료 */ } return; }
+    const j=await r.json();
+    applyState(mergeState({xp:j.xp, ...(j.data||{})}));
+    initHome(); apiSync();
+  }catch(e){}
+}
+let _syncT=null;
+function scheduleSync(){ if(!account) return; clearTimeout(_syncT); _syncT=setTimeout(()=>apiSync(), 1200); }
 
 const RANKS = [
   [0,'🌱 지리 새내기'],[300,'🧭 길눈 밝은 학생'],[800,'🚌 답사 견습생'],
@@ -64,7 +155,14 @@ const MODE_INFO = {
   ox:       {title:'⚡ 스피드 OX (60초)', useMap:false, time:60},
   battle:   {title:'⚔️ 1:1 배틀', useMap:true, n:16, time:30},
   wanted:   {title:'🔍 오답 수배 복습', useMap:true, n:12, time:30},
+  boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
 };
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A'};
+const BOSS_REGIONS = ['수도권','강원','충청','호남','영남','제주'];
+const BOSS_GATE = 0.6, BOSS_MIN_T = 5;   // 숙련도 60%↑(최소 5문항 풀이)면 도전 가능
+function bossMastery(r){ const s=stats[r]; return s&&s.t? s.c/s.t : 0; }
+function bossUnlocked(r){ const s=stats[r]; return !!s && s.t>=BOSS_MIN_T && s.c/s.t>=BOSS_GATE; }
+function bossTitle(r){ return `${regionLabel(r)} 정복자`; }
 
 // 첫 문항(런 시작) 워밍업: 지도 확대·이동·탭 판정을 익히기 전에 시간 초과로 이탈하는 것 방지.
 // 지도 조작이 필요한 모드만 대상. 모든 플레이어·모든 런에 동일 적용되므로 공유 랭킹 공정성은 유지됨.
@@ -75,13 +173,27 @@ const WARMUP_MULT = 1.6, WARMUP_ADD = 8;
 let LOC_POOL=null;
 function locPool(){
   if(LOC_POOL) return LOC_POOL;
+  const mascotAssets = (typeof MASCOT_ASSETS !== 'undefined' ? MASCOT_ASSETS : [])
+    .filter(a=>a.accept && a.accept[0] && MUNIS[a.accept[0]]);
+  const mascotImageByMuni = new Map(mascotAssets.map(a=>[a.accept[0], a.image]));
+  const curatedMascots = new Set(MASCOTS.map(m=>m.accept[0]));
   const mascotLocs=MASCOTS.map(m=>{
     const mu=MUNIS[m.accept[0]];
     return {name:m.accept[0].replace(/\(.+\)$/,''), x:mu.cx, y:mu.cy, region:m.region, accept:m.accept,
+            image:mascotImageByMuni.get(m.accept[0]) || null,
             fact:`마스코트 ‘${m.name}’의 고장 — ${m.desc}`, descOnly:true,
             desc:`마스코트 ‘${m.name}’ — ${m.desc}`};
   });
-  LOC_POOL=LOCATIONS.concat(mascotLocs);
+  const imageMascotLocs=mascotAssets
+    .filter(a=>!curatedMascots.has(a.accept[0]))
+    .map(a=>{
+      const mu=MUNIS[a.accept[0]], label=a.accept[0].replace(/\(.+\)$/,'');
+      return {name:label, x:mu.cx, y:mu.cy, region:mu.region, accept:a.accept,
+              image:a.image, descOnly:true, imageOnly:true,
+              fact:`${label} 지자체 캐릭터 이미지`,
+              desc:'다음 지자체 캐릭터 이미지를 보고 해당 시·군을 찾으세요.'};
+    });
+  LOC_POOL=LOCATIONS.concat(mascotLocs, imageMascotLocs);
   return LOC_POOL;
 }
 // 설명문에서 지역 이름 가리기
@@ -110,6 +222,9 @@ function noteOf(name){
 function imgSearchLink(keyword, extra){
   const q = encodeURIComponent(keyword + ' ' + (extra || '지리'));
   return `<a class="img-link" href="https://search.naver.com/search.naver?where=image&query=${q}" target="_blank" rel="noopener">📷 ${keyword} 이미지 자료</a>`;
+}
+function escapeAttr(s){
+  return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 // 빈출 지역 가중 무작위 추출 (비복원)
 function weightedSample(items, n, keyFn){
@@ -191,7 +306,10 @@ function initHome(){
   renderHomeBoard();
   fetchServerBoard().then(b=>{ if(b) renderHomeBoard(); });   // 서버 공유 랭킹으로 갱신
   updateGachaUI();
+  renderAccount();
+  renderRecommend();
   renderMission();
+  renderBoss();
   renderWanted();
   // 빈출 지역 TOP 12 — 특별·광역시 제외, 시·군 단위만
   $('freq-span').textContent=`${FREQ_SPAN.span} 고3 학평·모평·수능 ${FREQ_SPAN.files}회분 언급 횟수(시·군 기준) — 빈출 지역은 게임에서 더 자주 출제됩니다`;
@@ -226,6 +344,55 @@ function renderMission(){
   box.querySelectorAll('.ms-claim').forEach(b=>b.onclick=()=>claimMission(b.dataset.mid));
 }
 
+// 👤 계정 칩
+function renderAccount(){
+  const el=$('account-chip'); if(!el) return;
+  if(account){ el.innerHTML=`👤 ${account.nickname} <small>${account.cls}</small>`; el.classList.add('on'); }
+  else { el.innerHTML='👤 로그인 · 기록 저장'; el.classList.remove('on'); }
+}
+
+// 🧭 마스코트 추천 도전 — 상태에 맞는 '오늘 할 것' 한 줄 제안
+function renderRecommend(){
+  const bubble=$('rec-bubble'), btn=$('rec-btn'); if(!bubble||!btn) return;
+  let text, label, action;
+  const bossCand=BOSS_REGIONS.filter(r=>bossUnlocked(r)&&!titles[r])
+    .sort((a,b)=>bossMastery(b)-bossMastery(a))[0];
+  const wn=Object.keys(wanted).length;
+  if(bossCand){
+    text=`${regionLabel(bossCand)} 숙련도 ${Math.round(bossMastery(bossCand)*100)}%! 보스전 도전 각이야 👹`;
+    label='보스전 도전'; action=()=>startGame('boss', bossCand);
+  } else if(wn>0){
+    text=`오답 ${wn}곳이 수배 중! 복습하고 코인까지 챙기자 🔍`;
+    label='수배 복습'; action=()=>{ G.region='전체'; startGame('wanted'); };
+  } else {
+    const weak=BOSS_REGIONS.filter(r=>{ const s=stats[r]; return s&&s.t>=3; })
+      .sort((a,b)=>bossMastery(a)-bossMastery(b))[0];
+    if(weak && bossMastery(weak)<0.7){
+      text=`${regionLabel(weak)}이 조금 약해. 위치 사냥으로 다져볼까? 💪`;
+      label=`${regionLabel(weak)} 연습`; action=()=>{ G.region=weak; startGame('location'); };
+    } else {
+      text='오늘의 미션부터 깨 보자! 작은 목표가 실력이 돼 🎯';
+      label='위치 사냥 시작'; action=()=>{ G.region='전체'; startGame('location'); };
+    }
+  }
+  bubble.textContent=text;
+  btn.textContent=label; btn.onclick=action;
+}
+
+// 👹 권역 보스전 — 숙련도 게이트 + 칭호
+function renderBoss(){
+  const box=$('boss-body'); if(!box) return;
+  box.innerHTML=BOSS_REGIONS.map(r=>{
+    const m=Math.round(bossMastery(r)*100), unlocked=bossUnlocked(r), cleared=!!titles[r];
+    const right = cleared ? `<span class="boss-tag">🏆 정복</span>`
+      : unlocked ? `<span class="boss-go">도전 ▶</span>`
+      : `<span class="boss-lock">🔒 ${m}%</span>`;
+    return `<button class="boss-btn${unlocked?'':' locked'}${cleared?' cleared':''}" data-region="${r}" ${unlocked?'':'disabled'}>
+      <span class="boss-name">${regionLabel(r)}</span>${right}</button>`;
+  }).join('');
+  box.querySelectorAll('.boss-btn:not([disabled])').forEach(b=>b.onclick=()=>startGame('boss', b.dataset.region));
+}
+
 // 🔍 오답 지역 수배서 — 틀린 시·군을 모아 복습 유도
 function renderWanted(){
   const box=$('wanted-body'); if(!box) return;
@@ -246,11 +413,15 @@ function renderWanted(){
   $('btn-wanted-review').onclick=()=>{ G.region='전체'; startGame('wanted'); };
 }
 
-document.querySelectorAll('.mode-card').forEach(c=>{ c.onclick=()=>startGame(c.dataset.mode); });
+const MODE_CTA={location:'사냥 시작!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!'};
+document.querySelectorAll('.mode-card').forEach(c=>{
+  c.onclick=()=>startGame(c.dataset.mode);
+  const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
+});
 $('reset-data').onclick=()=>{
   if(confirm('모든 기록(점수·숙련도·랭킹·수배서)을 초기화할까요?')){
-    store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board'); store.remove('geo_wanted'); store.remove('geo_mission');
-    stats={}; xp=0; board={}; wanted={}; mission=null; initHome();
+    store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board'); store.remove('geo_wanted'); store.remove('geo_mission'); store.remove('geo_titles');
+    stats={}; xp=0; board={}; wanted={}; mission=null; titles={}; initHome();
   }
 };
 
@@ -510,16 +681,39 @@ function pool(mode){
   return [];
 }
 
-function startGame(mode){
+// 👹 권역 보스전 출제 — 해당 권역 위주 혼합 10문항(위치·판독·개념·OX·기후)
+function bossQueue(region){
+  const prevR=G.region; G.region=region;
+  const locs  = sampleLocQueue(pool('location'), 3);
+  const munis = weightedSample(pool('muniname'), 3, n=>n);
+  const mcqs  = shuffle(pool('mcq')).slice(0,2);
+  const oxs   = shuffle(pool('ox')).slice(0,1);
+  const clim  = shuffle(pool('climate')).slice(0,1);
+  G.region=prevR;
+  const q=[];
+  locs.forEach(l=>l&&q.push({btype:'location', item:l}));
+  munis.forEach(m=>m&&q.push({btype:'muniname', item:m}));
+  mcqs.forEach(m=>m&&q.push({btype:'mcq', item:m}));
+  oxs.forEach(o=>o&&q.push({btype:'ox', item:o}));
+  clim.forEach(c=>c&&q.push({btype:'climate', item:c}));
+  return shuffle(q).slice(0, MODE_INFO.boss.n);
+}
+
+function startGame(mode, opt){
   G.mode=mode; G.idx=0; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.locked=false;
-  G.battle=null;
+  G.battle=null; G.bossRegion=null;
+  if(mode==='boss'){ G.bossRegion=opt; G.region=opt; }
   if(!svgBuilt){ buildMap(); initMapGestures(); }
   clearMapExtras(); resetView();
   stopTimer();
   { const tip=$('warmup-tip'); if(tip) tip.classList.add('hidden'); }
+  { const bb=$('boss-bar'); if(bb) bb.classList.toggle('hidden', mode!=='boss'); }
 
   const info=MODE_INFO[mode];
-  $('game-title').textContent=info.title+(G.region!=='전체'?` · ${G.region}`:'');
+  $('screen-game').style.setProperty('--mode-c', MODE_COLOR[mode]||'#1278C2');
+  $('game-title').textContent = mode==='boss'
+    ? `👹 ${regionLabel(opt)} 보스전`
+    : info.title+(G.region!=='전체'?` · ${G.region}`:'');
   $('turn-indicator').classList.add('hidden');
   $('map-pane').style.display=info.useMap?'block':'none';
   $('game-body').classList.toggle('no-map', !info.useMap);
@@ -550,9 +744,12 @@ function startGame(mode){
     G.queue=sampleLocQueue(wp, Math.min(wp.length, MODE_INFO.wanted.n));
   } else if(mode==='muniname'){
     G.queue=weightedSample(pool(mode), MODE_INFO[mode].n, n=>n);
+  } else if(mode==='boss'){
+    G.queue=bossQueue(opt);
   } else {
     G.queue=shuffle(pool(mode)).slice(0, MODE_INFO[mode].n);
   }
+  if(mode==='boss') hudUpdate();   // 보스 HP 초기 표시
   show('screen-game');
   nextQuestion();
 }
@@ -572,6 +769,14 @@ function hudUpdate(){
   } else {
     $('hud-combo').textContent=G.combo;
     $('hud-score').textContent=G.score;
+  }
+  if(G.mode==='boss'){
+    const bb=$('boss-bar'); if(!bb) return;
+    const max=G.queue.length, hp=Math.max(0, max-G.correctCnt), pct=Math.round(hp/max*100);
+    const need=Math.ceil(max*0.7);
+    bb.innerHTML=`<div class="boss-top"><span>👹 ${regionLabel(G.bossRegion)} 보스 HP</span>`+
+      `<span>${hp}/${max} · ${need}타 격파</span></div>`+
+      `<div class="boss-hp"><div class="boss-hp-fill" style="width:${pct}%"></div></div>`;
   }
 }
 
@@ -740,6 +945,7 @@ function claimMission(id){
   xp+=d.reward.x; store.save('geo_xp', xp);
   updateGachaUI();
   renderMission();
+  scheduleSync();
 }
 
 // ---------- 진행 ----------
@@ -759,7 +965,7 @@ function nextQuestion(){
 
   hudUpdate();
   let item=G.queue[G.idx], type=G.mode;
-  if(G.mode==='battle'){
+  if(G.mode==='battle'||G.mode==='boss'){
     type=item.btype; item=item.item;
     const noMap=(type==='mcq'||type==='ox'||(type==='climate'&&item.kind==='order'));
     $('map-pane').style.display=noMap?'none':'block';
@@ -798,6 +1004,15 @@ function studyExtra(name){
   return h;
 }
 
+// 점수 +N 튀어오름 (HUD 점수 위)
+function scorePop(pts){
+  const host=document.querySelector('.hud .score'); if(!host) return;
+  const el=document.createElement('span');
+  el.className='score-pop'; el.textContent='+'+pts;
+  host.appendChild(el);
+  setTimeout(()=>el.remove(), 1000);
+}
+const MASCOT_VER='?v=20260615i';
 function feedback(correct, head, body, pts){
   const fb=$('feedback-box');
   // 콤보 칭찬
@@ -808,10 +1023,12 @@ function feedback(correct, head, body, pts){
           : combo>=5 ? ` · ${combo}연속! 지리 감각 폭발 🔥🔥`
           : combo>=3 ? ` · ${combo}연속 🔥` : ` · ${combo}연속!`;
   }
+  const face=`<img class="fb-mascot ${correct?'happy':'sad'}" src="${correct?'guide-correct.png':'guide-think.png'}${MASCOT_VER}" alt="">`;
   fb.className='feedback-box '+(correct?'good':'bad');
-  fb.innerHTML=`<div class="fb-head">${head}${flair}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
+  fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${pts?` <span class="fb-pts">+${pts}점</span>`:''}</div>${body}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);
+  if(correct && pts>0) scorePop(pts);
   // 모바일: 해설이 보이도록 자동 스크롤 + 가벼운 진동
   if(window.innerWidth<=820){
     setTimeout(()=>fb.scrollIntoView({behavior:'smooth', block:'center'}),60);
@@ -827,21 +1044,26 @@ function askLocation(loc){
   const info=MODE_INFO[G.mode];
   // 설명형 비중 높게(약 65%) — 마스코트 항목은 항상 설명형
   const descForm = loc.descOnly || (loc.fact && loc.fact.length>=18 && Math.random()<0.65);
+  const imageForm = !!loc.image && (loc.imageOnly || loc.descOnly || Math.random()<0.45);
   if(descForm){
     const descText = maskName(loc.desc || loc.fact, loc);
+    const imageHTML = imageForm
+      ? `<div class="mascot-clue"><img src="${escapeAttr(loc.image)}" alt="지자체 캐릭터 이미지" loading="eager"></div>`
+      : '';
     $('question-box').innerHTML=
-      `<span class="q-region">${regionLabel(loc.region)}</span> 다음 설명에 해당하는 지역을 백지도에서 탭하세요!`+
+      `<span class="q-region">${regionLabel(loc.region)}</span> ${imageForm?'이 캐릭터는 어느 지역일까?':'어느 지역일까?'} 백지도에서 콕! 찍어 보자`+
+      imageHTML+
       `<div class="stat-card" style="font-weight:600">${descText}</div>`;
   } else {
     $('question-box').innerHTML=
       `<span class="q-region">${regionLabel(loc.region)}</span> 백지도에서 <b style="color:var(--sea-d);font-size:1.2em">${loc.name}</b> ${loc.accept.length>1?'일대':'(이/가) 속한 시·군'}를 탭하세요!`;
   }
-  $('choices-box').innerHTML='<div class="map-hint">💡 해당 시·군을 탭! 작으면 확대(핀치/＋) 후 탭하세요. 빗나가도 가까우면 절반 점수</div>';
+  $('choices-box').innerHTML='<div class="map-hint">💡 작으면 확대해서 콕! 가까우면 절반 점수</div>';
   if(G.region!=='전체') dimOtherRegions(G.region);
   fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
-    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
+    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct','hit'));
     addDot(loc.x,loc.y,5,'loc-dot target-reveal');
     addLabel(loc.x,loc.y-10,loc.name);
   };
@@ -866,7 +1088,7 @@ function askLocation(loc){
   startTimer(info.time||18,()=>{ if(G.locked)return; G.locked=true; off();
     reveal();
     award(false,0); recordStat(loc.region,false); logResult(loc.accept[0], false);
-    feedback(false,'⏰ 시간 초과!',`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name),0);
+    feedback(false,'⏰ 아깝다, 시간 초과!',`<b>${loc.name}</b> — ${loc.fact}`+studyExtra(loc.name),0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -924,7 +1146,7 @@ function askDetective(loc){
   fitRegion(loc.region);                 // 출제 권역으로 자동 확대
 
   const reveal=()=>{
-    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct'));
+    loc.accept.forEach(n=>muniEl(n)?.classList.add('correct','hit'));
     addDot(loc.x,loc.y,5,'loc-dot target-reveal');
     addLabel(loc.x,loc.y-10,loc.name);
   };
@@ -953,7 +1175,7 @@ function askDetective(loc){
   setMapTap(handler);
   startTimer(info.time||40,()=>{ if(G.locked)return; G.locked=true; clearMapTap();
     reveal(); award(false,0); recordStat(loc.region,false); logResult(loc.accept[0], false);
-    feedback(false,'⏰ 시간 초과!',expBody(),0);
+    feedback(false,'⏰ 아깝다, 시간 초과!',expBody(),0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -991,6 +1213,7 @@ function askMuniName(name){
       if(!correct) grid.querySelectorAll('button').forEach(x=>{ if(x.dataset.n===name) x.classList.add('correct'); });
       muniEl(name)?.classList.remove('pulse');
       muniEl(name)?.classList.add('correct');
+      if(correct) muniEl(name)?.classList.add('hit');
       const pts=award(correct,100);
       recordStat(m.region,correct);
       logResult(name, correct);
@@ -1003,7 +1226,7 @@ function askMuniName(name){
     grid.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.n===name) x.classList.add('correct'); });
     muniEl(name)?.classList.remove('pulse'); muniEl(name)?.classList.add('correct');
     award(false,0); recordStat(m.region,false); logResult(name, false);
-    feedback(false,'⏰ 시간 초과!',`<b>${name}</b> (${m.prov})`,0);
+    feedback(false,'⏰ 아깝다, 시간 초과!',`<b>${name}</b> (${m.prov})`,0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -1462,7 +1685,7 @@ function askMCQ(q){
   startTimer(info.time||25,()=>{ if(G.locked)return; G.locked=true;
     box.querySelectorAll('button').forEach(x=>{ x.disabled=true; if(x.dataset.i==q.answer) x.classList.add('correct'); });
     award(false,0); recordStat(q.region,false);
-    feedback(false,'⏰ 시간 초과!',`💡 ${q.exp}`,0);
+    feedback(false,'⏰ 아깝다, 시간 초과!',`💡 ${q.exp}`,0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -1493,7 +1716,7 @@ function askOX(q){
     row.querySelectorAll('button').forEach(x=>x.disabled=true);
     award(false,0); recordStat(q.region,false);
     if(G.mode==='ox' && Date.now()>=G.oxEnd) return endGame();
-    feedback(false,'⏰ 시간 초과!',`정답: ${q.answer?'O':'X'} — ${q.exp}`,0);
+    feedback(false,'⏰ 아깝다, 시간 초과!',`정답: ${q.answer?'O':'X'} — ${q.exp}`,0);
     hudUpdate(); afterAnswer();
   });
 }
@@ -1903,6 +2126,7 @@ function drawCard(){
   store.save('geo_cards',cards);
   updateGachaUI();
   missionProgress({isNew:!dup});
+  scheduleSync();
   return {loc, dup, rar:rarityOf(loc)};
 }
 function openGacha(){
@@ -2016,22 +2240,38 @@ function endGame(){
     confetti(document.querySelector('.result-card'));
   } else {
     const answered = G.idx;
-    $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
-    $('result-main').textContent=G.score+'점';
     const acc = answered? Math.round(G.correctCnt/answered*100):0;
     const earned=Math.max(answered>=3?1:0, Math.round(G.score/100));
     coins+=earned; store.save('geo_coins',coins); updateGachaUI();
-    detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥`+
-      (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins}${coins>=DRAW_COST?' — 뽑기 가능!':''})`:'')+
-      `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
-    xp+=Math.round(G.score/10);
-    if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
-    if(G.score>0 && G.mode!=='wanted'){   // 수배 복습은 개인 연습 — 공개 랭킹 등록 생략
-      $('name-entry').classList.remove('hidden');
-      $('player-name').value=store.load('geo_lastname','');
+    if(G.mode==='boss'){
+      const need=Math.ceil(G.queue.length*0.7), win=G.correctCnt>=need;
+      const first = win && !titles[G.bossRegion];
+      if(win){ titles[G.bossRegion]=true; store.save('geo_titles',titles); }
+      $('result-title').textContent = win ? '👹 보스 격파!' : '👹 보스가 버텼습니다';
+      $('result-main').textContent = `${G.correctCnt} / ${G.queue.length} 격파`;
+      detail.innerHTML =
+        (win ? `🏆 칭호 <b style="color:var(--gold)">${bossTitle(G.bossRegion)}</b> ${first?'획득!':'유지'}`
+             : `${need}타 이상 명중하면 격파! 한 번 더 도전하세요.`)+
+        `<br>🪙 카드 코인 +${earned} (보유 ${coins})`+
+        `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
+      xp+=Math.round(G.score/10);
+      if(win) confetti(document.querySelector('.result-card'));
+    } else {
+      $('result-title').textContent=MODE_INFO[G.mode].title+' 결과';
+      $('result-main').textContent=G.score+'점';
+      detail.innerHTML=`정답 ${G.correctCnt} / ${answered} (정답률 ${acc}%) · 최대 콤보 ${G.maxCombo}🔥`+
+        (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins}${coins>=DRAW_COST?' — 뽑기 가능!':''})`:'')+
+        `<br><span style="font-size:.86em">${resultComment(acc)}</span>`;
+      xp+=Math.round(G.score/10);
+      if(acc>=70 && answered>=5) confetti(document.querySelector('.result-card'));
+      if(G.score>0 && G.mode!=='wanted'){   // 수배 복습은 개인 연습 — 공개 랭킹 등록 생략
+        $('name-entry').classList.remove('hidden');
+        $('player-name').value=store.load('geo_lastname','');
+      }
     }
   }
   store.save('geo_xp',xp);
+  scheduleSync();
 }
 
 $('btn-save-score').onclick=()=>{
@@ -2092,7 +2332,49 @@ $('btn-collection').onclick=openCollection;
 $('btn-explore').onclick=()=>startGame('explore');
 $('btn-cards-back').onclick=()=>{ initHome(); show('screen-home'); };
 
+// ---------- 로그인 / 동기화 모달 ----------
+function openLogin(){
+  if(account){
+    if(confirm(`${account.nickname}(${account.cls})에서 로그아웃할까요?\n(이 기기의 기록은 그대로 남습니다)`)) logoutAccount();
+    return;
+  }
+  $('login-msg').textContent='';
+  $('login-modal').classList.remove('hidden');
+}
+$('account-chip')?.addEventListener('click', openLogin);
+$('login-close')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
+$('login-guest')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
+$('login-submit')?.addEventListener('click', async ()=>{
+  const cls=$('login-class').value.trim(), nick=$('login-nick').value.trim(), pin=$('login-pin').value.trim();
+  const msg=$('login-msg');
+  if(!cls||!nick||!/^\d{4,8}$/.test(pin)){ msg.textContent='반·닉네임·비밀번호(숫자 4~8자리)를 입력하세요'; return; }
+  $('login-submit').disabled=true; msg.textContent='연결 중…';
+  const res=await doLogin(cls, nick, pin);
+  $('login-submit').disabled=false;
+  if(res.error){ msg.textContent=res.error; return; }
+  $('login-modal').classList.add('hidden');
+  renderAccount();
+  alert(res.isNew? `환영해요, ${nick}님! 이제 기록이 저장됩니다.` : `${nick}님 기록을 불러왔어요!`);
+});
+// ---------- 교사 대시보드 ----------
+$('teacher-link')?.addEventListener('click', (e)=>{ e.preventDefault(); $('teacher-result').innerHTML=''; $('teacher-modal').classList.remove('hidden'); });
+$('teacher-close')?.addEventListener('click', ()=>$('teacher-modal').classList.add('hidden'));
+$('teacher-submit')?.addEventListener('click', async ()=>{
+  const cls=$('teacher-class').value.trim(), pw=$('teacher-pw').value;
+  const box=$('teacher-result');
+  if(!cls||!pw){ box.innerHTML='<div class="t-msg">반과 비밀번호를 입력하세요</div>'; return; }
+  box.innerHTML='<div class="t-msg">조회 중…</div>';
+  const res=await apiRoster(cls, pw);
+  if(res.error){ box.innerHTML=`<div class="t-msg">${res.error}</div>`; return; }
+  if(!res.students.length){ box.innerHTML=`<div class="t-msg">‘${cls}’ 반에 저장된 학생이 없습니다</div>`; return; }
+  box.innerHTML=`<div class="t-msg">${cls} · ${res.count}명 (XP순)</div>`+
+    '<table class="t-table"><tr><th>#</th><th>닉네임</th><th>XP</th><th>최근 접속</th></tr>'+
+    res.students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.nickname}</td><td>${s.xp}</td><td>${s.updated||'-'}</td></tr>`).join('')+
+    '</table>';
+});
+
 // ---------- 시작 ----------
 buildMap();
 initMapGestures();
 initHome();
+syncOnLoad();
