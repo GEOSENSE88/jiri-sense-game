@@ -542,6 +542,9 @@ console.log('\n=== ⚡ 카드 강화 ===');
   check(window.eval('enhanceScore()') === 4, '도감 강화도 = (레벨-1) 합');
   const cardHtml = window.eval("cardHTML(LOCATIONS[0], true, 3)");
   check(cardHtml.includes('rcard-stars') && cardHtml.includes('maxed'), '★5 카드에 별·골드 표시');
+  check(/\be2\b/.test(cardHtml) && /\be5\b/.test(cardHtml) && cardHtml.includes('rcard-fx') && cardHtml.includes('rcard-crown'), '강화 레벨별 일러스트 효과(e2~e5·홀로그램·왕관)');
+  const cardHtml1 = window.eval("cardLv={}; cardHTML(LOCATIONS[0], true, 1)");
+  check(!/\be2\b/.test(cardHtml1) && !cardHtml1.includes('rcard-crown'), 'Lv1 카드는 강화 효과·왕관 없음');
 }
 
 console.log('\n=== 🩹 약점 리포트 / 🗂️ 테마 학습 ===');

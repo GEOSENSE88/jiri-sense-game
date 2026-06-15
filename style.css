@@ -852,6 +852,35 @@ button { font-family:inherit; }
 .card-sil .land-shadow { fill:#3E7C2A55; stroke:none; transform:translate(2px,3px); }
 .card-sil .land { fill:#A8D158; stroke:#FFFFFF; stroke-width:2.6px; stroke-linejoin:round; }
 .rcard.legend .card-sil .land { fill:#B9DC60; stroke:#FFF3C9; }
+
+/* ⚡ 카드 강화 레벨별 일러스트 연출 (e2~e5 누적) */
+.rcard-fx { position:absolute; inset:0; pointer-events:none; z-index:3; border-radius:inherit; }
+.rcard-crown { position:absolute; top:2px; left:50%; transform:translateX(-50%); font-size:1rem; z-index:4;
+  filter:drop-shadow(0 1px 2px #0004); animation:bob 2.4s ease-in-out infinite; }
+/* ★2 — 은은한 광택 + 흰 안쪽 링 */
+.rcard.e2 { box-shadow:var(--shadow-sm), inset 0 0 0 2px #FFFFFFAA; }
+.rcard.e2 .rcard-fx { background:radial-gradient(92% 55% at 50% 0%, #FFFFFF45, transparent 62%); }
+/* ★3 — 권역색 비네트 + 실루엣 발광 */
+.rcard.e3 { box-shadow:0 4px 16px rgba(50,130,184,.25), inset 0 0 0 2px #FFFFFFAA, inset 0 0 24px var(--regbg,#D9EFFD); border-color:#7FB7DB; }
+.rcard.e3 .card-sil .land { filter:drop-shadow(0 0 3px #FFFFFFCC); }
+/* ★4 — 살아있는 오라 + 강한 발광 */
+.rcard.e4 { animation:cardAura 2.6s ease-in-out infinite; border-color:#5FA6D6; }
+.rcard.e4 .card-sil .land { filter:drop-shadow(0 0 6px var(--regdeep,#3282B8)); }
+@keyframes cardAura {
+  0%,100% { box-shadow:0 0 10px 1px rgba(50,130,184,.35), inset 0 0 0 2px #FFFFFFAA, inset 0 0 24px var(--regbg,#D9EFFD); }
+  50%     { box-shadow:0 0 22px 5px rgba(50,130,184,.6),  inset 0 0 0 2px #FFFFFFCC, inset 0 0 28px var(--regbg,#D9EFFD); }
+}
+/* ★5(만렙) — 홀로그램 + 황금 프레임 + 왕관 */
+.rcard.e5 { border-color:var(--gold); outline:2px solid #FFE9AE; outline-offset:-6px; animation:cardAuraGold 2.6s ease-in-out infinite; }
+.rcard.e5 .rcard-fx {
+  background:linear-gradient(115deg, transparent 28%, #FFFFFFB0 44%, #FFE6A0CC 50%, #FFFFFFB0 56%, transparent 72%);
+  background-size:260% 100%; animation:shine 2.6s infinite; mix-blend-mode:screen;
+}
+.rcard.e5 .card-sil .land { fill:#C7E87A; stroke:#FFF3C9; filter:drop-shadow(0 0 6px #FFD98A); }
+@keyframes cardAuraGold {
+  0%,100% { box-shadow:0 0 12px 2px rgba(245,166,35,.5), inset 0 0 0 2px #FFE9AE; }
+  50%     { box-shadow:0 0 26px 7px rgba(245,166,35,.8), inset 0 0 0 2px #FFF3C9; }
+}
 .rcard-name {
   font-weight:900; font-size:.95rem; color:var(--navy); margin-top:6px; z-index:1;
   text-shadow:0 1.5px 0 #fff, 0 -1.5px 0 #fff, 1.5px 0 0 #fff, -1.5px 0 0 #fff;

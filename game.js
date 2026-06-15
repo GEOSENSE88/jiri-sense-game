@@ -2651,7 +2651,10 @@ function cardHTML(loc, owned, count){
       <div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
   }
   const lv=cardLevel(loc.name);
-  return `<div class="rcard ${rar.cls}${lv>=CARD_MAX_LV?' maxed':''}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
+  let enh=''; for(let i=2;i<=lv;i++) enh+=' e'+i;   // 강화 레벨별 시각 효과(누적)
+  return `<div class="rcard ${rar.cls}${enh}${lv>=CARD_MAX_LV?' maxed':''}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
+    <div class="rcard-fx"></div>
+    ${lv>=CARD_MAX_LV?'<div class="rcard-crown">👑</div>':''}
     <div class="rcard-rar">${rar.label}</div>
     <div class="rcard-reg">${regionLabel(loc.region)}</div>
     <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
