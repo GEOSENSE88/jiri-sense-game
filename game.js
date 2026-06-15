@@ -1012,7 +1012,7 @@ function scorePop(pts){
   host.appendChild(el);
   setTimeout(()=>el.remove(), 1000);
 }
-const MASCOT_VER='?v=20260615i';
+const MASCOT_VER='?v=20260615j';
 function feedback(correct, head, body, pts){
   const fb=$('feedback-box');
   // 콤보 칭찬
