@@ -159,7 +159,7 @@ const MODE_INFO = {
   theme:    {title:'🏷️ 테마 게임', useMap:true, n:12, time:30},
   wanted:   {title:'🔍 오답 수배 복습', useMap:true, n:12, time:30},
   boss:     {title:'👹 권역 보스전', useMap:true, n:10, time:30},
-  bingo:    {title:'🎰 빙고 게임', useMap:false, n:25, time:22},
+  bingo:    {title:'🧩 빙고 게임', useMap:false, n:25, time:22},
   streak:   {title:'🔥 연승 모드', useMap:true, time:0},
   daily:    {title:'🔁 오늘의 도전', useMap:true, n:10, time:26},
 };
@@ -590,7 +590,7 @@ $('theme-close')?.addEventListener('click', ()=>$('theme-modal').classList.add('
 const PLAY_MODES=[
   {m:'location', name:'📍 위치 사냥', desc:'이름·설명 보고 백지도 탭'},
   {m:'theme',    name:'🏷️ 테마 게임', desc:'도청·축제·특산물 등 테마'},
-  {m:'bingo',    name:'🎰 빙고 게임', desc:'5×5 빙고판, 2번 틀리면 끝'},
+  {m:'bingo',    name:'🧩 빙고 게임', desc:'5×5 빙고판, 2번 틀리면 끝'},
   {m:'streak',   name:'🔥 연승 모드', desc:'시간제한 없이, 틀리면 종료'},
   {m:'muniname', name:'🔎 지역 판독', desc:'깜빡이는 시·군 이름 맞히기'},
   {m:'detective',name:'🕵️ 지역 추리', desc:'힌트를 열며 추리'},
@@ -964,7 +964,7 @@ const ACHIEVEMENTS=[
   {id:'combo15',icon:'⚡', name:'콤보 마스터', desc:'한 게임 15콤보', reward:15, check:()=>store.load('geo_maxcombo',0)>=15},
   {id:'streak10',icon:'🔥',name:'10연승', desc:'연승 모드 10연승', reward:15, check:()=>store.load('geo_beststreak',0)>=10},
   {id:'streak25',icon:'🌋',name:'연승 괴물', desc:'연승 모드 25연승', reward:30, check:()=>store.load('geo_beststreak',0)>=25},
-  {id:'bingo', icon:'🎰', name:'빙고 블랙아웃', desc:'빙고판 25칸 완성', reward:20, check:()=>!!store.load('geo_bingo_black',false)},
+  {id:'bingo', icon:'🧩', name:'빙고 블랙아웃', desc:'빙고판 25칸 완성', reward:20, check:()=>!!store.load('geo_bingo_black',false)},
   {id:'daily', icon:'🔁', name:'오늘의 도전자', desc:'일일 도전 완료', reward:10, check:()=>!!store.load('geo_daily_done','')},
   {id:'col50', icon:'📒', name:'수집가', desc:'지역 카드 50종 수집', reward:15, check:()=>Object.keys(cards).length>=50},
   {id:'col100',icon:'🏞️', name:'도감 마스터', desc:'지역 카드 100종 수집', reward:30, check:()=>Object.keys(cards).length>=100},
@@ -1515,7 +1515,7 @@ function askThemeMCQ(item){
     finish(false,'⏰ 아깝다, 시간 초과!', null); });
 }
 
-// --- 🎰 빙고 게임: 5×5 지역명 빙고판, 설명에 맞는 칸을 순차 선택. 2회 오답 시 강제 종료 ---
+// --- 🧩 빙고 게임: 5×5 지역명 빙고판, 설명에 맞는 칸을 순차 선택. 2회 오답 시 강제 종료 ---
 function bingoLabel(muni){ return muni.replace(/\(.+\)$/,'').replace(/(특별자치시|특별시|광역시)$/,''); }
 function buildBingo(){
   const seen=new Set(), uniq=[];
@@ -2386,7 +2386,7 @@ function positionTip(e,tip){
 }
 
 // ============================================================
-// 🎴 지역 카드 컬렉션 (뽑기/수집)
+// 📖 지역 카드 컬렉션 (뽑기/수집)
 // ============================================================
 let coins = store.load('geo_coins', 0);
 let cards = store.load('geo_cards', {});          // {지역명: 보유 수}
@@ -2786,7 +2786,7 @@ function endGame(){
       const done=G.bingo.cells.filter(c=>c.done).length;
       const lines=G.bingo.lineKeys.size, over=G.bingo.wrong>=2, blackout=done===25;
       if(blackout) store.save('geo_bingo_black', true);
-      $('result-title').textContent = blackout ? '🎰 빙고 블랙아웃!' : over ? '🎰 게임 오버 (2회 오답)' : '🎰 빙고 게임 결과';
+      $('result-title').textContent = blackout ? '🧩 빙고 블랙아웃!' : over ? '🧩 게임 오버 (2회 오답)' : '🧩 빙고 게임 결과';
       $('result-main').textContent = `${done}/25칸 · 빙고 ${lines}줄 · ${G.score}점`;
       detail.innerHTML=`정답 ${G.correctCnt} / ${answered}`+
         (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+

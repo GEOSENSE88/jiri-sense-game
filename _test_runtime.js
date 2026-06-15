@@ -454,7 +454,7 @@ console.log('\n=== 🏷️ 테마 게임 (테마 선택형) ===');
   }
 }
 
-console.log('\n=== 🎰 빙고 게임 ===');
+console.log('\n=== 🧩 빙고 게임 ===');
 {
   window.eval("VIEW_ANIM_MS=0; startGame('bingo')");
   check(window.eval('G.bingo.cells.length') === 25 && window.eval('G.queue.length') === 25, '5×5=25칸 + 25문제');
