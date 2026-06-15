@@ -47,7 +47,7 @@ async function postServerScore(mode, name, score){
 let account = store.load('geo_account', null);   // {cls, nickname, token}
 
 // 동기화 대상 상태 한 묶음
-function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles, ach }; }
+function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles, ach, cardLv }; }
 function applyState(s){
   if(!s) return;
   if(typeof s.xp==='number') xp=s.xp;
@@ -58,9 +58,11 @@ function applyState(s){
   if(s.mission) mission=s.mission;
   if(s.titles) titles=s.titles;
   if(s.ach) ach=s.ach;
+  if(s.cardLv) cardLv=s.cardLv;
   store.save('geo_xp',xp); store.save('geo_coins',coins); store.save('geo_stats',stats);
   store.save('geo_cards',cards); store.save('geo_wanted',wanted);
   store.save('geo_mission',mission); store.save('geo_titles',titles); store.save('geo_ach',ach);
+  store.save('geo_cardlv',cardLv);
 }
 // 서버 진도 vs 로컬 진도 병합 — 손실 없이 '더 풍부한 쪽' 채택
 function mergeState(server){
@@ -71,6 +73,8 @@ function mergeState(server){
   m.ach=Object.assign({}, server.ach||{}, local.ach||{});               // 업적 합집합
   m.cards=Object.assign({}, server.cards||{});                          // 카드 최대 보유수
   for(const k in (local.cards||{})) m.cards[k]=Math.max(m.cards[k]||0, local.cards[k]);
+  m.cardLv=Object.assign({}, server.cardLv||{});                        // 카드 강화 레벨 최대치
+  for(const k in (local.cardLv||{})) m.cardLv[k]=Math.max(m.cardLv[k]||0, local.cardLv[k]);
   m.stats={};                                                          // 숙련도: 더 많이 푼 쪽
   new Set([...Object.keys(local.stats||{}),...Object.keys(server.stats||{})]).forEach(r=>{
     const a=(local.stats||{})[r]||{c:0,t:0}, b=(server.stats||{})[r]||{c:0,t:0}; m.stats[r]=(a.t>=b.t)?a:b; });
@@ -435,6 +439,7 @@ function initHome(){
   renderMission();
   renderBoss();
   renderWanted();
+  renderWeakReport();
   renderAchievements();
   checkAchievements();   // 기존 진척에 대한 업적 소급 해금
   // 빈출 지역 TOP 12 — 특별·광역시 제외, 시·군 단위만
@@ -485,7 +490,7 @@ function recommendAction(){
   const wn=Object.keys(wanted).length;
   if(bossCand) return {text:`${regionLabel(bossCand)} 숙련도 ${Math.round(bossMastery(bossCand)*100)}%! 보스전 도전 각이야 👹`,
     label:'보스전 도전', action:()=>startGame('boss', bossCand)};
-  if(wn>0) return {text:`어제 틀린 지역 ${wn}곳이 수배 중! 이것부터 잡고 가자 🔍`,
+  if(wn>0) return {text:`최근 틀린 지역 ${wn}곳이 수배 중! 이것부터 잡고 가자 🔍`,
     label:`오답 ${wn}곳 복습`, action:()=>{ G.region='전체'; startGame('wanted'); }};
   if(xp<300) return {text:'처음이라면 백지도 탐색으로 지도와 친해져 볼까? 🗺️',
     label:'백지도 탐색', action:()=>startGame('explore')};
@@ -506,12 +511,12 @@ function renderPlayHero(){
   const box=$('play-hero'); if(!box) return;
   const r=recommendAction();
   ensureMission();
-  const claimed=mission.list.filter(m=>m.claimed).length, total=mission.list.length;
+  const done=mission.list.filter(m=>m.done).length, total=mission.list.length;
   box.innerHTML=
     `<div class="ph-label">오늘의 추천 한 판</div>`+
     `<div class="ph-text">${r.text}</div>`+
     `<button class="ph-btn" id="ph-start">▶ ${r.label}</button>`+
-    `<button class="ph-mission" id="ph-mission">🎯 오늘의 미션 ${claimed}/${total} 완료 · 보러 가기 →</button>`;
+    `<button class="ph-mission" id="ph-mission">🎯 오늘의 미션 ${done}/${total} 달성 · 보러 가기 →</button>`;
   $('ph-start').onclick=r.action;
   $('ph-mission').onclick=()=>{ const t=document.querySelector('.tab-btn[data-tab="challenge"]'); if(t) t.click(); };
 }
@@ -530,6 +535,68 @@ function renderBeginnerGuide(){
   box.innerHTML='<div class="bg-title">🔰 처음이라면 이 순서를 추천해요</div>'+
     '<div class="bg-steps">'+steps.map(s=>`<button class="bg-step" data-m="${s.m}"><b>${s.n}</b><small>${s.d}</small></button>`).join('')+'</div>';
   box.querySelectorAll('.bg-step').forEach(b=>b.onclick=()=>startGame(b.dataset.m));
+}
+
+// 🩹 약점 리포트 — 권역별 정답률(약한 순) + 자주 틀린 시·군(수배) + 바로 복습
+function renderWeakReport(){
+  const box=$('weak-body'); if(!box) return;
+  const regs=BOSS_REGIONS.map(r=>({r, s:stats[r]||{c:0,t:0}}))
+    .filter(x=>x.s.t>=3)
+    .map(x=>({r:x.r, pct:Math.round(x.s.c/x.s.t*100), t:x.s.t}))
+    .sort((a,b)=>a.pct-b.pct);
+  const misses=Object.entries(wanted).map(([k,v])=>({k, miss:v.miss||0}))
+    .filter(x=>x.miss>0).sort((a,b)=>b.miss-a.miss).slice(0,8);
+  if(!regs.length && !misses.length){
+    box.innerHTML='<div class="t-msg" style="color:var(--dim)">아직 분석할 데이터가 부족해요. 게임을 몇 판 하면 약한 권역·지역이 여기에 표시됩니다 📊</div>';
+    return;
+  }
+  let html='';
+  if(regs.length){
+    html+='<div class="wr-head">권역별 정답률 (약한 순)</div>';
+    html+=regs.slice(0,3).map(x=>{
+      const col=x.pct<50?'var(--red)':x.pct<70?'var(--gold)':'var(--grass)';
+      return `<div class="wr-row"><span class="wr-name">${regionLabel(x.r)}</span>`+
+        `<div class="wr-bar"><div class="wr-fill" style="width:${x.pct}%;background:${col}"></div></div>`+
+        `<span class="wr-val">${x.pct}%</span></div>`;
+    }).join('');
+    html+=`<button class="wr-btn" id="wr-practice">🎯 ${regionLabel(regs[0].r)} 집중 연습</button>`;
+  }
+  if(misses.length){
+    html+='<div class="wr-head" style="margin-top:13px">자주 틀린 지역</div>';
+    html+=`<div class="wr-chips">${misses.map(m=>`<span class="wr-chip">${m.k.replace(/\(.+\)$/,'')} <b>${m.miss}회</b></span>`).join('')}</div>`;
+    html+=`<button class="wr-btn ghost" id="wr-wanted">🔍 틀린 지역만 복습 (${Math.min(Object.keys(wanted).length, MODE_INFO.wanted.n)}문제)</button>`;
+  }
+  box.innerHTML=html;
+  const wp=$('wr-practice'); if(wp) wp.onclick=()=>{ G.region=regs[0].r; startGame('location'); };
+  const ww=$('wr-wanted'); if(ww) ww.onclick=()=>{ G.region='전체'; startGame('wanted'); };
+}
+
+// 🗂️ 테마별 학습 — 테마를 골라 해당 지역들을 설명과 함께 훑어보고(학습), 바로 퀴즈로 연결
+function openThemeLearn(){
+  const box=$('themelearn-list'); if(!box){ return; }
+  $('themelearn-title').textContent='🗂️ 테마별 학습';
+  box.classList.remove('study');
+  box.innerHTML='';
+  buildThemes().forEach(t=>{
+    const b=document.createElement('button');
+    b.className='theme-pick';
+    b.innerHTML=`<span class="tp-label">${t.label}</span><span class="tp-count">${t.items.length}개 지역</span>`;
+    b.onclick=()=>showThemeLearn(t);
+    box.appendChild(b);
+  });
+  $('themelearn-modal').classList.remove('hidden');
+}
+function showThemeLearn(t){
+  $('themelearn-title').textContent=t.label;
+  const box=$('themelearn-list'); box.classList.add('study');
+  box.innerHTML=
+    '<div class="tl-list">'+t.items.map(it=>{
+      const muni=it.a.replace(/\(.+\)$/,''); const prov=(MUNIS[it.a]||{}).prov||'';
+      return `<div class="tl-item"><div class="tl-top"><b>${muni}</b> <span class="tl-prov">${prov}</span></div><div class="tl-desc">${it.c}</div></div>`;
+    }).join('')+'</div>'+
+    `<div class="tl-actions"><button class="ghost-btn" id="tl-back">← 테마 목록</button><button class="primary-btn" id="tl-quiz">🏷️ 이 테마로 퀴즈</button></div>`;
+  $('tl-back').onclick=openThemeLearn;
+  $('tl-quiz').onclick=()=>{ $('themelearn-modal').classList.add('hidden'); startGame('theme', t.key); };
 }
 
 // 👹 권역 보스전 — 숙련도 게이트 + 칭호
@@ -614,6 +681,8 @@ function openModesModal(){
 }
 $('btn-all-modes')?.addEventListener('click', openModesModal);
 $('modes-close')?.addEventListener('click', ()=>$('modes-modal').classList.add('hidden'));
+$('btn-theme-learn')?.addEventListener('click', openThemeLearn);
+$('themelearn-close')?.addEventListener('click', ()=>$('themelearn-modal').classList.add('hidden'));
 // 🪙 코인 칩 탭 → 도감(카드 뽑기) 탭으로 (코인 사용처 안내)
 document.querySelector('.coin-chip')?.addEventListener('click', ()=>{
   const t=document.querySelector('.tab-btn[data-tab="collection"]'); if(t) t.click();
@@ -621,8 +690,8 @@ document.querySelector('.coin-chip')?.addEventListener('click', ()=>{
 $('reset-data').onclick=()=>{
   if(confirm('모든 기록(점수·숙련도·랭킹·수배서)을 초기화할까요?')){
     store.remove('geo_stats'); store.remove('geo_xp'); store.remove('geo_board'); store.remove('geo_wanted'); store.remove('geo_mission'); store.remove('geo_titles');
-    ['geo_ach','geo_daily_done','geo_daily_score','geo_maxcombo','geo_bingo_black','geo_beststreak'].forEach(k=>store.remove(k));
-    stats={}; xp=0; board={}; wanted={}; mission=null; titles={}; ach={}; initHome();
+    ['geo_ach','geo_daily_done','geo_daily_score','geo_maxcombo','geo_bingo_black','geo_beststreak','geo_cardlv'].forEach(k=>store.remove(k));
+    stats={}; xp=0; board={}; wanted={}; mission=null; titles={}; ach={}; cardLv={}; initHome();
   }
 };
 
@@ -969,6 +1038,9 @@ const ACHIEVEMENTS=[
   {id:'col50', icon:'📒', name:'수집가', desc:'지역 카드 50종 수집', reward:15, check:()=>Object.keys(cards).length>=50},
   {id:'col100',icon:'🏞️', name:'도감 마스터', desc:'지역 카드 100종 수집', reward:30, check:()=>Object.keys(cards).length>=100},
   {id:'legend',icon:'⭐', name:'전설 수집가', desc:'전설 등급 카드 획득', reward:15, check:()=>Object.keys(cards).some(n=>{const l=LOCATIONS.find(x=>x.name===n);return l&&rarityOf(l)==='전설';})},
+  {id:'enh3', icon:'✨', name:'강화 입문', desc:'카드 1장 ★3 달성', reward:15, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=3)},
+  {id:'enh5', icon:'🌟', name:'연성 마스터', desc:'카드 1장 ★5(최대)', reward:30, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=CARD_MAX_LV)},
+  {id:'enh10',icon:'💫', name:'도감 연성가', desc:'카드 10장 ★3 이상', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=3).length>=10},
   {id:'boss1', icon:'👹', name:'권역 정복자', desc:'권역 보스 1곳 격파', reward:15, check:()=>Object.keys(titles).length>=1},
   {id:'bossAll',icon:'👑',name:'국토 통일', desc:'모든 권역 보스 격파', reward:50, check:()=>BOSS_REGIONS.every(r=>titles[r])},
   {id:'attend7',icon:'📅',name:'개근상', desc:'7일 연속 출석', reward:20, check:()=>store.load('geo_streak',0)>=7},
@@ -1319,6 +1391,7 @@ function nextQuestion(){
     $('game-body').classList.toggle('no-map', noMap);
   }
 
+  G.curType=type;   // 현재 문제 유형(혼합 모드 대비) — 피드백 안내 조건 등에 사용
   if(type==='location'||type==='wanted') askLocation(item);
   else if(type==='bingo') askBingo(item);
   else if(type==='theme') item.mcq ? askThemeMCQ(item) : askTheme(item);
@@ -1371,7 +1444,9 @@ function feedback(correct, head, body, pts){
   const face=`<img class="fb-mascot ${correct?'happy':'sad'}" src="${correct?'guide-correct.png':'guide-think.png'}${MASCOT_VER}" alt="">`;
   fb.className='feedback-box '+(correct?'good':'bad');
   const ptsTag = pts ? ` <span class="fb-pts${pts<0?' minus':''}">${pts>0?'+':''}${pts}점</span>` : '';
-  const note = !correct ? '<div class="fb-note">📌 지역 오답은 [미션] 탭 ‘오답 수배서’에서 다시 복습할 수 있어요</div>' : '';
+  const REGION_TAP_TYPES=['location','wanted','theme','muniname','detective','bingo'];
+  const note = (!correct && REGION_TAP_TYPES.includes(G.curType))
+    ? '<div class="fb-note">📌 이 지역은 [미션] 탭 ‘오답 수배서’에 등록됐어요 — 나중에 복습!</div>' : '';
   fb.innerHTML=`<div class="fb-head">${face}${head}${flair}${ptsTag}</div>${body}${note}`;
   fb.classList.remove('hidden'); fb.classList.add('pop');
   setTimeout(()=>fb.classList.remove('pop'),400);
@@ -2401,6 +2476,23 @@ const RARITY_META = {
   '희귀': {cls:'rare',   label:'◆ 희귀', p:0.25},
   '일반': {cls:'common', label:'● 일반', p:0.70},
 };
+// ⚡ 카드 강화 — 다 모은 뒤에도 카드를 키우는 코인 소비 시스템(공정성 위해 게임 능력엔 영향 없음)
+let cardLv = store.load('geo_cardlv', {});          // {지역명: 강화 레벨 1~5}
+const CARD_MAX_LV = 5;
+const ENHANCE_COST = [0, 10, 20, 40, 80];           // 현재 레벨 → 다음 레벨 코인 비용
+function cardLevel(name){ return cardLv[name] || 1; }
+function enhanceCost(name){ const lv=cardLevel(name); return lv>=CARD_MAX_LV ? null : ENHANCE_COST[lv]; }
+function enhanceScore(){ return Object.keys(cards).reduce((s,n)=>s+(cardLevel(n)-1),0); }   // 도감 총 강화도
+function doEnhance(name){
+  if(!cards[name]) return false;
+  const lv=cardLevel(name); if(lv>=CARD_MAX_LV) return false;
+  const cost=ENHANCE_COST[lv]; if(coins<cost) return false;
+  coins-=cost; cardLv[name]=lv+1;
+  store.save('geo_coins',coins); store.save('geo_cardlv',cardLv);
+  updateGachaUI(); checkAchievements(); scheduleSync();
+  return true;
+}
+function starHTML(lv){ let s=''; for(let i=1;i<=CARD_MAX_LV;i++) s+=`<span class="cstar${i<=lv?' on':''}">★</span>`; return s; }
 function cardEmoji(loc){
   const f=(loc.fact||'')+(loc.name||'');
   const rules=[[/공항/,'✈️'],[/조선|항만|항구/,'🚢'],[/제철|철강/,'🏭'],[/석유 화학|정유/,'🛢️'],
@@ -2558,7 +2650,8 @@ function cardHTML(loc, owned, count){
       <div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div>
       <div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
   }
-  return `<div class="rcard ${rar.cls}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
+  const lv=cardLevel(loc.name);
+  return `<div class="rcard ${rar.cls}${lv>=CARD_MAX_LV?' maxed':''}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-rar">${rar.label}</div>
     <div class="rcard-reg">${regionLabel(loc.region)}</div>
     <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
@@ -2566,6 +2659,7 @@ function cardHTML(loc, owned, count){
     <div class="card-sil-wrap">${cuteLandSVG(mu,true,loc)}</div>
     <div class="rcard-name">${cardDisplayName(loc)}</div>
     <div class="rcard-meaning">${meaning}</div>
+    <div class="rcard-stars">${starHTML(lv)}</div>
     ${pop?`<div class="rcard-pop">👥 ${fmtPop(pop)}</div>`:''}
     ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
   </div>`;
@@ -2580,9 +2674,18 @@ function openCardDetail(loc){
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
   const pop=MUNIS[loc.accept[0]]?.pop;
   const pr=pop?popRank(loc.accept[0]):null;
+  const lv=cardLevel(loc.name), cost=enhanceCost(loc.name);
+  const enhHTML=`<div class="enh-box"><span class="enh-stars">${starHTML(lv)}</span> <span class="enh-lv">Lv.${lv}</span>`+
+    (cost!=null
+      ? ` <button class="enh-btn" id="enh-btn" ${coins<cost?'disabled':''}>강화 (${cost}🪙)</button>`
+      : ` <span class="enh-max">✨ 최대 강화 달성</span>`)+
+    `</div>`;
   $('gacha-msg').innerHTML=
     `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명 (전국 ${pr.nat}위 · ${regionLabel(loc.region)} ${pr.reg}위)`:''}<br>${loc.fact}</div>`+
+    enhHTML+
     `<div style="margin-top:8px">${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'마스코트')} ${imgSearchLink(loc.name.replace(/\(.+\)$/,''),'관광 명소')}</div>`;
+  const eb=$('enh-btn');
+  if(eb) eb.onclick=()=>{ if(doEnhance(loc.name)){ openCardDetail(loc); renderCollection(_collFilter); } };
   $('btn-draw-again').classList.add('hidden');
 }
 // 🗺️ 정복 지도: 수집한 카드의 시·군이 권역 색으로 채워짐
@@ -2651,7 +2754,9 @@ function openGacha(){
   }, 650);
   try { if(navigator.vibrate) navigator.vibrate(res.rar==='전설'?[40,60,40,60,120]:30); } catch(e){}
 }
+let _collFilter='전체';
 function renderCollection(filter){
+  _collFilter=filter;
   const grid=$('cards-grid'); grid.innerHTML='';
   const list=LOCATIONS.filter(l=>filter==='전체'||l.region===filter);
   const ord={'전설':0,'희귀':1,'일반':2};
@@ -2665,7 +2770,7 @@ function renderCollection(filter){
     grid.appendChild(c);
   });
   const ownedCnt=list.filter(l=>cards[l.name]).length;
-  $('coll-title-progress').textContent=`${ownedCnt}/${list.length}`;
+  $('coll-title-progress').textContent=`${ownedCnt}/${list.length} · ⚡강화도 ${enhanceScore()}`;
 }
 function openCollection(){
   show('screen-cards');

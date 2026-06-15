@@ -530,6 +530,32 @@ console.log('\n=== 🏅 업적 ===');
   window.eval("ACHIEVEMENTS.forEach(a=>ach[a.id]=true); store.save('geo_ach',ach);");
 }
 
+console.log('\n=== ⚡ 카드 강화 ===');
+{
+  window.eval("cards={}; cards[LOCATIONS[0].name]=3; cardLv={}; coins=1000; store.save('geo_coins',1000); store.save('geo_cards',cards);");
+  check(window.eval("cardLevel(LOCATIONS[0].name)") === 1, '신규 카드 강화 레벨 1');
+  check(window.eval("doEnhance(LOCATIONS[0].name)") === true && window.eval("cardLevel(LOCATIONS[0].name)") === 2, '강화 → 레벨 2');
+  check(window.eval('coins') === 990, '강화 비용 10코인 차감');
+  window.eval("doEnhance(LOCATIONS[0].name); doEnhance(LOCATIONS[0].name); doEnhance(LOCATIONS[0].name);");
+  check(window.eval("cardLevel(LOCATIONS[0].name)") === 5, '최대 레벨 5 도달');
+  check(window.eval("doEnhance(LOCATIONS[0].name)") === false && window.eval("enhanceCost(LOCATIONS[0].name)") === null, '최대 레벨 초과 강화 불가');
+  check(window.eval('enhanceScore()') === 4, '도감 강화도 = (레벨-1) 합');
+  const cardHtml = window.eval("cardHTML(LOCATIONS[0], true, 3)");
+  check(cardHtml.includes('rcard-stars') && cardHtml.includes('maxed'), '★5 카드에 별·골드 표시');
+}
+
+console.log('\n=== 🩹 약점 리포트 / 🗂️ 테마 학습 ===');
+{
+  window.eval("stats={'영남':{c:1,t:5},'호남':{c:4,t:5}}; wanted={'순천시':{miss:3,streak:0}}; renderWeakReport();");
+  check(document.querySelector('#weak-body .wr-row') !== null, '약점 리포트: 권역 정답률 표시');
+  check(document.querySelector('#weak-body .wr-chip') !== null, '약점 리포트: 자주 틀린 지역 표시');
+  window.eval('openThemeLearn();');
+  check(document.querySelectorAll('#themelearn-list .theme-pick').length === 7, '테마별 학습: 테마 7종 목록');
+  window.eval("showThemeLearn(buildThemes()[0]);");
+  check(document.querySelectorAll('#themelearn-list .tl-item').length > 0, '테마 학습: 지역 설명 목록 표시');
+  window.eval("document.getElementById('themelearn-modal').classList.add('hidden');");
+}
+
 console.log('\n=== 학생 계정 / 동기화(병합 로직) ===');
 {
   window.eval("xp=100; coins=10; stats={'제주':{c:2,t:3}}; cards={'제주':1}; wanted={'태백시':{miss:2,streak:0}}; titles={'강원':true}; mission={date:new Date().toDateString(),list:[{id:'x',prog:1}]};");

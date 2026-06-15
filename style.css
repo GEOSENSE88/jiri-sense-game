@@ -83,7 +83,7 @@ button { font-family:inherit; }
 .progress-strip .xp-text { font-size:.64rem; color:var(--faint); white-space:nowrap; font-weight:700; overflow:hidden; text-overflow:ellipsis; min-width:0; flex-shrink:1; }
 
 /* 하단 탭 네비게이션 홈 */
-.home-tabs { max-width:680px; margin:0 auto; padding:10px 16px calc(80px + env(safe-area-inset-bottom)); }
+.home-tabs { max-width:680px; margin:0 auto; padding:10px 16px calc(104px + env(safe-area-inset-bottom)); }
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
 #tab-challenge.active, #tab-collection.active, #tab-record.active, #tab-board.active { display:flex; flex-direction:column; gap:18px; }
@@ -357,6 +357,46 @@ button { font-family:inherit; }
 .bg-step:active { transform:scale(.96); }
 .bg-step b { display:block; font-size:.8rem; color:var(--navy); }
 .bg-step small { display:block; font-size:.68rem; color:var(--dim); margin-top:2px; }
+
+/* 🩹 약점 리포트 */
+.wr-head { font-size:.78rem; font-weight:800; color:var(--dim); margin-bottom:7px; }
+.wr-row { display:flex; align-items:center; gap:9px; margin-bottom:6px; }
+.wr-name { flex:0 0 56px; font-weight:800; font-size:.82rem; color:var(--navy); }
+.wr-bar { flex:1; height:9px; background:#EAF1F6; border-radius:99px; overflow:hidden; }
+.wr-fill { height:100%; border-radius:99px; }
+.wr-val { flex:0 0 40px; text-align:right; font-weight:800; font-size:.78rem; color:var(--text); font-variant-numeric:tabular-nums; }
+.wr-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.wr-chip { background:#FFF0EE; border:1.5px solid #FFD2CC; color:#C2362B; border-radius:99px; padding:4px 11px; font-size:.78rem; font-weight:700; }
+.wr-chip b { color:var(--red); }
+.wr-btn { display:block; width:100%; margin-top:10px; padding:10px; border:none; border-radius:11px;
+  background:var(--sea-d); color:#fff; font-weight:800; font-size:.86rem; cursor:pointer; transition:.13s; }
+.wr-btn.ghost { background:#fff; color:var(--sea-d); border:1.5px solid var(--line2); }
+.wr-btn:hover { filter:brightness(1.05); }
+.wr-btn:active { transform:scale(.98); }
+
+/* 🗂️ 테마별 학습 */
+#themelearn-list.study { max-height:56vh; overflow-y:auto; }
+.tl-list { display:flex; flex-direction:column; gap:8px; }
+.tl-item { border:1.5px solid var(--line2); border-radius:11px; padding:10px 12px; background:#FAFCFE; }
+.tl-top b { color:var(--navy); font-size:.92rem; }
+.tl-prov { font-size:.72rem; color:var(--faint); margin-left:5px; }
+.tl-desc { font-size:.8rem; color:var(--dim); line-height:1.4; margin-top:3px; }
+.tl-actions { display:flex; gap:9px; margin-top:12px; }
+.tl-actions button { flex:1; }
+
+/* ⚡ 카드 강화 */
+.rcard-stars { display:flex; justify-content:center; gap:1px; margin-top:2px; }
+.cstar { font-size:.6rem; color:#D6DEE6; line-height:1; }
+.cstar.on { color:#FFC93C; text-shadow:0 0 3px rgba(255,201,60,.6); }
+.rcard.maxed { box-shadow:0 0 0 2px #FFC93C, 0 4px 14px rgba(255,201,60,.4); }
+.enh-box { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.enh-stars .cstar { font-size:.85rem; }
+.enh-lv { font-weight:800; color:var(--navy); font-size:.84rem; }
+.enh-btn { padding:7px 14px; border:none; border-radius:99px; background:var(--gold); color:#fff;
+  font-weight:800; font-size:.82rem; cursor:pointer; transition:.13s; }
+.enh-btn:hover:not(:disabled) { filter:brightness(1.07); transform:translateY(-1px); }
+.enh-btn:disabled { background:#C9D2DA; cursor:default; }
+.enh-max { font-weight:800; color:var(--gold); font-size:.82rem; }
 
 /* 점수 팝업 (+점수 튀어오름) */
 .hud .score { position:relative; overflow:visible; }

@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260615z10">
+<link rel="stylesheet" href="style.css?v=20260615z11">
 </head>
 <body>
 
@@ -260,7 +260,7 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260615z10" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260615z11" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -307,11 +307,19 @@
       <div class="learn-section">
         <h2>📖 백지도 학습</h2>
         <div class="learn-row">
-          <button class="learn-btn wide" id="btn-explore">
+          <button class="learn-btn" id="btn-explore">
             <span class="mode-icon">🔍</span>
             <span><b>백지도 탐색</b><small>시·군 경계와 위치를 자유롭게 학습</small></span>
           </button>
+          <button class="learn-btn" id="btn-theme-learn">
+            <span class="mode-icon">🗂️</span>
+            <span><b>테마별 학습</b><small>도청·축제·특산물 등 테마로 지역 훑어보기</small></span>
+          </button>
         </div>
+      </div>
+      <div class="weak-box">
+        <h2>🩹 내 약점 리포트</h2>
+        <div id="weak-body"></div>
       </div>
       <div class="mastery-box">
         <h2>🗺️ 나의 정복도</h2>
@@ -354,7 +362,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260615z10" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260615z11" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -384,6 +392,16 @@
       <button id="teacher-toggle" class="text-btn">처음이신가요? 교사 등록하기 →</button>
     </div>
     <div id="teacher-result" class="teacher-result"></div>
+  </div>
+</div>
+
+<!-- ===== 테마별 학습 모달 ===== -->
+<div id="themelearn-modal" class="modal hidden">
+  <div class="dialog wide-dialog">
+    <button id="themelearn-close" class="dialog-x" aria-label="닫기">✕</button>
+    <h2 id="themelearn-title">🗂️ 테마별 학습</h2>
+    <p class="dialog-sub">테마를 고르면 해당 지역들을 설명과 함께 학습하고, 바로 퀴즈로 이어갈 수 있어요.</p>
+    <div id="themelearn-list" class="theme-list"></div>
   </div>
 </div>
 
@@ -490,12 +508,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260615z10"></script>
-<script src="stats-data.js?v=20260615z10"></script>
-<script src="freq-data.js?v=20260615z10"></script>
-<script src="match-sets.js?v=20260615z10"></script>
-<script src="questions.js?v=20260615z10"></script>
-<script src="mascots-data.js?v=20260615z10"></script>
-<script src="game.js?v=20260615z10"></script>
+<script src="map-data.js?v=20260615z11"></script>
+<script src="stats-data.js?v=20260615z11"></script>
+<script src="freq-data.js?v=20260615z11"></script>
+<script src="match-sets.js?v=20260615z11"></script>
+<script src="questions.js?v=20260615z11"></script>
+<script src="mascots-data.js?v=20260615z11"></script>
+<script src="game.js?v=20260615z11"></script>
 </body>
 </html>
