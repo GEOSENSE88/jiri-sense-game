@@ -2750,7 +2750,9 @@ function endGame(){
   } else {
     const answered = G.idx;
     const acc = answered? Math.round(G.correctCnt/answered*100):0;
-    const earned=Math.max(0, Math.floor(G.score/200));   // 코인 적립 둔화(이전 /100·최소1 → /200·바닥0)
+    // 일일 도전 '연습'(오늘 이미 도전함)은 문제가 고정이라 보상 없음(파밍 방지)
+    const dailyPractice = G.mode==='daily' && store.load('geo_daily_done','')===dayKey();
+    const earned = dailyPractice ? 0 : Math.max(0, Math.floor(G.score/200));   // 코인 적립 둔화(/200·바닥0)
     coins+=earned; store.save('geo_coins',coins); updateGachaUI();
     if(G.mode==='boss'){
       const need=Math.ceil(G.queue.length*0.7), win=G.correctCnt>=need;
@@ -2803,9 +2805,9 @@ function endGame(){
       $('result-main').textContent=`${G.score}점 · 정답 ${G.correctCnt}/${answered}`;
       detail.innerHTML=`정답률 ${acc}%`+
         (earned?`<br>🪙 카드 코인 <b style="color:var(--gold)">+${earned}</b> (보유 ${coins})`:'')+
-        `<br><span style="font-size:.86em">${first?'오늘 기록이 일일 랭킹에 등록됐어요! 🏆':'오늘은 이미 등록했어요(연습 기록).'}</span>`;
-      xp+=Math.max(0, Math.round(G.score/10));
-      if(acc>=70) confetti(document.querySelector('.result-card'));
+        `<br><span style="font-size:.86em">${first?'오늘 기록이 일일 랭킹에 등록됐어요! 🏆':'오늘은 이미 도전했어요 — 연습이라 보상·랭킹은 없어요.'}</span>`;
+      if(first) xp+=Math.max(0, Math.round(G.score/10));   // 연습 반복으로 XP 파밍 방지
+      if(first && acc>=70) confetti(document.querySelector('.result-card'));
       if(first){
         store.save('geo_daily_done', today); store.save('geo_daily_score', G.score);
         if(G.score>0){

@@ -510,6 +510,12 @@ console.log('\n=== 🔁 오늘의 도전 ===');
   check(document.getElementById('daily-body') !== null, '도전 탭에 오늘의 도전 영역');
   window.eval("VIEW_ANIM_MS=0; store.remove('geo_daily_done'); startGame('daily'); G.idx=0; nextQuestion();");
   check(window.eval('G.queue.length') === 10 && window.eval('G.queue[0].btype !== undefined'), '일일 도전 큐(혼합) 생성');
+  // 첫 도전은 보상, 연습 재도전은 보상 없음(고정 문제 파밍 방지)
+  window.eval("ACHIEVEMENTS.forEach(a=>ach[a.id]=true); store.remove('geo_daily_done'); coins=0; store.save('geo_coins',0); G.mode='daily'; G.battle=null; G.idx=10; G.correctCnt=8; G.score=800; G.maxCombo=2; endGame();");
+  const dc1 = window.eval('coins');
+  check(dc1 > 0, '일일 도전 첫 완료 → 코인 적립');
+  window.eval("G.mode='daily'; G.battle=null; G.idx=10; G.correctCnt=8; G.score=800; G.maxCombo=2; endGame();");
+  check(window.eval('coins') === dc1, '일일 도전 연습 재도전 → 보상 없음(파밍 방지)');
 }
 
 console.log('\n=== 🏅 업적 ===');
