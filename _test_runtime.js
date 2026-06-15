@@ -396,12 +396,13 @@ console.log('\n=== 권역 보스전 ===');
 console.log('\n=== 🏷️ 테마 게임 (테마 선택형) ===');
 {
   const themes = JSON.parse(window.eval('JSON.stringify(buildThemes().map(t=>({key:t.key,n:t.items.length})))'));
-  check(themes.length === 5, '테마 5종: ' + themes.map(t=>t.key).join(','));
+  check(themes.length === 7, '테마 7종: ' + themes.map(t=>t.key).join(','));
   check(themes.find(t=>t.key==='docheong').n === 9, '도청 소재지 = 9개 도');
   check(themes.find(t=>t.key==='pop1').n >= 8, '인구 1위(도별 자동계산): ' + themes.find(t=>t.key==='pop1').n + '개');
+  check(!!themes.find(t=>t.key==='special') && !!themes.find(t=>t.key==='heritage'), '특산물·유네스코 세계유산 테마 추가');
   // 테마 선택 모달
   window.eval('openThemeModal();');
-  check(document.querySelectorAll('#theme-list .theme-pick').length === 5, '테마 선택 모달 5개 버튼');
+  check(document.querySelectorAll('#theme-list .theme-pick').length === 7, '테마 선택 모달 7개 버튼');
   window.eval("document.getElementById('theme-modal').classList.add('hidden');");
   // 도청 테마 선택 → 그 테마만 출제
   window.eval("VIEW_ANIM_MS=0; startGame('theme','docheong')");
