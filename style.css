@@ -793,111 +793,98 @@ button { font-family:inherit; }
 .rcard {
   position:relative; width:100%; aspect-ratio:3/4.2; border-radius:15px; overflow:hidden;
   background:
-    radial-gradient(120% 60% at 50% 108%, #FFFFFFB0 0%, transparent 55%),
+    radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--regdeep,#3282B8) 14%, #fff) 0%, #fff 62%),
     linear-gradient(175deg, var(--regbg, #D9EFFD) 0%, #FFFFFF 130%);
-  border:3px solid #9CC8E8; box-shadow:var(--shadow-sm);
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
-  padding:10px 8px 31px;   /* 하단 31px = 인구·중복 뱃지 전용 줄 (설명과 안 겹침) */
+  border:3px solid #B9C3D2; box-shadow:var(--shadow-sm);
+  display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start;
+  padding:23px 7px 7px;
   text-align:center; cursor:pointer; user-select:none;
   transition:transform .15s;
 }
-.rcard.unknown { padding-bottom:12px; }
 .rcard:hover { transform:translateY(-3px) rotate(-.6deg); }
-.rcard.common { border-color:#FFFFFF; outline:2px solid #B9D8EC; outline-offset:-5px; }
-.rcard.rare { border-color:#8E7BE5; outline:2px dashed #C9BEF5; outline-offset:-6px; }
-.rcard.legend {
-  border-color:var(--gold);
-  box-shadow:0 4px 20px rgba(245,166,35,.4);
-  outline:2px solid #FFE9AE; outline-offset:-6px;
-}
-.rcard.legend::after {
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(115deg, transparent 30%, #FFFFFF99 48%, transparent 62%);
-  background-size:250% 100%; animation:shine 2.6s infinite;
-  pointer-events:none;
-}
+.rcard.locked { filter:grayscale(1); opacity:.5; background:#EDF3F7; border-color:#D3DEE6; justify-content:center; padding:12px; }
+.rcard.locked .land { fill:#C9D6DE; }
+.rcard.locked .rcard-name { color:#8aa0b2; }
 @keyframes shine { 0%{background-position:120% 0} 100%{background-position:-130% 0} }
-.rcard.unknown { filter:grayscale(1); opacity:.5; background:#EDF3F7; border-color:#D3DEE6; }
-.rcard.unknown .land { fill:#C9D6DE; }
-.rcard-rar {
-  position:absolute; top:7px; left:8px; font-size:.6rem; font-weight:800; z-index:2;
-  padding:2px 8px; border-radius:99px; background:#FFFFFFD9; color:#4A7CA8;
-  box-shadow:0 1px 3px #0002;
-}
-.rcard.rare .rcard-rar { color:#6A5ACD; }
-.rcard.legend .rcard-rar { color:#A8730A; }
-.rcard-reg {
-  position:absolute; top:7px; right:8px; font-size:.6rem; font-weight:800; z-index:2;
-  padding:2px 8px; border-radius:99px; background:var(--regdeep, var(--sea-d)); color:#fff;
-  box-shadow:0 1px 3px #0002;
-}
-.rcard-emoji {
-  position:absolute; bottom:84px; right:9px; font-size:1.3rem; z-index:2;
-  filter:drop-shadow(0 2px 2px #0003); animation:bob 2.4s ease-in-out infinite;
-}
-@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-/* 아이콘풍 구름·반짝이 */
-.rcard-cloud { position:absolute; background:#FFFFFFE6; border-radius:99px; z-index:1; }
-.rcard-cloud::before { content:''; position:absolute; background:#FFFFFFE6; border-radius:50%;
-  width:55%; height:130%; top:-65%; left:22%; }
-.rcard-cloud.c1 { width:34px; height:12px; top:30px; left:9px; }
-.rcard-cloud.c2 { width:26px; height:10px; top:52px; right:10px; }
-.rcard-spark { position:absolute; color:#FFD23F; text-shadow:0 1px 2px #0002; z-index:1;
-  animation:twinkle 1.8s ease-in-out infinite; }
-.rcard-spark.s1 { top:26px; right:30px; font-size:.8rem; }
-.rcard-spark.s2 { top:74px; left:12px; font-size:.6rem; animation-delay:.7s; }
-@keyframes twinkle { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.35; transform:scale(.75)} }
 
-.card-sil-wrap { flex:1; width:78%; display:flex; align-items:center; justify-content:center; min-height:0; padding-top:24px; z-index:1; }
+/* 상단 줄: 강화 핀(좌) + 권역(우) */
+.rc-top { position:absolute; top:6px; left:7px; right:7px; display:flex; align-items:center; justify-content:space-between; z-index:4; }
+.rc-enh { display:flex; align-items:center; gap:3px; background:linear-gradient(180deg,#3a4150,#222834); border:1px solid #aeb6c6; border-radius:99px; padding:2px 6px 2px 5px; box-shadow:0 1px 2px #0003; }
+.rc-enh .enh-bolt { font-size:.55rem; }
+.enh-pins { display:flex; gap:2px; }
+.enh-pins i { width:6px; height:6px; transform:rotate(45deg); background:#3c4252; border:1px solid #5a6273; display:block; }
+.enh-pins i.on { background:linear-gradient(180deg,#ffe48a,#f0b53d); border-color:#ffe9a3; box-shadow:0 0 4px #ffc85099; }
+.enh-stg { font-size:.5rem; font-weight:800; margin-left:1px; color:#e7ebf3; }
+.rc-enh .enh-max { font-size:.5rem; font-weight:800; margin-left:1px; color:#2a1c02; background:linear-gradient(180deg,#ffe08a,#f0b53d); padding:0 4px; border-radius:99px; }
+.rcard-reg {
+  font-size:.55rem; font-weight:800; color:#fff; background:var(--regdeep, var(--sea-d));
+  padding:2px 8px; border-radius:99px; box-shadow:0 1px 2px #0002;
+}
+
+/* 일러스트 창 (1·2단계 SVG / 3단계 그림) */
+.art-window { position:relative; flex:1 1 auto; width:100%; min-height:0; border-radius:11px; overflow:hidden;
+  border:1.5px solid #cfd6e2; box-shadow:inset 0 0 0 1px #0000000d; background:#eef1f6; z-index:1; }
+.art-window img.card-art { width:100%; height:100%; object-fit:cover; display:block; }
+.art-window .card-sil-wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:9%; }
+.art-window.svgart { background:radial-gradient(120% 100% at 50% 32%, #eef1f6 0%, #cdd2dd 100%); }
+.art-window.has-art .card-art-fallback { display:none; }
+.art-window.has-art.no-art .card-art { display:none; }
+.art-window.has-art.no-art .card-art-fallback { display:flex; }
 .card-sil { width:100%; height:100%; overflow:visible; }
 .card-sil .land-shadow { fill:#3E7C2A55; stroke:none; transform:translate(2px,3px); }
 .card-sil .land { fill:#A8D158; stroke:#FFFFFF; stroke-width:2.6px; stroke-linejoin:round; }
-.rcard.legend .card-sil .land { fill:#B9DC60; stroke:#FFF3C9; }
 
-/* ⚡ 카드 강화 레벨별 일러스트 연출 (e2~e5 누적) */
-.rcard-fx { position:absolute; inset:0; pointer-events:none; z-index:3; border-radius:inherit; }
-.rcard-crown { position:absolute; top:2px; left:50%; transform:translateX(-50%); font-size:1rem; z-index:4;
-  filter:drop-shadow(0 1px 2px #0004); animation:bob 2.4s ease-in-out infinite; }
-/* ★2 — 은은한 광택 + 흰 안쪽 링 */
-.rcard.e2 { box-shadow:var(--shadow-sm), inset 0 0 0 2px #FFFFFFAA; }
-.rcard.e2 .rcard-fx { background:radial-gradient(92% 55% at 50% 0%, #FFFFFF45, transparent 62%); }
-/* ★3 — 권역색 비네트 + 실루엣 발광 */
-.rcard.e3 { box-shadow:0 4px 16px rgba(50,130,184,.25), inset 0 0 0 2px #FFFFFFAA, inset 0 0 24px var(--regbg,#D9EFFD); border-color:#7FB7DB; }
-.rcard.e3 .card-sil .land { filter:drop-shadow(0 0 3px #FFFFFFCC); }
-/* ★4 — 살아있는 오라 + 강한 발광 */
-.rcard.e4 { animation:cardAura 2.6s ease-in-out infinite; border-color:#5FA6D6; }
-.rcard.e4 .card-sil .land { filter:drop-shadow(0 0 6px var(--regdeep,#3282B8)); }
-@keyframes cardAura {
-  0%,100% { box-shadow:0 0 10px 1px rgba(50,130,184,.35), inset 0 0 0 2px #FFFFFFAA, inset 0 0 24px var(--regbg,#D9EFFD); }
-  50%     { box-shadow:0 0 22px 5px rgba(50,130,184,.6),  inset 0 0 0 2px #FFFFFFCC, inset 0 0 28px var(--regbg,#D9EFFD); }
-}
-/* ★5(만렙) — 홀로그램 + 황금 프레임 + 왕관 */
-.rcard.e5 { border-color:var(--gold); outline:2px solid #FFE9AE; outline-offset:-6px; animation:cardAuraGold 2.6s ease-in-out infinite; }
-.rcard.e5 .rcard-fx {
-  background:linear-gradient(115deg, transparent 28%, #FFFFFFB0 44%, #FFE6A0CC 50%, #FFFFFFB0 56%, transparent 72%);
-  background-size:260% 100%; animation:shine 2.6s infinite; mix-blend-mode:screen;
-}
-.rcard.e5 .card-sil .land { fill:#C7E87A; stroke:#FFF3C9; filter:drop-shadow(0 0 6px #FFD98A); }
-@keyframes cardAuraGold {
-  0%,100% { box-shadow:0 0 12px 2px rgba(245,166,35,.5), inset 0 0 0 2px #FFE9AE; }
-  50%     { box-shadow:0 0 26px 7px rgba(245,166,35,.8), inset 0 0 0 2px #FFF3C9; }
-}
+/* 특성 뱃지 — 일러스트 하단 오버레이 (상세/뽑기에서만 노출) */
+.artbadges { position:absolute; left:0; right:0; bottom:0; z-index:3; display:none; flex-wrap:wrap; gap:3px;
+  justify-content:center; align-items:flex-end; padding:15px 5px 5px; background:linear-gradient(180deg,transparent,#000000a8); }
+.artbadges .cbadge { font-size:.5rem; font-weight:800; color:#fff; background:#141820c4; border:1px solid #ffffff38;
+  border-radius:5px; padding:1px 5px; white-space:nowrap; }
+
+/* ── 강화 단계별 프레임 ── */
+.rcard-fx { position:absolute; inset:0; pointer-events:none; z-index:2; border-radius:inherit; }
+/* 1단계: 회색 무광 */
+.rcard.tier1 { border-color:#aab2c0; }
+.rcard.tier1 .art-window.svgart { background:radial-gradient(120% 100% at 50% 32%, #eef1f6 0%, #cdd2dd 100%); }
+.rcard.tier1 .card-sil .land { fill:#aab0bd; }
+/* 2단계: 은색 프레임 + 녹색 일러스트 + 은빛 반짝 */
+.rcard.tier2 { border-color:#cfd6e4; box-shadow:0 3px 14px rgba(150,165,190,.4), inset 0 0 0 1px #ffffff88; }
+.rcard.tier2 .rcard-fx { background:linear-gradient(115deg, transparent 34%, #ffffff8c 47%, #d6e0ee59 52%, transparent 60%);
+  background-size:280% 100%; animation:shine 3s infinite; mix-blend-mode:screen; }
+.rcard.tier2 .art-window.svgart { background:radial-gradient(120% 100% at 50% 32%, #eef7e6 0%, #c6dcb6 100%); }
+.rcard.tier2 .card-sil .land { fill:#A8D158; }
+/* 3단계(최종): 금박 프레임 + 금빛 홀로 */
+.rcard.tier3 { border-color:var(--gold); outline:2px solid #FFE9AE; outline-offset:-6px; box-shadow:0 4px 18px rgba(245,166,35,.4); }
+.rcard.tier3 .rcard-fx { background:linear-gradient(115deg, transparent 28%, #ffffffb0 44%, #ffe6a0cc 50%, #ffffffb0 56%, transparent 72%);
+  background-size:260% 100%; animation:shine 2.6s infinite; mix-blend-mode:screen; }
+.rcard.tier3 .art-window { border-color:#f0c976; }
+.rcard.tier3 .rcard-name .cname-t { color:#7a5a12; }
+
+/* 이름 + 도 뱃지 */
 .rcard-name {
-  font-weight:900; font-size:.95rem; color:var(--navy); margin-top:6px; z-index:1;
+  font-weight:900; font-size:.9rem; color:var(--navy); margin-top:5px; z-index:1;
+  display:flex; align-items:center; justify-content:center; gap:4px; line-height:1.15;
   text-shadow:0 1.5px 0 #fff, 0 -1.5px 0 #fff, 1.5px 0 0 #fff, -1.5px 0 0 #fff;
 }
-.rcard-meaning { font-size:.62rem; color:#5E83A0; line-height:1.35; min-height:2.1em; z-index:1;
-  margin-bottom:2px;
+.provbadge { font-size:.55rem; font-weight:800; color:#fff; background:var(--regdeep,var(--sea-d));
+  padding:1px 5px; border-radius:5px; text-shadow:none; flex:0 0 auto; }
+.rcard-meaning { font-size:.6rem; color:#5E83A0; line-height:1.32; min-height:2.05em; z-index:1; margin:1px 0 2px;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* 인구 + 전국/권역 순위 */
+.rcard-pop { display:flex; flex-direction:column; align-items:center; gap:2px; margin-top:auto; padding-top:3px; z-index:1; }
+.rcard-pop .pop-n { font-size:.66rem; font-weight:800; color:var(--navy); }
+.rcard-pop .rk { display:none; gap:4px; }
+.rcard-pop .rk-nat, .rcard-pop .rk-reg { font-size:.54rem; font-weight:700; border-radius:5px; padding:1px 5px; }
+.rcard-pop .rk-nat { color:#8a5a0a; background:#fbe7c4; }
+.rcard-pop .rk-reg { color:#4A7CA8; background:#e6eff7; }
 .rcard-cnt {
-  position:absolute; bottom:7px; right:8px; font-size:.66rem; font-weight:800; z-index:2;
-  background:var(--navy); color:#fff; border-radius:99px; padding:2px 7px;
+  position:absolute; bottom:6px; right:7px; font-size:.62rem; font-weight:800; z-index:4;
+  background:var(--navy); color:#fff; border-radius:99px; padding:1px 6px;
 }
-.rcard-pop {
-  position:absolute; bottom:7px; left:8px; font-size:.62rem; font-weight:800; z-index:2;
-  background:#FFFFFFD9; color:#4A7CA8; border-radius:99px; padding:2px 8px;
-  box-shadow:0 1px 3px #0002;
-}
+/* 상세/뽑기(큰 카드)에서만 설명·뱃지·순위 노출, 그리드 타일은 콤팩트 */
+.gcard-front .artbadges { display:flex; }
+.gcard-front .rcard-pop .rk { display:flex; }
+.cards-grid .rcard:not(.locked) .rcard-meaning { display:none; }
 
 /* 정복 지도 */
 .conquest-wrap {

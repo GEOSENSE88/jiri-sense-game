@@ -1037,10 +1037,10 @@ const ACHIEVEMENTS=[
   {id:'daily', icon:'🔁', name:'오늘의 도전자', desc:'일일 도전 완료', reward:10, check:()=>!!store.load('geo_daily_done','')},
   {id:'col50', icon:'📒', name:'수집가', desc:'지역 카드 50종 수집', reward:15, check:()=>Object.keys(cards).length>=50},
   {id:'col100',icon:'🏞️', name:'도감 마스터', desc:'지역 카드 100종 수집', reward:30, check:()=>Object.keys(cards).length>=100},
-  {id:'legend',icon:'⭐', name:'전설 수집가', desc:'전설 등급 카드 획득', reward:15, check:()=>Object.keys(cards).some(n=>{const l=LOCATIONS.find(x=>x.name===n);return l&&rarityOf(l)==='전설';})},
-  {id:'enh3', icon:'✨', name:'강화 입문', desc:'카드 1장 ★3 달성', reward:15, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=3)},
-  {id:'enh5', icon:'🌟', name:'연성 마스터', desc:'카드 1장 ★5(최대)', reward:30, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=CARD_MAX_LV)},
-  {id:'enh10',icon:'💫', name:'도감 연성가', desc:'카드 10장 ★3 이상', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=3).length>=10},
+  {id:'legend',icon:'🏯', name:'세계유산 수집가', desc:'유네스코 도시 카드 획득', reward:15, check:()=>Object.keys(cards).some(n=>{const l=LOCATIONS.find(x=>x.name===n);return l&&hasUnesco(l);})},
+  {id:'enh3', icon:'✨', name:'강화 입문', desc:'카드 1장 최종 강화(3단계)', reward:15, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=CARD_MAX_LV)},
+  {id:'enh5', icon:'🌟', name:'연성 마스터', desc:'카드 5장 최종 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=CARD_MAX_LV).length>=5},
+  {id:'enh10',icon:'💫', name:'도감 연성가', desc:'카드 10장 최종 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=CARD_MAX_LV).length>=10},
   {id:'boss1', icon:'👹', name:'권역 정복자', desc:'권역 보스 1곳 격파', reward:15, check:()=>Object.keys(titles).length>=1},
   {id:'bossAll',icon:'👑',name:'국토 통일', desc:'모든 권역 보스 격파', reward:50, check:()=>BOSS_REGIONS.every(r=>titles[r])},
   {id:'attend7',icon:'📅',name:'개근상', desc:'7일 연속 출석', reward:20, check:()=>store.load('geo_streak',0)>=7},
@@ -2364,6 +2364,9 @@ const DONAME_ORIGIN=['강릉','원주','충주','청주','전주','나주','경�
 const TEUKRYE=['수원','고양','용인','창원','화성'];                              // 특례시(2022·2025)
 const SINDOSI1=['성남','고양','부천'];                                           // 분당·일산·중동 (안양·군포는 지점 미등록)
 const SINDOSI2=['성남','화성','김포','파주','수원','용인','하남','평택','인천']; // 판교·동탄·한강·운정·광교·위례·고덕·검단
+// 유네스코 세계유산 보유 시·군 (heritage 매칭세트 기준)
+const UNESCO_CITY=['경주','합천','서울','수원','안동','공주','부여','익산','고창','양산','영주','보은','순천','김제','남양주','구리','고양','화성','여주','강화'];
+function hasUnesco(loc){ return UNESCO_CITY.includes((loc.name||'').replace(/\(.+\)$/,'')); }
 function factBadges(loc){
   const fact=loc.fact||'';
   const base=(loc.name||'').replace(/\(.+\)$/,'');
@@ -2372,11 +2375,12 @@ function factBadges(loc){
   if(DONAME_ORIGIN.includes(base)) add('📜 도(道) 명칭 유래','b-origin');
   if(TEUKRYE.includes(base)||/특례시/.test(fact)) add('⭐ 특례시','b-teuk');
   if(/도청/.test(fact)) add('🏛️ 도청 소재지','b-docheong');
+  if(hasUnesco(loc)) add('🏯 유네스코','b-unesco');
   if(/혁신도시/.test(fact)) add('🏢 혁신도시','b-hyuksin');
   if(/기업도시/.test(fact)) add('💼 기업도시','b-gieop');
-  if(SINDOSI1.includes(base)||/1기 신도시/.test(fact)) add('🏘️ 수도권 1기 신도시','b-sin1');
-  if(SINDOSI2.includes(base)||/2기 신도시/.test(fact)) add('🌆 수도권 2기 신도시','b-sin2');
-  if(/국가 ?산업 ?단지/.test(fact)) add('⚙️ 국가 산업 단지','b-sandan');
+  if(SINDOSI1.includes(base)||/1기 신도시/.test(fact)) add('🏘️ 1기 신도시','b-sin1');
+  if(SINDOSI2.includes(base)||/2기 신도시/.test(fact)) add('🌆 2기 신도시','b-sin2');
+  if(/국가 ?산업 ?단지/.test(fact)) add('⚙️ 국가산단','b-sandan');
   return {badges, texts:splitFact(fact)};
 }
 // 권역 표기: 수도권 외에는 '권'을 붙여 통일 (강원권·충청권…)
@@ -2467,18 +2471,10 @@ let coins = store.load('geo_coins', 0);
 let cards = store.load('geo_cards', {});          // {지역명: 보유 수}
 const DRAW_COST = 5;
 
-function rarityOf(loc){
-  const f=freqOf(loc.accept[0]);
-  return f>=15 ? '전설' : f>=4 ? '희귀' : '일반';
-}
-const RARITY_META = {
-  '전설': {cls:'legend', label:'★ 전설', p:0.05},
-  '희귀': {cls:'rare',   label:'◆ 희귀', p:0.25},
-  '일반': {cls:'common', label:'● 일반', p:0.70},
-};
+// (등급 시스템 제거) — 모든 지역 균등 뽑기, 카드 외형은 강화 단계로만 구분
 // ⚡ 카드 강화 — 다 모은 뒤에도 카드를 키우는 코인 소비 시스템(공정성 위해 게임 능력엔 영향 없음)
 let cardLv = store.load('geo_cardlv', {});          // {지역명: 강화 레벨 1~5}
-const CARD_MAX_LV = 5;
+const CARD_MAX_LV = 3;           // 1 최초 획득 · 2 강화 · 3 최종(MAX)
 const ENHANCE_NEED = 5;          // 같은 카드 5장을 합쳐 강화(4장 소모, 1장이 강화됨)
 function cardLevel(name){ return cardLv[name] || 1; }
 function enhanceScore(){ return Object.keys(cards).reduce((s,n)=>s+(cardLevel(n)-1),0); }   // 도감 총 강화도
@@ -2592,13 +2588,23 @@ function stampSVG(key, x, y, size, flip){
 }
 
 // 아이콘 스타일의 귀여운 땅 캐릭터: 연두 땅 + 흰 외곽선(고정 두께) + 얼굴
-function cuteLandSVG(mu, withFace, loc){
+function cuteLandSVG(mu, withFace, loc, expr){
   const bb=muniBBox(mu), m=MUNIS[mu];
   const s=Math.sqrt(bb.w*bb.h);          // 기하평균 → 길쭉한 지역도 얼굴 크기 일정
   // 얼굴 비율 (도형 크기에 비례 → 카드마다 같은 느낌)
   const er=s*0.052, gap=s*0.14;
   const fx=m.cx, fy=m.cy;
-  const face=withFace?`
+  const f=n=>n.toFixed(1);
+  let face='';
+  if(withFace && expr==='happy'){      // 2단계: 신난 표정 (웃는 눈 ⌒⌒ + 벌린 입 + 혀)
+    const L=fx-gap/2, R=fx+gap/2, eye=cx=>`<path d="M ${f(cx-er)} ${f(fy)} Q ${f(cx)} ${f(fy-er*1.35)} ${f(cx+er)} ${f(fy)}" fill="none" stroke="#4A3426" stroke-width="${(er*0.42).toFixed(2)}" stroke-linecap="round"/>`;
+    face=`<g class="land-face">${eye(L)}${eye(R)}`+
+      `<ellipse cx="${f(fx-gap*0.98)}" cy="${f(fy+er*1.25)}" rx="${f(er*0.92)}" ry="${f(er*0.58)}" fill="#FF8F7A" opacity=".72"/>`+
+      `<ellipse cx="${f(fx+gap*0.98)}" cy="${f(fy+er*1.25)}" rx="${f(er*0.92)}" ry="${f(er*0.58)}" fill="#FF8F7A" opacity=".72"/>`+
+      `<path d="M ${f(fx-er*1.15)} ${f(fy+er*0.85)} Q ${f(fx)} ${f(fy+er*2.9)} ${f(fx+er*1.15)} ${f(fy+er*0.85)} Z" fill="#4A3426"/>`+
+      `<path d="M ${f(fx-er*0.55)} ${f(fy+er*1.95)} Q ${f(fx)} ${f(fy+er*2.55)} ${f(fx+er*0.55)} ${f(fy+er*1.95)} Z" fill="#FF8F7A"/></g>`;
+  } else if(withFace){                  // 기본(1단계·미니): 차분 표정
+    face=`
     <g class="land-face">
       <circle cx="${fx-gap/2}" cy="${fy}" r="${er}" fill="#4A3426"/>
       <circle cx="${fx+gap/2}" cy="${fy}" r="${er}" fill="#4A3426"/>
@@ -2608,7 +2614,8 @@ function cuteLandSVG(mu, withFace, loc){
       <ellipse cx="${fx+gap*0.95}" cy="${fy+er*1.1}" rx="${er*0.85}" ry="${er*0.5}" fill="#FF8F7A" opacity=".65"/>
       <path d="M ${fx-er*0.9} ${fy+er*1.15} Q ${fx} ${fy+er*2.3} ${fx+er*0.9} ${fy+er*1.15}"
             fill="none" stroke="#4A3426" stroke-width="${(er*0.42).toFixed(2)}" stroke-linecap="round"/>
-    </g>`:'';
+    </g>`;
+  }
   // 지역성 스탬프: 주제 일러스트를 땅 주변에 배치
   let stampG='';
   if(withFace && loc){
@@ -2638,35 +2645,49 @@ function fmtPop(p){
   return (p/1e4).toFixed(1)+'만';
 }
 function cardHTML(loc, owned, count){
-  const rar=RARITY_META[rarityOf(loc)];
   const mu=loc.accept[0];
+  const m=MUNIS[mu]||{};
   const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
   // 첫 의미 단위: 쉼표·문장(마침표+공백)으로 분리. '6·25' 등 가운뎃점은 보호
   const meaning=(loc.fact||'').split(/,|\.\s/)[0].trim();
-  const pop=MUNIS[mu]?.pop;
   if(!owned){
-    return `<div class="rcard unknown">
-      <div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div>
-      <div class="rcard-name">???</div><div class="rcard-meaning">${loc.region} 지방</div></div>`;
+    return `<div class="rcard locked">
+      <div class="art-window svgart"><div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div></div>
+      <div class="rcard-name">???</div><div class="rcard-meaning">${regionLabel(loc.region)} 지방</div></div>`;
   }
-  const lv=cardLevel(loc.name);
-  let enh=''; for(let i=2;i<=lv;i++) enh+=' e'+i;   // 강화 레벨별 시각 효과(누적)
-  const artSrc=`card-art-webp/${encodeURIComponent(mu)}.webp`;
-  return `<div class="rcard ${rar.cls}${enh}${lv>=CARD_MAX_LV?' maxed':''}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
+  const lv=Math.min(cardLevel(loc.name), CARD_MAX_LV);   // 1 최초 · 2 강화 · 3 최종
+  // 강화 단계 핀
+  let pins=''; for(let i=0;i<CARD_MAX_LV;i++) pins+=`<i${i<lv?' class="on"':''}></i>`;
+  const enhTag = lv>=CARD_MAX_LV ? `<span class="enh-max">MAX</span>` : `<span class="enh-stg">${lv}단계</span>`;
+  // 일러스트: 1단계 차분 실루엣 · 2단계 신난+스탬프 · 3단계 그림(card-art)
+  let artHTML, winCls;
+  if(lv>=CARD_MAX_LV){
+    winCls='art-window has-art';
+    artHTML=`<img class="card-art" src="card-art-webp/${encodeURIComponent(mu)}.webp" alt="" loading="lazy" onerror="this.closest('.art-window').classList.add('no-art')">`+
+            `<div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc,'happy')}</div>`;
+  }else{
+    winCls='art-window svgart';
+    artHTML=`<div class="card-sil-wrap">${lv>=2?cuteLandSVG(mu,true,loc,'happy'):cuteLandSVG(mu,true,null)}</div>`;
+  }
+  // 특성 뱃지 (일러스트 하단 오버레이, 상세에서만 표시)
+  const badges=factBadges(loc).badges;
+  const badgeOverlay = badges.length ? `<div class="artbadges">${badges.map(b=>`<span class="cbadge ${b.cls}">${b.t}</span>`).join('')}</div>` : '';
+  // 인구 + 전국/권역 순위
+  const r=m.pop?popRank(mu):null;
+  const popBlock = m.pop ? `<div class="rcard-pop"><span class="pop-n">👤 ${fmtPop(m.pop)}</span>`+
+    (r?`<span class="rk"><span class="rk-nat">전국 ${r.nat}위</span><span class="rk-reg">${regionLabel(loc.region)} ${r.reg}위</span></span>`:'')+`</div>` : '';
+  const provShort=PROV_SHORT[m.prov]||'';
+  const provBadge = provShort ? `<span class="provbadge">${provShort}</span>` : '';
+  return `<div class="rcard tier${lv}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-fx"></div>
-    ${lv>=CARD_MAX_LV?'<div class="rcard-crown">👑</div>':''}
-    <div class="rcard-rar">${rar.label}</div>
-    <div class="rcard-reg">${regionLabel(loc.region)}</div>
-    <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
-    <span class="rcard-cloud c1"></span><span class="rcard-cloud c2"></span>
-    <div class="card-art-wrap">
-      <img class="card-art" src="${artSrc}" alt="" loading="lazy" onerror="this.closest('.card-art-wrap').classList.add('no-art')">
-      <div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc)}</div>
+    <div class="rc-top">
+      <span class="rc-enh"><span class="enh-bolt">⚡</span><span class="enh-pins">${pins}</span>${enhTag}</span>
+      <span class="rcard-reg">${regionLabel(loc.region)}</span>
     </div>
-    <div class="rcard-name">${cardDisplayName(loc)}</div>
+    <div class="${winCls}">${artHTML}${badgeOverlay}</div>
+    <div class="rcard-name">${provBadge}<span class="cname-t">${mu}</span></div>
     <div class="rcard-meaning">${meaning}</div>
-    <div class="rcard-stars">${starHTML(lv)}</div>
-    ${pop?`<div class="rcard-pop">👥 ${fmtPop(pop)}</div>`:''}
+    ${popBlock}
     ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
   </div>`;
 }
@@ -2676,7 +2697,7 @@ function openCardDetail(loc){
   modal.classList.remove('hidden');
   const card=$('gacha-card');
   card.classList.add('flipped'); card.classList.remove('legend-glow');
-  if(rarityOf(loc)==='전설') card.classList.add('legend-glow');
+  if(cardLevel(loc.name)>=CARD_MAX_LV) card.classList.add('legend-glow');   // 최종 강화 카드 골드 글로우
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
   const pop=MUNIS[loc.accept[0]]?.pop;
   const pr=pop?popRank(loc.accept[0]):null;
@@ -2725,11 +2746,7 @@ function updateGachaUI(){
 function drawCard(){
   if(coins<DRAW_COST) return null;
   coins-=DRAW_COST; store.save('geo_coins',coins);
-  const roll=Math.random();
-  const want = roll<RARITY_META['전설'].p ? '전설' : roll<RARITY_META['전설'].p+RARITY_META['희귀'].p ? '희귀' : '일반';
-  let cand=LOCATIONS.filter(l=>rarityOf(l)===want);
-  if(!cand.length) cand=LOCATIONS;
-  const loc=cand[Math.floor(Math.random()*cand.length)];
+  const loc=LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];   // 균등 뽑기
   const dup=!!cards[loc.name];
   cards[loc.name]=(cards[loc.name]||0)+1;
   if(dup){ coins+=2; store.save('geo_coins',coins); }   // 중복 → 2코인 환급
@@ -2738,7 +2755,7 @@ function drawCard(){
   missionProgress({isNew:!dup});
   checkAchievements();
   scheduleSync();
-  return {loc, dup, rar:rarityOf(loc)};
+  return {loc, dup};
 }
 function openGacha(){
   const res=drawCard();
@@ -2752,14 +2769,14 @@ function openGacha(){
   $('btn-draw-again').disabled=true;   // 애니메이션 중 연타로 추가 뽑기 방지
   setTimeout(()=>{
     card.classList.add('flipped');
-    if(res.rar==='전설'){ card.classList.add('legend-glow'); confetti(modal.querySelector('.gacha-stage')); }
+    if(!res.dup){ confetti(modal.querySelector('.gacha-stage')); }   // 새 카드면 축하 연출
     $('gacha-msg').innerHTML=
       (res.dup?`이미 가진 카드! <b style="color:var(--gold)">+2🪙 환급</b>`:`<b style="color:var(--sea-d)">NEW!</b> 새로운 지역 카드 획득`)+
       ` · 보유 🪙 ${coins}`;
     $('btn-draw-again').textContent=`한 번 더 (5🪙)`;
     $('btn-draw-again').disabled = coins<DRAW_COST;
   }, 650);
-  try { if(navigator.vibrate) navigator.vibrate(res.rar==='전설'?[40,60,40,60,120]:30); } catch(e){}
+  try { if(navigator.vibrate) navigator.vibrate(res.dup?30:[40,60,40,60,120]); } catch(e){}
 }
 let _collFilter='전체';
 function renderCollection(filter){
@@ -2767,7 +2784,9 @@ function renderCollection(filter){
   const grid=$('cards-grid'); grid.innerHTML='';
   const list=LOCATIONS.filter(l=>filter==='전체'||l.region===filter);
   const popOf=l=>MUNIS[l.accept[0]]?.pop||0;
-  list.sort((a,b)=> popOf(b)-popOf(a) || a.name.localeCompare(b.name));   // 인구 많은 순
+  const ownedOf=l=>cards[l.name]?1:0;
+  // 획득한 카드 먼저, 그 안에서 인구 많은 순
+  list.sort((a,b)=> ownedOf(b)-ownedOf(a) || popOf(b)-popOf(a) || a.name.localeCompare(b.name));
   list.forEach(l=>{
     const owned=!!cards[l.name];
     const el=document.createElement('div');
