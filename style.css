@@ -819,7 +819,7 @@ button { font-family:inherit; }
 /* ===== 다크 프리미엄 수집 카드 (--cs: 타일 1 / 상세 확대) ===== */
 .rcard {
   --cs:1;
-  position:relative; width:100%; aspect-ratio:3/4.2; border-radius:calc(14px*var(--cs)); overflow:hidden; isolation:isolate;
+  position:relative; width:100%; border-radius:calc(14px*var(--cs)); overflow:hidden; isolation:isolate;
   background:radial-gradient(120% 75% at 50% -10%, color-mix(in srgb, var(--regdeep,#3282B8) 34%, #1b2030) 0%, #161a24 60%, #11141b 100%);
   box-shadow:0 10px 24px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04) inset;
   display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start;
@@ -856,8 +856,8 @@ button { font-family:inherit; }
   background:color-mix(in srgb, var(--regdeep,#3282B8) 78%, #000 6%); padding:calc(2px*var(--cs)) calc(8px*var(--cs));
   border-radius:99px; box-shadow:0 0 0 1px rgba(255,255,255,.12) inset; }
 
-/* 일러스트 창 */
-.art-window { position:relative; flex:1 1 auto; width:100%; min-height:0; border-radius:calc(11px*var(--cs)); overflow:hidden;
+/* 일러스트 창 (정사각 고정) */
+.art-window { position:relative; flex:0 0 auto; width:100%; aspect-ratio:1/1; min-height:0; border-radius:calc(11px*var(--cs)); overflow:hidden;
   border:1.5px solid color-mix(in srgb,#ffd87a 45%, var(--regdeep,#3282B8)); background:#0c0e14; box-shadow:inset 0 0 0 1px rgba(0,0,0,.5); z-index:1; }
 .art-window img.card-art { width:100%; height:100%; object-fit:cover; display:block; }
 .art-window .card-sil-wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding:9%; }
@@ -882,7 +882,7 @@ button { font-family:inherit; }
 .rcard-name .cname-t { background:linear-gradient(180deg,#fff,#e8edf6); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .provbadge { font-size:calc(.5rem*var(--cs)); font-weight:800; color:#fff; background:var(--regdeep,var(--sea-d));
   padding:calc(1px*var(--cs)) calc(5px*var(--cs)); border-radius:5px; flex:0 0 auto; }
-.rcard-meaning { font-size:calc(.56rem*var(--cs)); color:#c4ccde; line-height:1.4; min-height:2.05em; z-index:1; margin:calc(2px*var(--cs)) 0;
+.rcard-meaning { font-size:calc(.56rem*var(--cs)); color:#c4ccde; line-height:1.4; min-height:2.8em; z-index:1; margin:calc(3px*var(--cs)) 0;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; padding:0 4px; }
 
 /* 인구 + 순위 패널 */
@@ -939,31 +939,30 @@ button { font-family:inherit; }
   display:flex; align-items:center; justify-content:center; padding:20px;
 }
 .gacha-stage { position:relative; text-align:center; width:min(320px, 88vw); }
-.gcard { perspective:900px; width:215px; margin:0 auto 16px; }
+.gcard { perspective:900px; width:265px; max-width:90vw; margin:0 auto 16px; }
 .gcard-inner {
-  position:relative; width:100%; aspect-ratio:3/4.2;
+  position:relative; width:100%;
   transform-style:preserve-3d; transition:transform .65s cubic-bezier(.3,1.4,.4,1);
 }
 .gcard.flipped .gcard-inner { transform:rotateY(180deg); }
-.gcard-back, .gcard-front {
-  position:absolute; inset:0; backface-visibility:hidden; border-radius:16px;
-}
+/* 앞면=콘텐츠 높이 기준(in-flow), 뒷면=앞면을 덮음(absolute) */
+.gcard-front { position:relative; transform:rotateY(180deg); backface-visibility:hidden; border-radius:16px; }
 .gcard-back {
+  position:absolute; inset:0; backface-visibility:hidden; border-radius:16px;
   display:flex; align-items:center; justify-content:center; font-size:3.4rem;
   background:linear-gradient(150deg, var(--sea), var(--navy));
   border:3px solid #fff; box-shadow:0 10px 30px #0006;
   animation:cardPulse 1s infinite alternate;
 }
 @keyframes cardPulse { from{transform:scale(1)} to{transform:scale(1.035)} }
-.gcard-front { transform:rotateY(180deg); }
-.gcard-front .rcard { width:100%; height:100%; }
+.gcard-front .rcard { width:100%; }
 .gcard.legend-glow .gcard-front .rcard { box-shadow:0 0 38px 8px rgba(245,166,35,.65); }
 .gacha-msg { color:#fff; font-size:.92rem; margin-bottom:14px; min-height:1.4em; font-weight:600; }
 
 /* 컬렉션 화면 */
 .coll-body { max-width:1100px; margin:8px auto 40px; padding:0 16px; }
 .coll-prog { color:var(--sea-d); margin-left:6px; }
-.cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; align-items:start; }
 @media (max-width:560px){ .cards-grid { grid-template-columns:repeat(3, 1fr); gap:8px; } }
 
 /* 지도 탭 물결 */
