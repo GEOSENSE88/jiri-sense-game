@@ -2291,7 +2291,7 @@ function askOX(q){
     };
     row.appendChild(b);
   });
-  const sec = (G.mode==='battle'||G.mode==='daily') ? 9 : Math.min(8,(G.oxEnd-Date.now())/1000);
+  const sec = G.mode==='ox' ? Math.min(8,(G.oxEnd-Date.now())/1000) : 9;
   startTimer(Math.max(1,sec),()=>{ if(G.locked)return; G.locked=true;
     row.querySelectorAll('button').forEach(x=>x.disabled=true);
     award(false,0); recordStat(q.region,false);
@@ -2651,6 +2651,7 @@ function cardHTML(loc, owned, count){
   }
   const lv=cardLevel(loc.name);
   let enh=''; for(let i=2;i<=lv;i++) enh+=' e'+i;   // 강화 레벨별 시각 효과(누적)
+  const artSrc=`card-art-webp/${encodeURIComponent(mu)}.webp`;
   return `<div class="rcard ${rar.cls}${enh}${lv>=CARD_MAX_LV?' maxed':''}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-fx"></div>
     ${lv>=CARD_MAX_LV?'<div class="rcard-crown">👑</div>':''}
@@ -2658,7 +2659,10 @@ function cardHTML(loc, owned, count){
     <div class="rcard-reg">${regionLabel(loc.region)}</div>
     <span class="rcard-spark s1">✦</span><span class="rcard-spark s2">✦</span>
     <span class="rcard-cloud c1"></span><span class="rcard-cloud c2"></span>
-    <div class="card-sil-wrap">${cuteLandSVG(mu,true,loc)}</div>
+    <div class="card-art-wrap">
+      <img class="card-art" src="${artSrc}" alt="" loading="lazy" onerror="this.closest('.card-art-wrap').classList.add('no-art')">
+      <div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc)}</div>
+    </div>
     <div class="rcard-name">${cardDisplayName(loc)}</div>
     <div class="rcard-meaning">${meaning}</div>
     <div class="rcard-stars">${starHTML(lv)}</div>
