@@ -803,19 +803,23 @@ button { font-family:inherit; }
   border-radius:50%; background:rgba(255,255,255,.7); }
 
 /* 10연속 뽑기 결과 그리드 */
-.gacha-multi { width:min(360px,92vw); max-height:74vh; overflow-y:auto; padding-top:6px; }
-.gm-head { color:#fff; font-weight:700; font-size:.95rem; margin:0 0 12px; position:sticky; top:0; }
+.gacha-multi { width:min(360px,92vw); max-height:74vh; overflow-y:auto; overflow-x:hidden; padding-top:6px; }
+.gm-head { color:#fff; font-weight:700; font-size:.95rem; margin:0 0 12px; }
 .gm-head b { color:var(--gold); }
-.gm-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:9px 7px; }
-.gm-cell { position:relative; cursor:pointer; }
-/* 10연속 카드는 콤팩트: 설명·순위·강화단계 텍스트 숨김 */
+.gm-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px 6px; }
+.gm-cell { position:relative; cursor:pointer; min-width:0; }
+.gm-cell .rcard { --cs:0.78; }
+/* 10연속 카드는 콤팩트: 설명·순위·강화단계 텍스트 숨김, 긴 이름은 말줄임 */
 .gm-cell .rcard-meaning, .gm-cell .rcard-pop .rk, .gm-cell .enh-stg, .gm-cell .enh-max { display:none; }
-.gm-cell .rcard-pop { padding:calc(4px*var(--cs)) calc(6px*var(--cs)); }
+.gm-cell .rcard-pop { padding:calc(4px*var(--cs)) calc(5px*var(--cs)); }
+.gm-cell .rcard-name { overflow:hidden; }
+.gm-cell .cname-t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.gm-cell .pop-n { font-size:calc(.8rem*var(--cs)); }
 .gm-new, .gm-dup { position:absolute; top:-5px; left:50%; transform:translateX(-50%); z-index:6;
   font-size:.56rem; font-weight:800; padding:1px 6px; border-radius:99px; box-shadow:0 1px 3px #0005; white-space:nowrap; }
 .gm-new { color:#0b3d12; background:linear-gradient(180deg,#bff5c4,#5fd06f); }
 .gm-dup { color:#cdd5e6; background:#2a3140; border:1px solid #ffffff22; }
-@media (max-width:420px){ .gm-grid { grid-template-columns:repeat(4,1fr); gap:5px; } }
+@media (max-width:430px){ .gm-grid { grid-template-columns:repeat(4, minmax(0,1fr)); gap:9px 5px; } }
 
 /* ===== 다크 프리미엄 수집 카드 (--cs: 타일 1 / 상세 확대) ===== */
 .rcard {
@@ -971,7 +975,7 @@ button { font-family:inherit; }
 .coll-body { max-width:1100px; margin:8px auto 40px; padding:0 16px; }
 .coll-prog { color:var(--sea-d); margin-left:6px; }
 .cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; align-items:start; }
-@media (max-width:560px){ .cards-grid { grid-template-columns:repeat(3, 1fr); gap:8px; } }
+@media (max-width:560px){ .cards-grid { grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; } }
 
 /* 지도 탭 물결 */
 .tap-ripple {
