@@ -25,7 +25,9 @@ let serverBoard = null;   // 서버 공유 명예의 전당(있으면 우선 표
 const LB_API = (location.hostname === 'game.26sannam3.site') ? '/api' : 'https://game.26sannam3.site/api';
 async function fetchServerBoard(){
   try{
-    const r = await fetch(LB_API + '/leaderboard', {cache:'no-store'});
+    // 로그인했으면 본인 학교 명예의 전당만, 게스트면 전체
+    const q = (account && account.cls) ? '?school='+encodeURIComponent(account.cls) : '';
+    const r = await fetch(LB_API + '/leaderboard'+q, {cache:'no-store'});
     if(!r.ok) return null;
     serverBoard = await r.json();
     return serverBoard;
@@ -35,7 +37,7 @@ async function postServerScore(mode, name, score){
   try{
     const r = await fetch(LB_API + '/score', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({mode, name, score})
+      body: JSON.stringify({mode, name, score, school:(account&&account.cls)||''})
     });
     return r.ok ? await r.json() : null;
   }catch(e){ return null; }
@@ -403,6 +405,10 @@ function renderHomeBoard(){
   const src = serverBoard || board;
   hb.innerHTML=''; let any=false;
   const medal=['🥇','🥈','🥉'];
+  // 범위 표시: 로그인 시 본인 학교만, 아니면 전체
+  hb.insertAdjacentHTML('beforeend', (account&&account.cls)
+    ? `<div class="bd-scope">🏫 <b>${account.cls}</b> 명예의 전당</div>`
+    : `<div class="bd-scope">🌐 전체 명예의 전당 <span style="color:var(--dim)">(로그인하면 우리 학교만 볼 수 있어요)</span></div>`);
   BOARD_MODES.forEach(m=>{
     const list=(src[m]||[]).slice(0,3);
     if(!list.length) return;
@@ -412,7 +418,7 @@ function renderHomeBoard(){
     hb.insertAdjacentHTML('beforeend',
       `<div class="bd-group"><div class="bd-head">${MODE_INFO[m].title}</div>${rows}</div>`);
   });
-  if(!any) hb.innerHTML='<div style="color:var(--dim);font-size:.83rem">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>';
+  if(!any) hb.insertAdjacentHTML('beforeend','<div style="color:var(--dim);font-size:.83rem;margin-top:6px">아직 기록이 없습니다. 첫 도전자가 되어 보세요!</div>');
 }
 
 function initHome(){

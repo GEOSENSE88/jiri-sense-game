@@ -489,6 +489,9 @@ button { font-family:inherit; }
 .board-row .b-mode { color:var(--faint); font-size:.72rem; }
 .board-row b { color:var(--sea-d); }
 /* 명예의 전당 — 항목(모드)별 섹션 */
+.bd-scope { font-size:.82rem; font-weight:800; color:var(--sea-d); margin:0 0 10px; padding:7px 10px;
+  background:var(--panel2,#EAF4FB); border-radius:8px; }
+.bd-scope b { color:var(--navy); }
 .bd-group { margin-bottom:13px; }
 .bd-group:last-child { margin-bottom:0; }
 .bd-head { font-size:.82rem; font-weight:800; color:var(--navy); margin-bottom:5px; padding-bottom:4px;

@@ -96,6 +96,12 @@ def init_db():
                  created TEXT NOT NULL DEFAULT (datetime('now','localtime')))"""
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_day_score ON daily(day, score DESC)")
+        # 마이그레이션: 점수에 학교(school) 컬럼 — 학교별 명예의 전당 필터용
+        try:
+            c.execute("ALTER TABLE scores ADD COLUMN school TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass  # 이미 존재
+        c.execute("CREATE INDEX IF NOT EXISTS idx_mode_school_score ON scores(mode, school, score DESC)")
 
 
 init_db()
@@ -125,14 +131,22 @@ def health():
 def leaderboard():
     qmode = request.args.get("mode")
     modes = [qmode] if qmode in ALLOWED_MODES else sorted(ALLOWED_MODES)
+    school = request.args.get("school")   # 있으면 해당 학교만, 없으면 전체(전역)
     out = {}
     with db() as c:
         for m in modes:
-            rows = c.execute(
-                "SELECT name, score, substr(created,1,10) AS date "
-                "FROM scores WHERE mode=? ORDER BY score DESC, id ASC LIMIT ?",
-                (m, TOP_N),
-            ).fetchall()
+            if school is not None:
+                rows = c.execute(
+                    "SELECT name, score, substr(created,1,10) AS date "
+                    "FROM scores WHERE mode=? AND school=? ORDER BY score DESC, id ASC LIMIT ?",
+                    (m, school, TOP_N),
+                ).fetchall()
+            else:
+                rows = c.execute(
+                    "SELECT name, score, substr(created,1,10) AS date "
+                    "FROM scores WHERE mode=? ORDER BY score DESC, id ASC LIMIT ?",
+                    (m, TOP_N),
+                ).fetchall()
             out[m] = [dict(r) for r in rows]
     return jsonify(out)
 
@@ -142,6 +156,7 @@ def add_score():
     data = request.get_json(silent=True) or {}
     mode = str(data.get("mode", ""))
     name = re.sub(r"[<>\r\n\t]", "", str(data.get("name", "")).strip())[:30] or "무명"
+    school = re.sub(r"[<>\r\n\t]", "", str(data.get("school", "")).strip())[:20]
     try:
         score = int(data.get("score"))
     except (TypeError, ValueError):
@@ -152,15 +167,17 @@ def add_score():
         return jsonify(error="score out of range"), 400
 
     with db() as c:
-        c.execute("INSERT INTO scores(mode,name,score) VALUES(?,?,?)", (mode, name, score))
-        # 모드별 상위 KEEP_N개만 보관
+        c.execute("INSERT INTO scores(mode,name,score,school) VALUES(?,?,?,?)", (mode, name, score, school))
+        # 모드+학교별 상위 KEEP_N개만 보관(다른 학교 점수에 밀려 사라지지 않게)
         c.execute(
-            "DELETE FROM scores WHERE mode=? AND id NOT IN ("
-            "  SELECT id FROM scores WHERE mode=? ORDER BY score DESC, id ASC LIMIT ?)",
-            (mode, mode, KEEP_N),
+            "DELETE FROM scores WHERE mode=? AND school=? AND id NOT IN ("
+            "  SELECT id FROM scores WHERE mode=? AND school=? ORDER BY score DESC, id ASC LIMIT ?)",
+            (mode, school, mode, school, KEEP_N),
         )
+        # 순위: 같은 학교(있으면) 기준, 없으면 전역
         rank = c.execute(
-            "SELECT COUNT(*)+1 AS r FROM scores WHERE mode=? AND score>?", (mode, score)
+            "SELECT COUNT(*)+1 AS r FROM scores WHERE mode=? AND school=? AND score>?",
+            (mode, school, score),
         ).fetchone()["r"]
     return jsonify(ok=True, rank=rank)
 
