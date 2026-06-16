@@ -19,14 +19,16 @@ let board = store.load('geo_board', {});
 let wanted = store.load('geo_wanted', {});   // 오답 지역 수배서 {accept키: {miss, streak}}
 let titles = store.load('geo_titles', {});   // 권역 보스전 클리어 칭호 {권역: true}
 let serverBoard = null;   // 서버 공유 명예의 전당(있으면 우선 표시, 없으면 로컬 fallback)
+let boardScope = 'school';   // 'school'(우리 학교) | 'all'(전체) — 로그인 시 토글
 
 // ---------- 공유 명예의 전당 API ----------
 // 학교 서버에서 열면 같은 출처(상대경로), GitHub Pages·로컬 등 다른 출처면 학교 서버 API를 직접 호출(CORS)
 const LB_API = (location.hostname === 'game.26sannam3.site') ? '/api' : 'https://game.26sannam3.site/api';
 async function fetchServerBoard(){
   try{
-    // 로그인했으면 본인 학교 명예의 전당만, 게스트면 전체
-    const q = (account && account.cls) ? '?school='+encodeURIComponent(account.cls) : '';
+    // 로그인 + '우리 학교' 범위면 학교 필터, 그 외(전체 선택·게스트)는 전체
+    const useSchool = !!(account && account.cls && boardScope!=='all');
+    const q = useSchool ? '?school='+encodeURIComponent(account.cls) : '';
     const r = await fetch(LB_API + '/leaderboard'+q, {cache:'no-store'});
     if(!r.ok) return null;
     serverBoard = await r.json();
@@ -405,10 +407,23 @@ function renderHomeBoard(){
   const src = serverBoard || board;
   hb.innerHTML=''; let any=false;
   const medal=['🥇','🥈','🥉'];
-  // 범위 표시: 로그인 시 본인 학교만, 아니면 전체
-  hb.insertAdjacentHTML('beforeend', (account&&account.cls)
-    ? `<div class="bd-scope">🏫 <b>${account.cls}</b> 명예의 전당</div>`
-    : `<div class="bd-scope">🌐 전체 명예의 전당 <span style="color:var(--dim)">(로그인하면 우리 학교만 볼 수 있어요)</span></div>`);
+  // 범위 토글: 로그인 시 [우리 학교 / 전체] 선택, 게스트는 전체만
+  if(account&&account.cls){
+    hb.insertAdjacentHTML('beforeend',
+      `<div class="bd-toggle">`+
+        `<button class="bd-tab${boardScope!=='all'?' on':''}" data-scope="school">🏫 ${account.cls}</button>`+
+        `<button class="bd-tab${boardScope==='all'?' on':''}" data-scope="all">🌐 전체</button>`+
+      `</div>`);
+    hb.querySelectorAll('.bd-tab').forEach(b=>b.onclick=()=>{
+      if(boardScope===b.dataset.scope) return;
+      boardScope=b.dataset.scope;
+      hb.querySelectorAll('.bd-tab').forEach(x=>x.classList.toggle('on', x.dataset.scope===boardScope));
+      fetchServerBoard().then(()=>renderHomeBoard());
+    });
+  } else {
+    hb.insertAdjacentHTML('beforeend',
+      `<div class="bd-scope">🌐 전체 명예의 전당 <span style="color:var(--dim)">(로그인하면 우리 학교 랭킹도 볼 수 있어요)</span></div>`);
+  }
   BOARD_MODES.forEach(m=>{
     const list=(src[m]||[]).slice(0,3);
     if(!list.length) return;

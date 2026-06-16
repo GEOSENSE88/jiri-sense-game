@@ -492,6 +492,11 @@ button { font-family:inherit; }
 .bd-scope { font-size:.82rem; font-weight:800; color:var(--sea-d); margin:0 0 10px; padding:7px 10px;
   background:var(--panel2,#EAF4FB); border-radius:8px; }
 .bd-scope b { color:var(--navy); }
+.bd-toggle { display:flex; gap:6px; margin:0 0 12px; }
+.bd-toggle .bd-tab { flex:1; padding:7px 10px; border-radius:8px; font-size:.8rem; font-weight:800;
+  border:1.5px solid var(--line2,#cfe0ee); background:#fff; color:var(--dim); cursor:pointer;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bd-toggle .bd-tab.on { background:var(--sea-d,#2b7bb8); color:#fff; border-color:var(--sea-d,#2b7bb8); }
 .bd-group { margin-bottom:13px; }
 .bd-group:last-child { margin-bottom:0; }
 .bd-head { font-size:.82rem; font-weight:800; color:var(--navy); margin-bottom:5px; padding-bottom:4px;
