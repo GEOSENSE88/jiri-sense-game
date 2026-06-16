@@ -814,11 +814,12 @@ button { font-family:inherit; }
 .enh-pins { display:flex; gap:2px; }
 .enh-pins i { width:6px; height:6px; transform:rotate(45deg); background:#3c4252; border:1px solid #5a6273; display:block; }
 .enh-pins i.on { background:linear-gradient(180deg,#ffe48a,#f0b53d); border-color:#ffe9a3; box-shadow:0 0 4px #ffc85099; }
-.enh-stg { font-size:.5rem; font-weight:800; margin-left:1px; color:#e7ebf3; }
-.rc-enh .enh-max { font-size:.5rem; font-weight:800; margin-left:1px; color:#2a1c02; background:linear-gradient(180deg,#ffe08a,#f0b53d); padding:0 4px; border-radius:99px; }
+.rc-enh, .rcard-reg { white-space:nowrap; }
+.enh-stg { font-size:.5rem; font-weight:800; margin-left:1px; color:#e7ebf3; white-space:nowrap; }
+.rc-enh .enh-max { font-size:.5rem; font-weight:800; margin-left:1px; color:#2a1c02; background:linear-gradient(180deg,#ffe08a,#f0b53d); padding:0 4px; border-radius:99px; white-space:nowrap; }
 .rcard-reg {
   font-size:.55rem; font-weight:800; color:#fff; background:var(--regdeep, var(--sea-d));
-  padding:2px 8px; border-radius:99px; box-shadow:0 1px 2px #0002;
+  padding:2px 8px; border-radius:99px; box-shadow:0 1px 2px #0002; white-space:nowrap;
 }
 
 /* 일러스트 창 (1·2단계 SVG / 3단계 그림) */
@@ -885,6 +886,8 @@ button { font-family:inherit; }
 .gcard-front .artbadges { display:flex; }
 .gcard-front .rcard-pop .rk { display:flex; }
 .cards-grid .rcard:not(.locked) .rcard-meaning { display:none; }
+/* 작은 타일: 강화 단계 텍스트(1단계/MAX)는 숨기고 핀만 — 두 줄 방지. 텍스트는 상세 카드에서만 */
+.cards-grid .rcard .enh-stg, .cards-grid .rcard .enh-max { display:none; }
 
 /* 정복 지도 */
 .conquest-wrap {
