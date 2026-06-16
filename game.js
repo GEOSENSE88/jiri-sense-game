@@ -304,7 +304,10 @@ function locPool(){
   const curatedMascots = new Set(MASCOTS.map(m=>m.accept[0]));
   // 시·군별 지역 설명: LOCATION fact 우선 → 기출 노트(noteOf) → 도(道) 위치
   const factByMuni = new Map();
-  LOCATIONS.forEach(l=>l.accept.forEach(a=>{ if(l.fact && !factByMuni.has(a)) factByMuni.set(a, l.fact); }));
+  // muni명에서 대표 지역명 추출(대구광역시→대구). 한 muni에 여러 지점(예: 대구·군위)일 때 대표가 이기도록
+  const muniBase=a=>a.replace(/\(.+\)$/,'').replace(/(특별자치시|특별자치도|특별시|광역시|시|군)$/,'');
+  LOCATIONS.forEach(l=>l.accept.forEach(a=>{ if(l.fact && l.name===muniBase(a)) factByMuni.set(a, l.fact); }));   // 1차: 이름 일치 대표 우선
+  LOCATIONS.forEach(l=>l.accept.forEach(a=>{ if(l.fact && !factByMuni.has(a)) factByMuni.set(a, l.fact); }));      // 2차: 나머지
   const regionDesc=(muni,label,region)=>
     factByMuni.get(muni) || noteOf(label) || `${(MUNIS[muni]||{}).prov || (regionLabel(region)+' 지방')}에 위치한 시·군`;
   const mascotLocs=MASCOTS.map(m=>{
@@ -2702,14 +2705,20 @@ function cardHTML(loc, owned, count){
   // 특성 뱃지 (일러스트 하단 오버레이, 상세에서만 표시)
   const badges=factBadges(loc).badges;
   const badgeOverlay = badges.length ? `<div class="artbadges">${badges.map(b=>`<span class="cbadge ${b.cls}">${b.t}</span>`).join('')}</div>` : '';
-  // 인구 + 전국/권역 순위 (시안: 금색 인물 아이콘 + '인구' 라벨 좌측, 큰 숫자 우측)
-  const r=m.pop?popRank(mu):null;
-  const popBlock = m.pop ? `<div class="rcard-pop">`+
+  // 카드 표기명: 보통은 시·군명(mu). 단, 한 muni에 속한 지점(예: 대구광역시에 편입된 군위)은 지점 본래 이름 사용
+  const muNoParen=mu.replace(/\(.+\)$/,'');
+  const muBase=muNoParen.replace(/(특별자치시|특별자치도|특별시|광역시|시|군)$/,'');
+  const locBase=(loc.name||'').replace(/\(.+\)$/,'');
+  const isSubPoint=(locBase!==muNoParen && locBase!==muBase);   // 이름이 muni와 무관한 지점(군위·한라산 등)
+  const displayName=isSubPoint?loc.name:mu;
+  // 인구 + 전국/권역 순위 (지점 카드는 모(母)도시 인구라 표시하지 않음)
+  const r=(m.pop&&!isSubPoint)?popRank(mu):null;
+  const popBlock = (m.pop&&!isSubPoint) ? `<div class="rcard-pop">`+
     `<div class="poprow"><span class="poplabel">${POP_ICON}인구</span><span class="pop-n">${fmtPop(m.pop)}<small>명</small></span></div>`+
     (r?`<div class="rk"><span class="rk-nat">전국 ${r.nat}위</span><span class="rk-reg">${regionLabel(loc.region)} ${r.reg}위</span></div>`:'')+
     `</div>` : '';
   const provShort=PROV_SHORT[m.prov]||'';
-  const provBadge = provShort ? `<span class="provbadge">${provShort}</span>` : '';
+  const provBadge = (provShort&&!isSubPoint) ? `<span class="provbadge">${provShort}</span>` : '';
   return `<div class="rcard tier${lv}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
     <div class="rcard-fx"></div>
     <div class="rc-top">
@@ -2717,7 +2726,7 @@ function cardHTML(loc, owned, count){
       <span class="rcard-reg">${regionLabel(loc.region)}</span>
     </div>
     <div class="${winCls}">${artHTML}${badgeOverlay}</div>
-    <div class="rcard-name">${provBadge}<span class="cname-t">${mu}</span></div>
+    <div class="rcard-name">${provBadge}<span class="cname-t">${displayName}</span></div>
     <div class="rcard-meaning">${meaning}</div>
     ${popBlock}
     ${count>1?`<div class="rcard-cnt">×${count}</div>`:''}
