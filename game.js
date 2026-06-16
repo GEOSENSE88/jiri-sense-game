@@ -2706,6 +2706,7 @@ function cardHTML(loc, owned, count){
 function openCardDetail(loc){
   const modal=$('gacha-modal');
   modal.classList.remove('hidden');
+  gachaSetMode(false);
   const card=$('gacha-card');
   card.classList.add('flipped'); card.classList.remove('legend-glow');
   if(cardLevel(loc.name)>=CARD_MAX_LV) card.classList.add('legend-glow');   // 최종 강화 카드 골드 글로우
@@ -2750,10 +2751,12 @@ function conquestMapSVG(){
           owned:ownedMuni.size, total};
 }
 function updateGachaUI(){
-  if($('coin-cnt')) $('coin-cnt').innerHTML=`🪙 <b>${coins}</b>`;
+  if($('coin-cnt')) $('coin-cnt').innerHTML=`<span class="coin-ico"></span> <b>${coins}</b>`;
   if($('coll-progress')) $('coll-progress').textContent=`카드 ${Object.keys(cards).length}/${LOCATIONS.length}장 수집 — 지점 카드 모으기`;
   if($('btn-draw')) $('btn-draw').disabled = coins<DRAW_COST;
+  if($('btn-draw10')) $('btn-draw10').disabled = coins<DRAW_COST*10;
 }
+const coinIco='<span class="coin-ico"></span>';
 function drawCard(){
   if(coins<DRAW_COST) return null;
   coins-=DRAW_COST; store.save('geo_coins',coins);
@@ -2768,11 +2771,19 @@ function drawCard(){
   scheduleSync();
   return {loc, dup};
 }
+// 뽑기 모달 표시 모드 전환(단일 카드 / 10연속 그리드)
+function gachaSetMode(multi){
+  $('gacha-card').classList.toggle('hidden', multi);
+  $('gacha-multi').classList.toggle('hidden', !multi);
+  $('btn-draw-again').classList.toggle('hidden', multi);
+  $('btn-draw10-again').classList.toggle('hidden', !multi);
+}
 function openGacha(){
   const res=drawCard();
   if(!res) return;
   const modal=$('gacha-modal');
   modal.classList.remove('hidden');
+  gachaSetMode(false);
   const card=$('gacha-card');
   card.classList.remove('flipped','legend-glow');
   $('gcard-front').innerHTML=cardHTML(res.loc,true,cards[res.loc.name]);
@@ -2782,12 +2793,55 @@ function openGacha(){
     card.classList.add('flipped');
     if(!res.dup){ confetti(modal.querySelector('.gacha-stage')); }   // 새 카드면 축하 연출
     $('gacha-msg').innerHTML=
-      (res.dup?`이미 가진 카드! <b style="color:var(--gold)">+2🪙 환급</b>`:`<b style="color:var(--sea-d)">NEW!</b> 새로운 지역 카드 획득`)+
-      ` · 보유 🪙 ${coins}`;
-    $('btn-draw-again').textContent=`한 번 더 (5🪙)`;
+      (res.dup?`이미 가진 카드! <b style="color:var(--gold)">+2${coinIco} 환급</b>`:`<b style="color:var(--sea-d)">NEW!</b> 새로운 지역 카드 획득`)+
+      ` · 보유 ${coinIco} ${coins}`;
+    $('btn-draw-again').innerHTML=`한 번 더 (5${coinIco})`;
     $('btn-draw-again').disabled = coins<DRAW_COST;
   }, 650);
   try { if(navigator.vibrate) navigator.vibrate(res.dup?30:[40,60,40,60,120]); } catch(e){}
+}
+// 🎁 10연속 뽑기 — 한 번에 N장
+function openGachaMulti(n){
+  if(coins < DRAW_COST*n) return;
+  const results=[];
+  for(let i=0;i<n;i++){ const r=drawCard(); if(r) results.push(r); }
+  if(!results.length) return;
+  const modal=$('gacha-modal'); modal.classList.remove('hidden');
+  gachaSetMode(true);
+  const newCnt=results.filter(r=>!r.dup).length;
+  const cells=results.map(r=>{
+    const cnt=cards[r.loc.name];
+    return `<div class="gm-cell" data-name="${encodeURIComponent(r.loc.name)}">`+
+      `<span class="${r.dup?'gm-dup':'gm-new'}">${r.dup?'중복':'NEW'}</span>`+
+      cardHTML(r.loc,true,cnt)+`</div>`;
+  }).join('');
+  $('gacha-multi').innerHTML=`<div class="gm-head">🎁 ${n}연속 결과 — <b>NEW ${newCnt}</b> · 중복 ${n-newCnt}</div><div class="gm-grid">${cells}</div>`;
+  $('gacha-multi').querySelectorAll('.gm-cell').forEach(el=>{
+    el.onclick=()=>{ const l=LOCATIONS.find(x=>x.name===decodeURIComponent(el.dataset.name)); if(l) openCardDetail(l); };
+  });
+  $('gacha-msg').innerHTML=`보유 ${coinIco} <b>${coins}</b>`;
+  if(newCnt>0) confetti(modal.querySelector('.gacha-stage'));
+  $('btn-draw10-again').innerHTML=`10연속 더 (50${coinIco})`;
+  $('btn-draw10-again').disabled = coins<DRAW_COST*10;
+  try { if(navigator.vibrate) navigator.vibrate([30,40,30,40,30,40,90]); } catch(e){}
+}
+// ⚡ 강화 한꺼번에 — 강화 가능한 카드를 모두 강화
+function doEnhanceAll(){
+  let count=0, changed=true;
+  while(changed){
+    changed=false;
+    for(const name of Object.keys(cards)){
+      if(canEnhance(name) && doEnhance(name)){ count++; changed=true; }
+    }
+  }
+  return count;
+}
+function enhanceableCount(){ return Object.keys(cards).filter(canEnhance).length; }
+function updateEnhanceAllBtn(){
+  const b=$('btn-enhance-all'); if(!b) return;
+  const n=enhanceableCount();
+  b.classList.toggle('hidden', n===0);
+  b.textContent=`⚡ 전체 강화 (${n})`;
 }
 let _collFilter='전체';
 function renderCollection(filter){
@@ -2808,6 +2862,7 @@ function renderCollection(filter){
   });
   const ownedCnt=list.filter(l=>cards[l.name]).length;
   $('coll-title-progress').textContent=`${ownedCnt}/${list.length} · ⚡강화도 ${enhanceScore()}`;
+  updateEnhanceAllBtn();
 }
 function openCollection(){
   show('screen-cards');
@@ -3026,6 +3081,16 @@ $('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=nul
 // ---------- 카드 뽑기/컬렉션 이벤트 ----------
 $('btn-draw').onclick=openGacha;
 $('btn-draw-again').onclick=openGacha;
+$('btn-draw10')?.addEventListener('click', ()=>openGachaMulti(10));
+$('btn-draw10-again')?.addEventListener('click', ()=>openGachaMulti(10));
+$('btn-enhance-all')?.addEventListener('click', ()=>{
+  const n=enhanceableCount();
+  if(!n) return;
+  if(!confirm(`강화 가능한 카드 ${n}장을 한꺼번에 강화할까요?\n(같은 카드 ${ENHANCE_NEED}장당 1단계 상승)`)) return;
+  const done=doEnhanceAll();
+  renderCollection(_collFilter);
+  alert(done? `⚡ ${done}번 강화 완료!` : '강화할 카드가 없어요');
+});
 $('btn-gacha-close').onclick=()=>{
   $('gacha-modal').classList.add('hidden');
   $('btn-draw-again').classList.remove('hidden');
