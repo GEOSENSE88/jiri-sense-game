@@ -2655,14 +2655,31 @@ function fmtPop(p){
   if(p>=1e5) return Math.round(p/1e4)+'만';
   return (p/1e4).toFixed(1)+'만';
 }
+// 카드용 짧은 설명(2줄 이내) — 첫 문장이 길어 잘리는 지역만 큐레이션 오버라이드
+const CARD_DESC={
+  '하남':'미사·위례·감일 등 대규모 택지 개발로 급성장',
+  '성남':'분당(1기)·판교(2기·IT) 신도시의 도시',
+  '영월':'감입 곡류 하천(한반도 지형)·청령포의 고장',
+  '경주':'신라 천년 고도, 불국사·석굴암의 세계유산 도시',
+  '완주':'전주를 둘러싼 혁신도시(농촌진흥청)',
+  '인천':'인천국제공항·인천항의 국제 물류 도시',
+  '서산':'대산 석유 화학 단지와 천수만 간척지',
+  '포천':'한탄강 용암 대지·주상 절리(비둘기낭)',
+  '독도':'우리 영토 동쪽 끝, 신생대 화산섬',
+  '철원':'현무암 용암 대지(오대쌀)·한탄강 고석정',
+  '김제 새만금':'국내 최대 간척 사업, 새만금 방조제',
+  '단양':'석회암 카르스트(고수동굴·도담삼봉)·시멘트',
+  '청송':'주왕산 국립공원·유네스코 세계 지질공원',
+  '화순':'고인돌 세계유산과 운주사 천불천탑',
+};
 // 인구 라벨 아이콘 — 기기별로 은색 뜨는 이모지 대신 금색 인물(users) SVG
 const POP_ICON='<svg class="popicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg>';
 function cardHTML(loc, owned, count){
   const mu=loc.accept[0];
   const m=MUNIS[mu]||{};
   const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
-  // 카드 설명: 첫 문장(마침표+공백 기준). 괄호 안 쉼표에서 잘리지 않도록 쉼표로는 분리하지 않음
-  const meaning=(loc.fact||'').split(/\.\s/)[0].trim();
+  // 카드 설명: 큐레이션된 짧은 설명이 있으면 사용, 없으면 첫 문장(마침표+공백 기준)
+  const meaning=CARD_DESC[loc.name] || (loc.fact||'').split(/\.\s/)[0].trim();
   if(!owned){
     return `<div class="rcard locked">
       <div class="art-window svgart"><div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div></div>
