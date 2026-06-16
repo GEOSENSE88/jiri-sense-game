@@ -803,12 +803,13 @@ button { font-family:inherit; }
   border-radius:50%; background:rgba(255,255,255,.7); }
 
 /* 10연속 뽑기 결과 그리드 */
-.gacha-multi { width:min(360px,92vw); }
-.gm-head { color:#fff; font-weight:700; font-size:.95rem; margin:0 0 12px; }
+.gacha-multi { width:min(360px,92vw); max-height:74vh; overflow-y:auto; padding-top:6px; }
+.gm-head { color:#fff; font-weight:700; font-size:.95rem; margin:0 0 12px; position:sticky; top:0; }
 .gm-head b { color:var(--gold); }
-.gm-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; }
+.gm-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:9px 7px; }
 .gm-cell { position:relative; cursor:pointer; }
-.gm-cell .rcard-meaning, .gm-cell .rcard-pop .rk { display:none; }
+/* 10연속 카드는 콤팩트: 설명·순위·강화단계 텍스트 숨김 */
+.gm-cell .rcard-meaning, .gm-cell .rcard-pop .rk, .gm-cell .enh-stg, .gm-cell .enh-max { display:none; }
 .gm-cell .rcard-pop { padding:calc(4px*var(--cs)) calc(6px*var(--cs)); }
 .gm-new, .gm-dup { position:absolute; top:-5px; left:50%; transform:translateX(-50%); z-index:6;
   font-size:.56rem; font-weight:800; padding:1px 6px; border-radius:99px; box-shadow:0 1px 3px #0005; white-space:nowrap; }
