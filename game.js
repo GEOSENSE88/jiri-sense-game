@@ -2383,7 +2383,7 @@ function factBadges(loc){
   const base=(loc.name||'').replace(/\(.+\)$/,'');
   const badges=[];
   const add=(t,cls)=>{ if(!badges.some(b=>b.t===t)) badges.push({t,cls}); };
-  if(DONAME_ORIGIN.includes(base)) add('📜 도(道) 명칭 유래','b-origin');
+  if(DONAME_ORIGIN.includes(base)) add('📜 도명 유래','b-origin');
   if(TEUKRYE.includes(base)||/특례시/.test(fact)) add('⭐ 특례시','b-teuk');
   if(/도청/.test(fact)) add('🏛️ 도청 소재지','b-docheong');
   if(hasUnesco(loc)) add('🏯 유네스코','b-unesco');
@@ -2693,7 +2693,7 @@ function cardHTML(loc, owned, count){
   let artHTML, winCls;
   if(lv>=CARD_MAX_LV){
     winCls='art-window has-art';
-    artHTML=`<img class="card-art" src="card-art-webp/${encodeURIComponent(mu)}.webp" alt="" loading="lazy" onerror="this.closest('.art-window').classList.add('no-art')">`+
+    artHTML=`<img class="card-art" src="card-art-webp/${encodeURIComponent(mu)}.webp?v=2" alt="" onerror="this.closest('.art-window').classList.add('no-art')">`+
             `<div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc,'happy')}</div>`;
   }else{
     winCls='art-window svgart';

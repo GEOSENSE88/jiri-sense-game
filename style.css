@@ -870,11 +870,11 @@ button { font-family:inherit; }
 .card-sil .land { fill:#A8D158; stroke:#fff; stroke-width:2.6px; stroke-linejoin:round; }
 
 /* 특성 뱃지 오버레이 */
-.artbadges { position:absolute; left:0; right:0; bottom:0; z-index:5; display:none; flex-wrap:wrap; gap:calc(3px*var(--cs));
-  justify-content:center; align-items:flex-end; padding:calc(14px*var(--cs)) calc(5px*var(--cs)) calc(5px*var(--cs));
-  background:linear-gradient(180deg,transparent,rgba(0,0,0,.6)); }
-.artbadges .cbadge { font-size:calc(.5rem*var(--cs)); font-weight:700; color:#fff; background:rgba(20,24,32,.74);
-  border:1px solid rgba(255,255,255,.22); border-radius:6px; padding:calc(1px*var(--cs)) calc(6px*var(--cs)); white-space:nowrap; }
+.artbadges { position:absolute; left:0; right:0; bottom:0; z-index:5; display:none; flex-wrap:wrap; gap:calc(3px*var(--cs)) calc(4px*var(--cs));
+  justify-content:center; align-items:flex-end; padding:calc(13px*var(--cs)) calc(5px*var(--cs)) calc(5px*var(--cs));
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.62)); }
+.artbadges .cbadge { font-size:calc(.4rem*var(--cs)); font-weight:700; color:#fff; background:rgba(20,24,32,.78);
+  border:1px solid rgba(255,255,255,.2); border-radius:5px; padding:calc(1px*var(--cs)) calc(5px*var(--cs)); white-space:nowrap; }
 
 /* 이름 + 도 뱃지 */
 .rcard-name { font-weight:800; font-size:calc(.8rem*var(--cs)); color:#fff; margin-top:calc(6px*var(--cs)); z-index:1;
