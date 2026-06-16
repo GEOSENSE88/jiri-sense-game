@@ -123,6 +123,16 @@ async function doLogin(cls, nickname, pin){
   return {ok:true, isNew:res.isNew};
 }
 function logoutAccount(){ account=null; store.remove('geo_account'); renderAccount(); initHome(); }
+// 로그인한 학생이 학교명·닉네임을 직접 수정
+async function apiProfile(cls, nickname){
+  if(!account||!account.token) return {error:'로그인이 필요합니다'};
+  try{
+    const r=await fetch(LB_API+'/student/profile',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:account.token, class:cls, nickname})});
+    const j=await r.json().catch(()=>({}));
+    return r.ok? j : {error: j.error||'수정 실패'};
+  }catch(e){ return {error:'서버에 연결할 수 없습니다'}; }
+}
 // 앱 시작 시: 로그인 상태면 서버 최신 진도를 끌어와 병합(다른 기기에서 한 기록 반영)
 async function syncOnLoad(){
   if(!account||!account.token) return;
@@ -3027,14 +3037,35 @@ $('btn-cards-back').onclick=()=>{ initHome(); show('screen-home'); };
 
 // ---------- 로그인 / 동기화 모달 ----------
 function openLogin(){
-  if(account){
-    if(confirm(`${account.nickname}(${account.cls})에서 로그아웃할까요?\n(이 기기의 기록은 그대로 남습니다)`)) logoutAccount();
-    return;
-  }
+  if(account){ openProfile(); return; }   // 로그인 상태면 내 정보 수정 모달
   $('login-msg').textContent='';
   $('login-modal').classList.remove('hidden');
 }
+function openProfile(){
+  if(!account) return;
+  $('profile-class').value=account.cls||'';
+  $('profile-nick').value=account.nickname||'';
+  $('profile-msg').textContent='';
+  $('profile-modal').classList.remove('hidden');
+}
 $('account-chip')?.addEventListener('click', openLogin);
+// 내 정보 수정 모달
+$('profile-close')?.addEventListener('click', ()=>$('profile-modal').classList.add('hidden'));
+$('profile-logout')?.addEventListener('click', ()=>{ $('profile-modal').classList.add('hidden'); logoutAccount(); });
+$('profile-submit')?.addEventListener('click', async ()=>{
+  const cls=$('profile-class').value.trim(), nick=$('profile-nick').value.trim();
+  const msg=$('profile-msg');
+  if(!cls||!nick){ msg.textContent='학교명·닉네임을 입력하세요'; return; }
+  $('profile-submit').disabled=true; msg.textContent='저장 중…';
+  const res=await apiProfile(cls, nick);
+  $('profile-submit').disabled=false;
+  if(res.error){ msg.textContent=res.error; return; }
+  account.cls=res.class||cls; account.nickname=res.nickname||nick;
+  store.save('geo_account', account);
+  renderAccount();
+  $('profile-modal').classList.add('hidden');
+  alert('정보가 수정되었어요! 다음 로그인부터 새 학교명·닉네임으로 입력하세요.');
+});
 $('login-close')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
 $('login-guest')?.addEventListener('click', ()=>$('login-modal').classList.add('hidden'));
 $('login-teacher')?.addEventListener('click', ()=>{ $('login-modal').classList.add('hidden'); openTeacher(); });

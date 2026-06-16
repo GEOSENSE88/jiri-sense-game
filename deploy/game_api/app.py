@@ -240,6 +240,41 @@ def student_sync():
     return jsonify(ok=True, xp=xp)
 
 
+@app.post("/api/student/profile")
+def student_profile():
+    # 로그인한 학생이 학교명(class_code)·닉네임을 직접 수정. 기록은 유지.
+    d = request.get_json(silent=True) or {}
+    token = clean(d.get("token"), 40)
+    new_cls = clean(d.get("class"), 20)
+    new_nick = clean(d.get("nickname"), 16)
+    if not token:
+        return jsonify(error="로그인이 필요합니다"), 401
+    if not new_cls or not new_nick:
+        return jsonify(error="학교명·닉네임을 확인하세요"), 400
+    with db() as c:
+        me = c.execute("SELECT * FROM students WHERE token=?", (token,)).fetchone()
+        if me is None:
+            return jsonify(error="세션이 만료되었습니다. 다시 로그인해 주세요"), 401
+        if me["class_code"] == new_cls and me["nickname"] == new_nick:
+            return jsonify(ok=True, nickname=new_nick, **{"class": new_cls})
+        other = c.execute(
+            "SELECT id, xp, data FROM students WHERE class_code=? AND nickname=? AND id<>?",
+            (new_cls, new_nick, me["id"]),
+        ).fetchone()
+        if other is not None:
+            # 다시 가입해 비어있는 중복 계정이면 자동 정리하고 이어받기
+            empty = (other["xp"] or 0) == 0 and (other["data"] or "{}") in ("{}", "")
+            if empty:
+                c.execute("DELETE FROM students WHERE id=?", (other["id"],))
+            else:
+                return jsonify(error="그 학교명에 같은 닉네임이 이미 있어요. 닉네임을 바꾸거나 선생님께 문의하세요"), 409
+        c.execute(
+            "UPDATE students SET class_code=?, nickname=?, updated=datetime('now','localtime') WHERE id=?",
+            (new_cls, new_nick, me["id"]),
+        )
+    return jsonify(ok=True, nickname=new_nick, **{"class": new_cls})
+
+
 @app.get("/api/daily")
 def daily_board():
     day = clean(request.args.get("day"), 10)
