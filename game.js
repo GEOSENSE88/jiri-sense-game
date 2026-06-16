@@ -1518,7 +1518,7 @@ function askLocation(loc){
     const descText = maskName(loc.desc || loc.fact, loc);
     const caption = loc.mascotName ? `〈마스코트 ‘${loc.mascotName}’〉` : '〈지자체 캐릭터〉';
     const imageHTML = imageForm
-      ? `<div class="mascot-clue"><img src="${escapeAttr(loc.image)}" alt="지자체 캐릭터 이미지" loading="eager"><div class="mascot-cap">${caption}</div></div>`
+      ? `<div class="mascot-clue"><img src="${escapeAttr(loc.image)}?v=2" alt="지자체 캐릭터 이미지" loading="eager"><div class="mascot-cap">${caption}</div></div>`
       : '';
     $('question-box').innerHTML=
       `<span class="q-region">${regionLabel(loc.region)}</span> ${imageForm?'다음 설명과 캐릭터에 해당하는 지역은? 백지도에서 콕!':'어느 지역일까? 백지도에서 콕! 찍어 보자'}`+
