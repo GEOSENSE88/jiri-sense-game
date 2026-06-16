@@ -32,6 +32,16 @@ KEEP_N = 100      # 모드별 보관 상한(무한 증가 방지)
 app = Flask(__name__)
 
 
+# CORS — GitHub Pages 등 다른 출처에서 호출 허용(토큰은 쿠키가 아닌 본문/쿼리 전달 → 와일드카드 안전)
+@app.after_request
+def add_cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Max-Age"] = "86400"
+    return resp
+
+
 def db():
     conn = sqlite3.connect(DB, timeout=5)
     conn.row_factory = sqlite3.Row
