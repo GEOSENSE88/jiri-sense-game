@@ -790,6 +790,9 @@ function initMapGestures(){
   const ptrs=new Map();
   let panStart=null, pinch0=null, moved=false;
   svg.addEventListener('pointerdown',e=>{
+    // 새 제스처(첫 손가락) 시작 시 상태 리셋 — 이전에 pointerup/cancel이 유실돼 남은 좀비 포인터로
+    // suppressTap이 true로 고착되어 탭이 먹통 되던 문제 방지(자가 복구)
+    if(e.isPrimary){ ptrs.clear(); suppressTap=false; moved=false; panStart=null; pinch0=null; }
     ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptrs.size===1){ panStart={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; moved=false; }
     else if(ptrs.size===2){
@@ -848,6 +851,15 @@ function initMapGestures(){
   };
   svg.addEventListener('pointerup',up);
   svg.addEventListener('pointercancel',up);
+  // 지도 밖에서 손가락을 떼면 svg pointerup이 안 와서 좀비 포인터가 남음 → window에서 정리
+  const winCleanup=e=>{
+    if(!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if(ptrs.size<2) pinch0=null;
+    if(ptrs.size===0){ panStart=null; suppressTap=false; }
+  };
+  window.addEventListener('pointerup',winCleanup);
+  window.addEventListener('pointercancel',winCleanup);
   svg.addEventListener('wheel',e=>{   // 데스크톱 휠 줌
     e.preventDefault();
     const p=svgPoint(e.clientX,e.clientY);
