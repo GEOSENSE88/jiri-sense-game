@@ -889,8 +889,12 @@ button { font-family:inherit; }
 .rcard-pop { margin-top:auto; z-index:1; display:flex; flex-direction:column; gap:calc(5px*var(--cs));
   background:linear-gradient(180deg, color-mix(in srgb,var(--regdeep,#3282B8) 24%, #10131b), #10131b);
   border:1px solid color-mix(in srgb,var(--regdeep,#3282B8) 42%, #000); border-radius:calc(10px*var(--cs)); padding:calc(6px*var(--cs)) calc(10px*var(--cs)); }
-.rcard-pop .pop-n { font-size:calc(.72rem*var(--cs)); font-weight:800; color:#fff; }
-.rcard-pop .rk { display:none; gap:calc(5px*var(--cs)); padding-top:calc(5px*var(--cs)); border-top:1px solid rgba(255,255,255,.1); }
+.poprow { display:flex; align-items:center; justify-content:space-between; }
+.poplabel { display:inline-flex; align-items:center; gap:calc(5px*var(--cs)); font-size:calc(.56rem*var(--cs)); font-weight:700; color:#cdd5e6; white-space:nowrap; }
+.popicon { width:calc(.82rem*var(--cs)); height:calc(.82rem*var(--cs)); color:#f0c249; filter:drop-shadow(0 0 3px rgba(255,200,80,.45)); flex:0 0 auto; }
+.rcard-pop .pop-n { font-size:calc(.92rem*var(--cs)); font-weight:800; color:#fff; line-height:1; letter-spacing:-.5px; white-space:nowrap; }
+.rcard-pop .pop-n small { font-size:.52em; font-weight:600; color:#aab2c4; margin-left:2px; }
+.rcard-pop .rk { display:none; gap:calc(5px*var(--cs)); padding-top:calc(6px*var(--cs)); border-top:1px solid rgba(255,255,255,.1); }
 .rcard-pop .rk-nat, .rcard-pop .rk-reg { flex:1; text-align:center; white-space:nowrap; font-size:calc(.46rem*var(--cs)); font-weight:700; border-radius:5px; padding:calc(2px*var(--cs)) calc(3px*var(--cs)); }
 .rcard-pop .rk-nat { color:#ffe1a0; background:rgba(240,181,61,.16); border:1px solid rgba(240,181,61,.34); }
 .rcard-pop .rk-reg { color:#cdd5e6; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }
@@ -923,6 +927,9 @@ button { font-family:inherit; }
 .gcard-front .rcard-pop .rk { display:flex; }
 .cards-grid .rcard:not(.locked) .rcard-meaning { display:none; }
 .cards-grid .rcard .enh-stg, .cards-grid .rcard .enh-max { display:none; }
+/* 작은 타일: 인구는 숫자만 가운데 (라벨 숨김) */
+.cards-grid .rcard .poplabel, .gm-cell .poplabel { display:none; }
+.cards-grid .rcard .poprow, .gm-cell .poprow { justify-content:center; }
 
 /* 정복 지도 */
 .conquest-wrap {

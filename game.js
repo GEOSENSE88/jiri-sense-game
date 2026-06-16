@@ -2655,12 +2655,14 @@ function fmtPop(p){
   if(p>=1e5) return Math.round(p/1e4)+'만';
   return (p/1e4).toFixed(1)+'만';
 }
+// 인구 라벨 아이콘 — 기기별로 은색 뜨는 이모지 대신 금색 인물(users) SVG
+const POP_ICON='<svg class="popicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg>';
 function cardHTML(loc, owned, count){
   const mu=loc.accept[0];
   const m=MUNIS[mu]||{};
   const rc=REGION_COLORS[loc.region]||REGION_COLORS['수도권'];
-  // 첫 의미 단위: 쉼표·문장(마침표+공백)으로 분리. '6·25' 등 가운뎃점은 보호
-  const meaning=(loc.fact||'').split(/,|\.\s/)[0].trim();
+  // 카드 설명: 첫 문장(마침표+공백 기준). 괄호 안 쉼표에서 잘리지 않도록 쉼표로는 분리하지 않음
+  const meaning=(loc.fact||'').split(/\.\s/)[0].trim();
   if(!owned){
     return `<div class="rcard locked">
       <div class="art-window svgart"><div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div></div>
@@ -2683,10 +2685,12 @@ function cardHTML(loc, owned, count){
   // 특성 뱃지 (일러스트 하단 오버레이, 상세에서만 표시)
   const badges=factBadges(loc).badges;
   const badgeOverlay = badges.length ? `<div class="artbadges">${badges.map(b=>`<span class="cbadge ${b.cls}">${b.t}</span>`).join('')}</div>` : '';
-  // 인구 + 전국/권역 순위
+  // 인구 + 전국/권역 순위 (시안: 금색 인물 아이콘 + '인구' 라벨 좌측, 큰 숫자 우측)
   const r=m.pop?popRank(mu):null;
-  const popBlock = m.pop ? `<div class="rcard-pop"><span class="pop-n">👤 ${fmtPop(m.pop)}</span>`+
-    (r?`<span class="rk"><span class="rk-nat">전국 ${r.nat}위</span><span class="rk-reg">${regionLabel(loc.region)} ${r.reg}위</span></span>`:'')+`</div>` : '';
+  const popBlock = m.pop ? `<div class="rcard-pop">`+
+    `<div class="poprow"><span class="poplabel">${POP_ICON}인구</span><span class="pop-n">${fmtPop(m.pop)}<small>명</small></span></div>`+
+    (r?`<div class="rk"><span class="rk-nat">전국 ${r.nat}위</span><span class="rk-reg">${regionLabel(loc.region)} ${r.reg}위</span></div>`:'')+
+    `</div>` : '';
   const provShort=PROV_SHORT[m.prov]||'';
   const provBadge = provShort ? `<span class="provbadge">${provShort}</span>` : '';
   return `<div class="rcard tier${lv}" style="--regbg:${rc.bg};--regdeep:${rc.deep}">
