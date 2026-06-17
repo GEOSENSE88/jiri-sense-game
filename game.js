@@ -3025,10 +3025,14 @@ function acidThemes(){
   const popOf=l=>(MUNIS[l.accept&&l.accept[0]]||{}).pop||0;
   const isCity=l=>{ const mu=l.accept&&l.accept[0]; if(!mu) return false; const b=mu.replace(/\(.+\)$/,'').replace(/(특별자치시|특별자치도|특별시|광역시|시|군)$/,''); return baseName(l)===b||baseName(l)===mu.replace(/\(.+\)$/,''); };
   const CITY=LOCATIONS.filter(isCity);   // 지점(한라산·군위 등) 제외, 실제 시·군만
-  const CAR=['울산','아산','화성','광주','군산','평택','창원'];      // 자동차
-  const ELEC=['수원','이천','청주','구미','파주','아산','평택'];     // 전자·반도체
-  const STEEL=['포항','광양','당진'];                                // 제철
-  const CHEM=['울산','여수','서산'];                                 // 석유화학
+  // ── 수능특강·수능완성 [제조업] 파트 기준 공업 도시 (지역별 종합정리 산업·공업) ──
+  const CAR  =['평택','화성','아산','광주광역시','울산','대구'];        // 자동차(부품 포함)
+  const ELEC =['수원','이천','용인','평택','아산','파주','구미'];        // 전자·반도체·디스플레이
+  const STEEL=['포항','광양','당진'];                                   // 제철(1차 금속)
+  const CHEM =['울산','여수','서산'];                                   // 석유 화학
+  const SHIP =['울산','거제','영암'];                                   // 조선
+  const CEMENT=['동해','삼척','단양','제천'];                           // 시멘트(석회암 산지)
+  const MACH =['창원','천안','대구'];                                   // 기계
   const mk=(label,test)=>{ const members=CITY.filter(test); return {label, members, set:new Set(members.map(l=>l.name))}; };
   ACID_THEMES={ pool:CITY, themes:[
     mk('🏙️ 수도권 도시', l=>l.region==='수도권'),
@@ -3041,7 +3045,10 @@ function acidThemes(){
     mk('💻 전자·반도체 도시', l=>ELEC.includes(baseName(l))),
     mk('🏭 제철 공업 도시', l=>STEEL.includes(baseName(l))),
     mk('🛢️ 석유 화학 도시', l=>CHEM.includes(baseName(l))),
-  ].filter(t=>t.members.length>=4 && t.members.length<=CITY.length*0.7) };
+    mk('🚢 조선 공업 도시', l=>SHIP.includes(baseName(l))),
+    mk('🧱 시멘트 공업 도시', l=>CEMENT.includes(baseName(l))),
+    mk('⚙️ 기계 공업 도시', l=>MACH.includes(baseName(l))),
+  ].filter(t=>t.members.length>=3 && t.members.length<=CITY.length*0.7) };
   return ACID_THEMES;
 }
 function startAcidRain(){
