@@ -3243,7 +3243,9 @@ function startRunner(){
     let ti=ctx.createLinearGradient(0,hz,0,H); ti.addColorStop(0,'rgba(79,172,67,.10)'); ti.addColorStop(1,'rgba(69,150,55,.30)'); st.gTint=ti;
     let sk=ctx.createLinearGradient(0,0,0,hz+20); sk.addColorStop(0,'#4FA8EE'); sk.addColorStop(1,'#CFEBFF'); st.gSky=sk;
     let gs=ctx.createLinearGradient(0,hz,0,H); gs.addColorStop(0,'#5FB544'); gs.addColorStop(1,'#92D85C'); st.gGrass=gs; };
-  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.max(1,Math.round(r.width)); st.H=cv.height=Math.max(1,Math.round(r.height)); st.hz=Math.round(st.H*0.33); st.bgCache=[]; buildGrads(); };
+  const resize=()=>{ const r=stage.getBoundingClientRect(); const W=Math.max(1,Math.round(r.width)), H=Math.max(1,Math.round(r.height));
+    if(W===st.W && H===st.H) return;          // 크기 변화 없으면 무시(모바일 주소창 등으로 잦은 resize 시 캔버스·캐시 재생성 방지)
+    st.W=cv.width=W; st.H=cv.height=H; st.hz=Math.round(H*0.33); st.bgCache=[]; buildGrads(); };
   resize(); window.addEventListener('resize', resize); G.arcade.cleanup=()=>window.removeEventListener('resize',resize);
   // ── 3D 원근 투영 ──
   const roadHalf=t=>{ const top=st.W*0.05, bot=st.W*0.47; return top+(bot-top)*t*t; };
@@ -3286,8 +3288,8 @@ function startRunner(){
     st.scroll=(st.scroll+sp*dt)%1; st.anim+=dt;
     if(st.invuln>0) st.invuln-=dt;
     if(st.bump) st.bump*=Math.max(0,1-dt*6);
-    // 플레이어 차선 보간(부드럽게)
-    st.leanX += ((st.lane-1)-st.leanX)*Math.min(1,dt*9);
+    // 플레이어 차선 보간(즉각적이되 부드럽게)
+    st.leanX += ((st.lane-1)-st.leanX)*Math.min(1,dt*16);
     // 스폰
     if(!st.gate) st.gateTimer-=dt;
     st.spawnAcc+=dt;
@@ -3297,7 +3299,8 @@ function startRunner(){
     // 진행
     for(const it of st.items){ it.t+=sp*dt; }
     for(const it of st.items){ if(it.dead) continue;
-      if(it.t>0.86 && it.t<1.03 && it.lane===st.lane && st.invuln<=0){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
+      // 충돌은 캐릭터가 '보이는 위치'(leanX) 기준 — 차선 이동 중 판정이 화면과 어긋나지 않게
+      if(it.t>0.88 && it.t<1.0 && st.invuln<=0 && Math.abs(st.leanX-(it.lane-1))<0.5){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
     st.items=st.items.filter(it=>!it.dead && it.t<1.12);
     // 갈림길(게이트) — 오답도 하트를 깎아 5번 실수하면 종료
     if(st.gate){ st.gate.t+=sp*GATE_SPEED*dt;
@@ -3482,9 +3485,11 @@ function startRunner(){
     const W=st.W,H=st.H,hz=st.hz; ctx.clearRect(0,0,W,H);
     const bgSeg=820, bgCp=(st.dist%bgSeg)/bgSeg, bgCur=Math.floor(st.dist/bgSeg)%RUNNER_SCENES.length, bgNxt=(bgCur+1)%RUNNER_SCENES.length;
     const bgFade = bgCp>0.86 ? (bgCp-0.86)/0.14 : 0;
-    const bgCurReady = drawCoverImage(bgCur,1-bgFade);
-    const bgNxtReady = bgFade>0 ? drawCoverImage(bgNxt,bgFade) : false;
-    const imageSceneReady = bgCurReady || bgNxtReady;
+    // 현재 장면을 항상 '불투명 베이스'로 깔고, 다음 장면을 위에 페이드 인
+    // (반투명 두 장을 겹치면 검은 배경이 비쳐 전환 때 화면이 번쩍/깨져 보임)
+    let imageSceneReady = drawCoverImage(bgCur,1);
+    if(!imageSceneReady) imageSceneReady = drawCoverImage(bgNxt,1);
+    else if(bgFade>0) drawCoverImage(bgNxt,bgFade);
     if(imageSceneReady){
       ctx.fillStyle=st.gTint; ctx.fillRect(0,hz,W,H-hz);
       drawSceneLabel(RUNNER_SCENES[bgFade<0.5?bgCur:bgNxt].label,1);
@@ -3553,6 +3558,9 @@ function startRunner(){
     // 캐릭터
     drawChar();
   };
+  // 배경 오프스크린 미리 굽기(장면 전환 때 첫 프레임 끊김 방지) — 로드된 건 즉시, 나머지는 로드되면
+  runBgImgs.forEach((img,i)=>{ const warm=()=>{ if(st.bgCache) st.bgCache[i]=null; if(st.W) bgCanvas(i); };
+    if(img.complete && img.naturalWidth) warm(); else img.addEventListener('load', warm); });
   G.arcade.raf=requestAnimationFrame(loop);
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
