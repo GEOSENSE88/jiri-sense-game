@@ -3103,10 +3103,15 @@ function startAcidRain(){
   const field=$('acid-field');
   const {themes, pool}=acidThemes();
   // ⚠️ score·combo 반드시 0으로 초기화(미초기화 시 undefined+N=NaN → 점수 NaN·코인 NaN 전파)
-  const st={score:0, combo:0, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.2, fall:50, last:0, over:false, sinceTheme:0, transition:0, idc:0};
+  const st={score:0, combo:0, time:60.0, cards:[], theme:null, themeQueue:[], decoys:[], doneAt:null, spawnAcc:0, spawnGap:1.2, fall:50, last:0, over:false, sinceTheme:0, transition:0, idc:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{ st.cards.forEach(c=>c.el&&c.el.remove()); }};
   const setScore=()=>{ $('acid-score').textContent=st.score; };
   const setCombo=()=>{ $('acid-combo').textContent=st.combo; };
+  const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  const setThemeProgress=()=>{
+    const next=$('acid-next'); if(!next) return;
+    next.textContent=st.transition>0 ? '새 주제 준비 중' : '남은 정답 지역 '+Math.max(0,st.themeQueue.length)+'개';
+  };
   const themeScene=(label)=>{
     if(/수도권|광역시|인구|특례|도청|혁신|기업/.test(label)) return 'city';
     if(/자동차|전자|반도체|제철|석유|화학|조선|시멘트|기계|산업/.test(label)) return 'industry';
@@ -3125,11 +3130,15 @@ function startAcidRain(){
   const newTheme=()=>{
     let t; do{ t=themes[Math.floor(Math.random()*themes.length)]; }while(themes.length>1 && t===st.theme);
     st.theme=t; st.sinceTheme=0;
+    st.themeQueue=shuffle(t.members.slice());
+    st.decoys=pool.filter(l=>!t.set.has(l.name));
+    if(!st.decoys.length) st.decoys=pool.slice();
+    st.doneAt=null;
     st.transition=1.35;
     st.spawnAcc=0;
     st.cards.forEach(c=>{ c.dead=true; c.el&&c.el.remove(); });
     st.cards=[];
-    const el=$('acid-theme'); el.innerHTML='<small id="acid-next">주제 변경까지 12초</small><span>주제</span> <b>'+t.label+'</b>';
+    const el=$('acid-theme'); el.innerHTML='<small id="acid-next"></small><span>주제</span> <b>'+t.label+'</b>';
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
     const scene=themeScene(t.label);
     field.className='acid-field scene-'+scene+' changing';
@@ -3137,11 +3146,20 @@ function startAcidRain(){
     // 날씨 모션: 주제가 바뀌면 배경·하늘이 확 바뀌어 기준 변경을 눈으로 확인
     const sky=$('acid-sky'); if(sky){ sky.classList.add('cloudy'); G.arcade.timers.push(setTimeout(()=>sky.classList.remove('cloudy'),1200)); }
     themeNotice(t.label);
+    setThemeProgress();
   };
   const spawn=()=>{
-    const useMember = Math.random()<0.5 && st.theme.members.length>0;
-    const src = useMember ? st.theme.members : pool;
-    const l = src[Math.floor(Math.random()*src.length)];
+    const mustFinish = st.themeQueue.length>0;
+    const useMember = mustFinish && (Math.random()<0.72 || st.sinceTheme>8);
+    let l;
+    if(useMember){
+      l=st.themeQueue.shift();
+      if(st.themeQueue.length===0) st.doneAt=st.sinceTheme;
+      setThemeProgress();
+    } else {
+      const src=st.decoys.length ? st.decoys : pool;
+      l=src[Math.floor(Math.random()*src.length)];
+    }
     const w=84; const x=Math.random()*(Math.max(60,field.clientWidth-w));
     const el=document.createElement('button');
     el.className='acid-card';
@@ -3167,7 +3185,7 @@ function startAcidRain(){
     let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
     if(st.transition>0){
       st.transition=Math.max(0,st.transition-dt);
-      const next=$('acid-next'); if(next) next.textContent='새 주제 준비 중';
+      setThemeProgress();
       if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
       return;
     }
@@ -3176,8 +3194,13 @@ function startAcidRain(){
     // 난이도 완만 상승(하트 없음 — 60초 점수 누적)
     const prog=Math.min(1,(60-st.time)/55);
     const fall=st.fall+prog*45, gap=st.spawnGap-prog*0.3;
-    st.sinceTheme+=dt; if(st.sinceTheme>=12) newTheme();
-    const next=$('acid-next'); if(next) next.textContent='주제 변경까지 '+Math.max(0,Math.ceil(12-st.sinceTheme))+'초';
+    st.sinceTheme+=dt;
+    if(st.doneAt!==null && st.sinceTheme-st.doneAt>=1.4){
+      newTheme();
+      if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
+      return;
+    }
+    setThemeProgress();
     st.spawnAcc+=dt; if(st.spawnAcc>=gap){ st.spawnAcc=0; spawn(); }
     const H=field.clientHeight;
     for(const c of st.cards){
@@ -3234,9 +3257,9 @@ function startRunner(){
     {label:'제주 화산섬', src:'runner-bg/runner-bg-jeju-v2.jpg'},
     {label:'경주 역사길', src:'runner-bg/runner-bg-gyeongju-v2.jpg'}
   ];
-  const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.src=s.src; return img; });
+  const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.decoding='async'; img.src=s.src; return img; });
   const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
-            gate:null, gateTimer:4.5, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
+            gate:null, gateTimer:4.5, gatePrep:0, gatePending:false, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
   // 정적 그라데이션은 resize 때 1회만 생성(매 프레임 createGradient 방지)
   const buildGrads=()=>{ const W=st.W,H=st.H,hz=st.hz,rh1=W*0.47;
@@ -3270,8 +3293,9 @@ function startRunner(){
   const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); btnL.removeEventListener('pointerdown',onL); btnR.removeEventListener('pointerdown',onR); };
   const finish=()=>{ if(st.over)return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
   const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, t:0}); };
+  const startGatePrep=()=>{ if(st.gatePending||st.gate) return; st.gatePending=true; st.gatePrep=1.25; banner('갈림길 준비!',true); };
   const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
-    st.items=[];                                   // 갈림길 앞은 깨끗하게(장애물 제거 → 답 고르기 공정)
+    st.gatePending=false; st.gatePrep=0; st.items=[];        // 준비 구간 뒤 남은 장애물만 정리
     const okLane = q.a[0].ok ? 0 : 2; const badLane = okLane===0?2:0;
     const okName=q.a.find(a=>a.ok).name, badName=q.a.find(a=>!a.ok).name;
     st.gate={t:0, q, okLane, badLane, passed:false, okName, badName};
@@ -3295,11 +3319,15 @@ function startRunner(){
     // 플레이어 차선 보간(즉각적이되 부드럽게)
     st.leanX += ((st.lane-1)-st.leanX)*Math.min(1,dt*16);
     // 스폰
-    if(!st.gate) st.gateTimer-=dt;
+    if(!st.gate && !st.gatePending) st.gateTimer-=dt;
+    if(!st.gate && !st.gatePending && st.gateTimer<=0) startGatePrep();
+    if(st.gatePending){
+      st.gatePrep=Math.max(0,st.gatePrep-dt);
+      if(st.gatePrep<=0 && st.items.length===0){ spawnGate(); st.gateTimer=7+Math.random()*3; }
+    }
     st.spawnAcc+=dt;
-    if(!st.gate && st.spawnAcc>1.25){ st.spawnAcc=0;
-      if(st.gateTimer<=0){ spawnGate(); st.gateTimer=7+Math.random()*3; }
-      else if(Math.random()<0.65) spawnObstacle(); }
+    if(!st.gate && !st.gatePending && st.spawnAcc>1.25){ st.spawnAcc=0;
+      if(Math.random()<0.65) spawnObstacle(); }
     // 진행
     for(const it of st.items){ it.t+=sp*dt; }
     for(const it of st.items){ if(it.dead) continue;
@@ -3417,16 +3445,13 @@ function startRunner(){
   const bgCanvas=(idx)=>{ const img=runBgImgs[idx]; if(!img||!img.complete||!img.naturalWidth) return null;
     if(!st.bgCache) st.bgCache=[];
     if(st.bgCache[idx]) return st.bgCache[idx];
-    const oc=document.createElement('canvas'); oc.width=Math.ceil(st.W*1.12); oc.height=Math.ceil(st.H*1.12);
+    const oc=document.createElement('canvas'); oc.width=st.W; oc.height=st.H;
     const o=oc.getContext('2d'); const iw=img.naturalWidth, ih=img.naturalHeight, sc=Math.max(oc.width/iw,oc.height/ih), sw=oc.width/sc, sh=oc.height/sc;
     o.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,oc.width,oc.height);
     st.bgCache[idx]=oc; return oc; };
   const drawCoverImage=(idx,alpha)=>{ const oc=bgCanvas(idx); if(!oc) return false;
-    const maxX=Math.max(0,oc.width-st.W), maxY=Math.max(0,oc.height-st.H);
-    const ox=maxX*(0.5+Math.sin(st.dist*0.00125)*0.34);
-    const oy=maxY*(0.5+Math.sin(st.dist*0.0017)*0.30);
-    if(alpha>=1){ ctx.drawImage(oc,ox,oy,st.W,st.H,0,0,st.W,st.H); }
-    else { ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(oc,ox,oy,st.W,st.H,0,0,st.W,st.H); ctx.restore(); }
+    if(alpha>=1){ ctx.drawImage(oc,0,0); }
+    else { ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(oc,0,0); ctx.restore(); }
     return true; };
   const drawSceneLabel=(label,alpha)=>{
     if(alpha<=0) return; const W=st.W,k=Math.max(0.7,W/440);
@@ -3493,6 +3518,7 @@ function startRunner(){
     const W=st.W,H=st.H,hz=st.hz; ctx.clearRect(0,0,W,H);
     const bgSeg=820, bgCp=(st.dist%bgSeg)/bgSeg, bgCur=Math.floor(st.dist/bgSeg)%RUNNER_SCENES.length, bgNxt=(bgCur+1)%RUNNER_SCENES.length;
     const bgFade = bgCp>0.86 ? (bgCp-0.86)/0.14 : 0;
+    if(st.W && !st.bgCache?.[bgNxt]) bgCanvas(bgNxt);
     // 현재 장면을 항상 '불투명 베이스'로 깔고, 다음 장면을 위에 페이드 인
     // (반투명 두 장을 겹치면 검은 배경이 비쳐 전환 때 화면이 번쩍/깨져 보임)
     let imageSceneReady = drawCoverImage(bgCur,1);
