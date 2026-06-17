@@ -3245,9 +3245,12 @@ function startRunner(){
     let sk=ctx.createLinearGradient(0,0,0,hz+20); sk.addColorStop(0,'#4FA8EE'); sk.addColorStop(1,'#CFEBFF'); st.gSky=sk;
     let gs=ctx.createLinearGradient(0,hz,0,H); gs.addColorStop(0,'#5FB544'); gs.addColorStop(1,'#92D85C'); st.gGrass=gs; };
   const resize=()=>{ const r=stage.getBoundingClientRect(); const W=Math.max(1,Math.round(r.width)), H=Math.max(1,Math.round(r.height));
-    if(W===st.W && H===st.H) return;          // 크기 변화 없으면 무시(모바일 주소창 등으로 잦은 resize 시 캔버스·캐시 재생성 방지)
+    if(W===st.W && Math.abs(H-(st.H||0))<=8) return;   // 너비 동일 + 높이 미세변동(모바일 주소창 등)은 무시 → 캔버스·캐시 재생성 안 함
     st.W=cv.width=W; st.H=cv.height=H; st.hz=Math.round(H*0.33); st.bgCache=[]; buildGrads(); };
-  resize(); window.addEventListener('resize', resize); G.arcade.cleanup=()=>window.removeEventListener('resize',resize);
+  resize();
+  let rzT=0; const onResize=()=>{ clearTimeout(rzT); rzT=setTimeout(resize, 220); };   // 디바운스: 리사이즈 폭주 시 끝난 뒤 1회만 처리
+  window.addEventListener('resize', onResize);
+  G.arcade.cleanup=()=>{ window.removeEventListener('resize',onResize); clearTimeout(rzT); };
   // ── 3D 원근 투영 ──
   const roadHalf=t=>{ const top=st.W*0.05, bot=st.W*0.47; return top+(bot-top)*t*t; };
   const projY=t=> st.hz + (st.H-st.hz)*t*t;

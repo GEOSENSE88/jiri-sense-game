@@ -1004,7 +1004,8 @@ button { font-family:inherit; }
    아케이드 모드 (🌧️ 지역 산성비 / 🏃 지리 러너)
    ============================================================ */
 .arcade-pane{ display:flex; flex-direction:column; gap:8px; width:100%; max-width:640px;
-  margin:0 auto; padding:8px 12px 14px; min-height:calc(100dvh - 96px); }
+  margin:0 auto; padding:8px 12px 14px;
+  min-height:calc(100vh - 96px); min-height:calc(100svh - 96px); }   /* svh: 모바일 주소창 토글에도 높이 불변(리사이즈 끊김 방지) */
 .arcade-pane.hidden{ display:none; }
 
 /* 공통 HUD */
@@ -1198,7 +1199,7 @@ button { font-family:inherit; }
   .run-hud .acid-lives{ min-width:104px; }
 }
 @media (orientation:landscape) and (min-width:760px) and (max-height:900px){
-  .arcade-pane.runner-pane{ max-width:min(520px, 48vw); min-height:calc(100dvh - 74px); padding-top:6px; }
+  .arcade-pane.runner-pane{ max-width:min(520px, 48vw); min-height:calc(100vh - 74px); min-height:calc(100svh - 74px); padding-top:6px; }
   .runner-pane .run-stage{ min-height:0; aspect-ratio:9 / 13.5; flex:0 1 auto; }
   .runner-pane .run-hud{ padding:6px 8px; }
   .runner-pane .run-btn{ min-height:52px; }
