@@ -24,7 +24,7 @@ DB = os.path.join(BASE, "scores.db")
 # 프런트의 MODE_INFO 키와 일치
 ALLOWED_MODES = {
     "explore", "location", "theme", "bingo", "streak", "muniname", "detective",
-    "climate", "stats", "mcq", "ox", "battle",
+    "climate", "stats", "mcq", "ox", "battle", "acidrain", "runner",
 }
 TOP_N = 10        # 응답으로 돌려주는 상위 개수
 KEEP_N = 100      # 모드별 보관 상한(무한 증가 방지)

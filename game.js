@@ -181,8 +181,10 @@ const MODE_INFO = {
   bingo:    {title:'🧩 빙고 게임', useMap:false, n:25, time:22},
   streak:   {title:'🔥 연승 모드', useMap:true, time:0},
   daily:    {title:'🔁 오늘의 도전', useMap:true, n:10, time:26},
+  acidrain: {title:'🌧️ 지역 산성비', useMap:false, time:60},
+  runner:   {title:'🏃 지리 러너', useMap:false, time:0},
 };
-const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE',streak:'#E8590C',daily:'#0CA678'};
+const MODE_COLOR={location:'#1278C2',muniname:'#2FA34F',detective:'#6A5ACD',climate:'#E8740C',stats:'#1B4F8F',mcq:'#0F9D8C',ox:'#0FA958',battle:'#E2574C',wanted:'#C2410C',boss:'#B5342A',theme:'#D6336C',bingo:'#8A4FBE',streak:'#E8590C',daily:'#0CA678',acidrain:'#5B8DEF',runner:'#16A34A'};
 // 🏷️ 테마 게임: 테마를 고른 뒤 그 테마의 지역만 백지도에서 맞히는 퀴즈
 let THEMES_CACHE=null;
 function buildThemes(){
@@ -401,7 +403,7 @@ function sampleLocQueue(items, n){
 // 홈 화면
 // ============================================================
 // 명예의 전당 렌더 — 항목(모드)별 섹션 + 상위 3명. 서버 공유 랭킹(serverBoard) 우선, 없으면 로컬(board)
-const BOARD_MODES=['location','streak','theme','bingo','muniname','detective','climate','stats','mcq','ox','battle'];
+const BOARD_MODES=['location','acidrain','runner','streak','theme','bingo','muniname','detective','climate','stats','mcq','ox','battle'];
 function renderHomeBoard(){
   const hb=$('home-board'); if(!hb) return;
   const src = serverBoard || board;
@@ -668,7 +670,7 @@ function renderWanted(){
   $('btn-wanted-review').onclick=()=>{ G.region='전체'; startGame('wanted'); };
 }
 
-const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!',bingo:'빙고 도전!',streak:'연승 도전!'};
+const MODE_CTA={location:'사냥 시작!',theme:'테마 찾기!',muniname:'판독 시작!',detective:'추리 시작!',climate:'분석 도전!',stats:'비교 도전!',mcq:'퀴즈 시작!',ox:'스피드 OX!',battle:'대결 시작!',bingo:'빙고 도전!',streak:'연승 도전!',acidrain:'산성비 막기!',runner:'달리기 시작!'};
 document.querySelectorAll('.mode-card').forEach(c=>{
   c.onclick=()=> c.dataset.mode==='theme' ? openThemeModal() : startGame(c.dataset.mode);
   const p=c.querySelector('.mode-play'); if(p&&MODE_CTA[c.dataset.mode]) p.textContent=MODE_CTA[c.dataset.mode]+' ▶';
@@ -1132,7 +1134,7 @@ function startGame(mode, opt){
   if(mode==='boss'){ G.bossRegion=opt; G.region=opt; }
   if(!svgBuilt){ buildMap(); initMapGestures(); }
   clearMapExtras(); resetView();
-  stopTimer(); clearMapTap();
+  stopArcade(); stopTimer(); clearMapTap();
   { const ms=$('map-svg'); if(ms) ms.onclick=null; }   // 탐색 모드 등 이전 클릭 핸들러 잔류 방지
   { const tip=$('warmup-tip'); if(tip) tip.classList.add('hidden'); }
   { const bb=$('boss-bar'); if(bb) bb.classList.toggle('hidden', mode!=='boss'); }
@@ -1149,6 +1151,8 @@ function startGame(mode, opt){
   $('feedback-box').classList.add('hidden');
 
   if(mode==='explore') return startExplore();
+  if(mode==='acidrain') return startAcidRain();
+  if(mode==='runner') return startRunner();
 
   if(mode==='ox'){
     G.queue=shuffle(pool('ox'));
@@ -2023,6 +2027,7 @@ function askClimate(item){
 // ----- 2지역 비교 공통: 진술형 보기 생성 ("A는 B보다 ~") -----
 function cmpWord(key, meta){
   if(key==='range'||key==='popGrow') return '크다';
+  if(key==='agingIdx'||key==='tfr') return '높다';
   if(meta.unit==='℃'||meta.unit==='%') return '높다';
   return '많다';
 }
@@ -2984,7 +2989,252 @@ function streakComment(n){
   return '한 문제에 끝! 다시 도전해서 연승을 쌓아 보세요 🌱';
 }
 
+// ============================================================
+// 🎮 아케이드 모드 공통 (산성비 / 러너) — 표준 문제 레이아웃 대신 전용 화면 사용
+// ============================================================
+function enterArcade(title, color){
+  show('screen-game');
+  $('screen-game').style.setProperty('--mode-c', color||'#1278C2');
+  $('game-title').textContent=title;
+  $('turn-indicator').classList.add('hidden');
+  $('boss-bar').classList.add('hidden');
+  $('warmup-tip').classList.add('hidden');
+  $('timer-bar-wrap').style.display='none';
+  $('game-body').style.display='none';
+  ['hud-qnum','hud-combo','hud-score'].forEach(id=>{ const e=$(id); if(e&&e.parentElement) e.parentElement.style.visibility='hidden'; });
+  const ap=$('arcade-pane'); ap.classList.remove('hidden'); ap.innerHTML=''; return ap;
+}
+function stopArcade(){
+  if(G.arcade){
+    if(G.arcade.raf) cancelAnimationFrame(G.arcade.raf);
+    (G.arcade.timers||[]).forEach(t=>clearTimeout(t));
+    if(G.arcade.cleanup) try{ G.arcade.cleanup(); }catch(e){}
+    G.arcade=null;
+  }
+  const ap=$('arcade-pane'); if(ap){ ap.classList.add('hidden'); ap.innerHTML=''; }
+  const tw=$('timer-bar-wrap'); if(tw) tw.style.display='';
+  const gb=$('game-body'); if(gb) gb.style.display='';
+  ['hud-qnum','hud-combo','hud-score'].forEach(id=>{ const e=$(id); if(e&&e.parentElement) e.parentElement.style.visibility=''; });
+}
+
+// ---------- 🌧️ 지역 산성비 ----------
+let ACID_THEMES=null;
+function acidThemes(){
+  if(ACID_THEMES) return ACID_THEMES;
+  const baseName=l=>(l.name||'').replace(/\(.+\)$/,'');
+  const popOf=l=>(MUNIS[l.accept&&l.accept[0]]||{}).pop||0;
+  const isCity=l=>{ const mu=l.accept&&l.accept[0]; if(!mu) return false; const b=mu.replace(/\(.+\)$/,'').replace(/(특별자치시|특별자치도|특별시|광역시|시|군)$/,''); return baseName(l)===b||baseName(l)===mu.replace(/\(.+\)$/,''); };
+  const CITY=LOCATIONS.filter(isCity);   // 지점(한라산·군위 등) 제외, 실제 시·군만
+  const CAR=['울산','아산','화성','광주','군산','평택','창원'];      // 자동차
+  const ELEC=['수원','이천','청주','구미','파주','아산','평택'];     // 전자·반도체
+  const STEEL=['포항','광양','당진'];                                // 제철
+  const CHEM=['울산','여수','서산'];                                 // 석유화학
+  const mk=(label,test)=>{ const members=CITY.filter(test); return {label, members, set:new Set(members.map(l=>l.name))}; };
+  ACID_THEMES={ pool:CITY, themes:[
+    mk('🏙️ 수도권 도시', l=>l.region==='수도권'),
+    mk('🏛️ 도청 소재지', l=>/도청/.test(l.fact||'')),
+    mk('🏢 혁신·기업도시', l=>/혁신도시|기업도시/.test(l.fact||'')),
+    mk('🏯 유네스코 세계유산', l=>UNESCO_CITY.includes(baseName(l))),
+    mk('👥 인구 100만 이상 도시', l=>popOf(l)>=1000000),
+    mk('⭐ 특례시', l=>TEUKRYE.includes(baseName(l))),
+    mk('🚗 자동차 공업 도시', l=>CAR.includes(baseName(l))),
+    mk('💻 전자·반도체 도시', l=>ELEC.includes(baseName(l))),
+    mk('🏭 제철 공업 도시', l=>STEEL.includes(baseName(l))),
+    mk('🛢️ 석유 화학 도시', l=>CHEM.includes(baseName(l))),
+  ].filter(t=>t.members.length>=4 && t.members.length<=CITY.length*0.7) };
+  return ACID_THEMES;
+}
+function startAcidRain(){
+  G.mode='acidrain'; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.idx=0;
+  const ap=enterArcade('🌧️ 지역 산성비','#5B8DEF');
+  ap.innerHTML=
+    '<div class="acid-hud">'+
+      '<div class="acid-theme" id="acid-theme"></div>'+
+      '<div class="acid-stat"><span id="acid-lives" class="acid-lives"></span>'+
+        '<span class="acid-chip">⭐ <b id="acid-score">0</b></span>'+
+        '<span class="acid-chip">⏱️ <b id="acid-time">60</b></span></div>'+
+    '</div>'+
+    '<div class="acid-field" id="acid-field"></div>'+
+    '<div class="acid-tip">주제에 <b>맞는</b> 지역만 콕! · 맞는 걸 놓치거나 틀린 걸 누르면 ❤️ 감소</div>';
+  const field=$('acid-field');
+  const {themes, pool}=acidThemes();
+  const st={lives:3, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:0.95, fall:90, last:0, started:0, over:false, sinceTheme:0, idc:0};
+  G.arcade={raf:0, timers:[], cleanup:()=>{ st.cards.forEach(c=>c.el&&c.el.remove()); }};
+  const newTheme=()=>{
+    let t; do{ t=themes[Math.floor(Math.random()*themes.length)]; }while(themes.length>1 && t===st.theme);
+    st.theme=t; st.sinceTheme=0;
+    const el=$('acid-theme'); el.innerHTML='주제 <b>'+t.label+'</b>';
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  };
+  const lives=()=>{ $('acid-lives').textContent='❤️'.repeat(st.lives)+'🤍'.repeat(Math.max(0,3-st.lives)); };
+  const hit=ok=>{ if(ok){ st.lives=Math.min(3,st.lives); } else { st.lives--; field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); } lives(); if(st.lives<=0) finish(); };
+  const spawn=()=>{
+    const useMember = Math.random()<0.5 && st.theme.members.length>0;
+    const src = useMember ? st.theme.members : pool;
+    const l = src[Math.floor(Math.random()*src.length)];
+    const isMatch = st.theme.set.has(l.name);
+    const w=84; const x=Math.random()*(Math.max(60,field.clientWidth-w));
+    const el=document.createElement('button');
+    el.className='acid-card'+(isMatch?' is-match':'');
+    el.textContent=l.name;
+    el.style.left=x+'px'; el.style.top='-46px';
+    const card={el, x, y:-46, match:isMatch, dead:false, id:st.idc++};
+    el.onclick=(e)=>{ e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
+      if(card.match){ const add=Math.round(12+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; $('acid-score').textContent=st.score; el.classList.add('pop-ok'); popText(el,'+'+add,true); }
+      else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-8); $('acid-score').textContent=st.score; el.classList.add('pop-bad'); popText(el,'X',false); hit(false); }
+      setTimeout(()=>el.remove(),200);
+    };
+    field.appendChild(el); st.cards.push(card);
+  };
+  const popText=(near,txt,ok)=>{ const p=document.createElement('span'); p.className='acid-pop'+(ok?'':' bad'); p.textContent=txt; p.style.left=near.style.left; p.style.top=near.style.top; field.appendChild(p); setTimeout(()=>p.remove(),700); };
+  const finish=()=>{ if(st.over) return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
+  const loop=(ts)=>{
+    if(st.over) return;
+    if(!st.last) st.last=ts;
+    let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
+    st.time-=dt; if(st.time<=0){ st.time=0; $('acid-time').textContent='0'; return finish(); }
+    $('acid-time').textContent=Math.ceil(st.time);
+    // 난이도 상승
+    const prog=Math.min(1,(60-st.time)/55);
+    const fall=st.fall+prog*120, gap=st.spawnGap-prog*0.5;
+    st.sinceTheme+=dt; if(st.sinceTheme>=12) newTheme();
+    st.spawnAcc+=dt; if(st.spawnAcc>=gap){ st.spawnAcc=0; spawn(); }
+    const H=field.clientHeight;
+    for(const c of st.cards){
+      if(c.dead) continue;
+      c.y+=fall*dt; c.el.style.top=c.y+'px';
+      if(c.y>H-10){ c.dead=true; c.el.remove(); if(c.match){ hit(false); } }
+    }
+    st.cards=st.cards.filter(c=>!c.dead);
+    if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
+  };
+  newTheme(); lives();
+  G.arcade.raf=requestAnimationFrame(loop);
+}
+
+// ---------- 🏃 지리 러너 ----------
+function runnerQuestions(n){
+  // 2지선다 문항: 도청/혁신/유네스코/특례시/수도권 등 테마에서 정답 1 + 오답 1
+  const baseName=l=>(l.name||'').replace(/\(.+\)$/,'');
+  const {themes}=acidThemes();
+  const qs=[];
+  for(let i=0;i<n;i++){
+    const t=themes[Math.floor(Math.random()*themes.length)];
+    if(t.members.length<1) { i--; continue; }
+    const correct=t.members[Math.floor(Math.random()*t.members.length)];
+    const others=t.pool? t.pool : LOCATIONS;
+    let wrong; let guard=0;
+    do{ wrong=LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)]; guard++; }while(guard<30 && (t.set.has(wrong.name)||wrong.name===correct.name));
+    const ans=[{name:baseName(correct),ok:true},{name:baseName(wrong),ok:false}];
+    if(Math.random()<0.5) ans.reverse();
+    qs.push({q:t.label.replace(/^\S+\s/,'')+'에 해당하는 곳은?', a:ans});
+  }
+  return qs;
+}
+function startRunner(){
+  G.mode='runner'; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.idx=0;
+  const ap=enterArcade('🏃 지리 러너','#16A34A');
+  ap.innerHTML=
+    '<div class="run-hud"><span id="run-lives" class="acid-lives"></span>'+
+      '<span class="acid-chip">⭐ <b id="run-score">0</b></span>'+
+      '<span class="acid-chip">🏁 <b id="run-dist">0</b>m</span></div>'+
+    '<div class="run-stage" id="run-stage">'+
+      '<canvas id="run-canvas"></canvas>'+
+      '<div class="run-q hidden" id="run-q"></div>'+
+    '</div>'+
+    '<div class="run-ctrl"><button class="run-btn" id="run-left">◀</button><button class="run-btn" id="run-right">▶</button></div>'+
+    '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
+  const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d');
+  const LANES=3;
+  const st={lives:3, lane:1, laneX:[], px:0, py:0, dist:0, speed:240, items:[], spawnAcc:0, last:0, over:false, score:0,
+            gate:null, gateTimer:6, invuln:0, qs:runnerQuestions(60), qi:0, W:0, H:0, scroll:0};
+  G.arcade={raf:0, timers:[], cleanup:()=>{}};
+  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height);
+    st.laneX=[]; for(let i=0;i<LANES;i++) st.laneX.push(Math.round(st.W*(i+0.5)/LANES)); st.py=st.H-70; };
+  resize(); window.addEventListener('resize', resize); G.arcade.cleanup=()=>window.removeEventListener('resize',resize);
+  const lives=()=>{ $('run-lives').textContent='❤️'.repeat(Math.max(0,st.lives))+'🤍'.repeat(Math.max(0,3-st.lives)); };
+  const move=(d)=>{ if(st.over) return; st.lane=Math.max(0,Math.min(LANES-1,st.lane+d)); };
+  $('run-left').onclick=()=>move(-1); $('run-right').onclick=()=>move(1);
+  const tapMove=(e)=>{ const r=stage.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; move(x< r.width/2 ? -1 : 1); };
+  stage.addEventListener('pointerdown', tapMove);
+  const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); };
+  const finish=()=>{ if(st.over)return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
+  const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, y:-40}); };
+  const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
+    // 정답을 좌/우 차선 중 하나에 배치(가운데 차선은 막힘)
+    const okLane = q.a[0].ok ? 0 : 2; const badLane = okLane===0?2:0;
+    st.gate={y:-60, q, okLane, badLane, passed:false};
+    const box=$('run-q'); box.classList.remove('hidden'); box.innerHTML='<b>'+q.q+'</b>';
+  };
+  lives();
+  const loop=(ts)=>{
+    if(st.over) return;
+    if(!st.last) st.last=ts; let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
+    st.speed=240+Math.min(220, st.dist*0.08);
+    st.dist+=st.speed*dt/12; $('run-dist').textContent=Math.floor(st.dist);
+    st.scroll=(st.scroll+st.speed*dt)% 80;
+    if(st.invuln>0) st.invuln-=dt;
+    // 플레이어 차선 보간
+    const tx=st.laneX[st.lane]; st.px+= (tx-st.px)*Math.min(1,dt*14);
+    // 스폰
+    if(!st.gate){ st.gateTimer-=dt; }
+    st.spawnAcc+=dt;
+    if(st.gate){ /* 게이트 진행 중엔 장애물 스폰 안 함 */ }
+    else if(st.spawnAcc>0.85){ st.spawnAcc=0; if(st.gateTimer<=0){ spawnGate(); st.gateTimer=6+Math.random()*3; } else if(Math.random()<0.8) spawnObstacle(); }
+    // 이동/충돌
+    for(const it of st.items){ it.y+=st.speed*dt; }
+    for(const it of st.items){ if(it.dead) continue;
+      if(Math.abs(it.y-st.py)<30 && it.lane===st.lane && st.invuln<=0){ it.dead=true; st.invuln=1.0; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); }
+    }
+    st.items=st.items.filter(it=>!it.dead && it.y<st.H+50);
+    // 게이트 진행
+    if(st.gate){ st.gate.y+=st.speed*dt;
+      const box=$('run-q'); box.style.transform='translateY('+Math.min(0,st.gate.y-70)+'px)';
+      if(!st.gate.passed && st.gate.y>=st.py-6){ st.gate.passed=true;
+        const ok = st.lane===st.gate.okLane;
+        if(ok){ st.combo++; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; st.score+=30; banner('정답! +30',true); }
+        else { st.combo=0; st.lives-- ; st.score=Math.max(0,st.score-5); lives(); flash(); banner('오답! '+st.gate.q.a.find(a=>a.ok).name,false); }
+        G.idx++; $('run-score').textContent=st.score;
+      }
+      if(st.gate.y>st.H+40){ st.gate=null; $('run-q').classList.add('hidden'); if(st.lives<=0) return finish(); }
+    }
+    st.score=Math.max(st.score, Math.floor(st.dist)); $('run-score').textContent=st.score;
+    draw();
+    if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
+  };
+  const flash=()=>{ stage.classList.remove('hitflash'); void stage.offsetWidth; stage.classList.add('hitflash'); };
+  const banner=(txt,ok)=>{ const b=document.createElement('div'); b.className='run-banner'+(ok?' ok':' bad'); b.textContent=txt; stage.appendChild(b); setTimeout(()=>b.remove(),900); };
+  const draw=()=>{
+    const W=st.W,H=st.H; ctx.clearRect(0,0,W,H);
+    // 도로 배경
+    ctx.fillStyle='#1f6b3a'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#2f8a4e'; const rw=W*0.82, rx=(W-rw)/2; ctx.fillRect(rx,0,rw,H);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=3; ctx.setLineDash([22,20]); ctx.lineDashOffset=-st.scroll;
+    for(let i=1;i<LANES;i++){ const x=rx+rw*i/LANES; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    ctx.setLineDash([]);
+    // 게이트(정답/오답 차선 표시)
+    if(st.gate){ const g=st.gate; const gy=g.y; [g.okLane,g.badLane].forEach((ln,k)=>{ const x=st.laneX[ln]; const ok=k===0;
+      ctx.fillStyle=ok?'rgba(95,208,111,.92)':'rgba(226,87,76,.92)'; roundRect(ctx,x-46,gy-26,92,52,12); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='700 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(g.q.a[ln===g.okLane?(g.q.a[0].ok?0:1):(g.q.a[0].ok?1:0)].name, x, gy); }); }
+    // 장애물
+    for(const it of st.items){ if(it.dead) continue; const x=st.laneX[it.lane];
+      ctx.fillStyle='#9b5a2b'; ctx.beginPath(); ctx.moveTo(x,it.y-18); ctx.lineTo(x-16,it.y+16); ctx.lineTo(x+16,it.y+16); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#ffd23f'; ctx.fillRect(x-13,it.y+2,26,5); }
+    // 캐릭터(귀여운 초록 블롭)
+    const px=st.px, py=st.py; const blink=st.invuln>0 && Math.floor(st.invuln*10)%2===0;
+    if(!blink){ ctx.fillStyle='#3E7C2A55'; ctx.beginPath(); ctx.ellipse(px,py+22,20,7,0,0,7); ctx.fill();
+      ctx.fillStyle='#A8D158'; ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(px,py,20,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#4A3426'; ctx.beginPath(); ctx.arc(px-7,py-3,2.6,0,7); ctx.arc(px+7,py-3,2.6,0,7); ctx.fill();
+      ctx.strokeStyle='#4A3426'; ctx.lineWidth=2.2; ctx.beginPath(); ctx.arc(px,py+3,5,0.15*Math.PI,0.85*Math.PI); ctx.stroke(); }
+  };
+  st.px=st.laneX[st.lane];
+  G.arcade.raf=requestAnimationFrame(loop);
+}
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
 function endGame(){
+  stopArcade();
   stopTimer();
   clearMapTap();
   $('map-svg').onclick=null;
@@ -3111,7 +3361,7 @@ $('btn-save-score').onclick=()=>{
 };
 $('btn-retry').onclick=()=>startGame(G.mode);
 $('btn-home').onclick=()=>{ initHome(); show('screen-home'); resetHomeTab(); };
-$('btn-quit').onclick=()=>{ stopTimer(); clearMapTap(); $('map-svg').onclick=null;
+$('btn-quit').onclick=()=>{ stopArcade(); stopTimer(); clearMapTap(); $('map-svg').onclick=null;
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>$(id).parentElement.style.visibility='');
   initHome(); show('screen-home'); resetHomeTab();
 };

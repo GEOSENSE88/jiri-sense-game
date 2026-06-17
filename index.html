@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=20260616s">
+<link rel="stylesheet" href="style.css?v=20260617a">
 </head>
 <body>
 
@@ -248,9 +248,39 @@
           <span class="mode-desc">친구와 번갈아 풀며 점수 대결 (혼합 출제)</span>
           <span class="mode-play">BATTLE ▶</span>
         </button>
+        <button class="mode-card" data-mode="acidrain" style="--mc:#5B8DEF">
+          <svg class="mode-art" viewBox="0 0 160 92" xmlns="http://www.w3.org/2000/svg">
+            <rect width="160" height="92" fill="#DCEBFF"/>
+            <ellipse cx="48" cy="15" rx="20" ry="9" fill="#fff"/><ellipse cx="66" cy="12" rx="13" ry="8" fill="#fff"/>
+            <g stroke="#7FB0F0" stroke-width="2.4" stroke-linecap="round" opacity=".7"><path d="M30 30 L26 40"/><path d="M120 24 L116 34"/><path d="M100 36 L96 46"/></g>
+            <rect x="40" y="44" width="34" height="22" rx="5" fill="#fff" stroke="#5B8DEF" stroke-width="2.5" transform="rotate(-9 57 55)"/>
+            <rect x="92" y="32" width="34" height="22" rx="5" fill="#EAF2FF" stroke="#9DBDF0" stroke-width="2.5" transform="rotate(8 109 43)"/>
+            <rect x="60" y="62" width="36" height="23" rx="5" fill="#fff" stroke="#2FA34F" stroke-width="3" transform="rotate(-3 78 73)"/>
+            <path d="M68 73 l4 5 9 -11" fill="none" stroke="#2FA34F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="mode-name">지역 산성비</span>
+          <span class="mode-desc">떨어지는 지역 중 주제에 맞는 것만 콕!</span>
+          <span class="mode-play">PLAY ▶</span>
+        </button>
+        <button class="mode-card" data-mode="runner" style="--mc:#16A34A">
+          <svg class="mode-art" viewBox="0 0 160 92" xmlns="http://www.w3.org/2000/svg">
+            <rect width="160" height="92" fill="#CFEFD7"/>
+            <path d="M58 0 L102 0 L140 92 L20 92 Z" fill="#3A7D4E"/>
+            <g stroke="#fff" opacity=".85"><path d="M80 4 L80 88" stroke-width="3" stroke-dasharray="8 9"/></g>
+            <g stroke="#fff" stroke-width="2" stroke-dasharray="6 7" opacity=".5"><path d="M68 8 L50 86"/><path d="M92 8 L110 86"/></g>
+            <path d="M106 42 l-7 16 14 0 Z" fill="#E2742B" stroke="#fff" stroke-width="1.5"/>
+            <ellipse cx="62" cy="78" rx="13" ry="5" fill="#00000022"/>
+            <circle cx="62" cy="66" r="13" fill="#A8D158" stroke="#fff" stroke-width="3"/>
+            <circle cx="58" cy="64" r="2" fill="#4A3426"/><circle cx="66" cy="64" r="2" fill="#4A3426"/>
+            <path d="M58 69 Q62 73 66 69" stroke="#4A3426" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="mode-name">지리 러너</span>
+          <span class="mode-desc">달리며 장애물 피하고, 갈림길 정답 차선으로!</span>
+          <span class="mode-play">PLAY ▶</span>
+        </button>
       </div>
       </div>
-      <button id="btn-all-modes" class="all-modes-btn">📋 전체 모드 한눈에 보기 (11종)</button>
+      <button id="btn-all-modes" class="all-modes-btn">📋 전체 모드 한눈에 보기 (13종)</button>
 
       <div class="region-filter">
         <h3>출제 범위</h3>
@@ -260,7 +290,7 @@
 
     <section class="panel tab-panel" id="tab-challenge">
       <div class="recommend-card">
-        <img class="mascot" src="guide-hello.png?v=20260616s" alt="지리센스 마스코트">
+        <img class="mascot" src="guide-hello.png?v=20260617a" alt="지리센스 마스코트">
         <div class="rec-wrap">
           <div class="rec-bubble" id="rec-bubble"></div>
           <button class="rec-btn" id="rec-btn"></button>
@@ -363,7 +393,7 @@
 <div id="login-modal" class="modal hidden">
   <div class="dialog">
     <button id="login-close" class="dialog-x" aria-label="닫기">✕</button>
-    <img class="dialog-mascot" src="guide-hello.png?v=20260616s" alt="">
+    <img class="dialog-mascot" src="guide-hello.png?v=20260617a" alt="">
     <h2>👤 로그인 · 기록 저장</h2>
     <p class="dialog-sub">학교명·닉네임·비밀번호만 입력하면 기기가 바뀌어도 기록이 이어집니다. (실명·이메일 안 받아요)</p>
     <input id="login-class" class="dialog-input" type="text" placeholder="학교명 (예: 산남고)" maxlength="20" autocomplete="off">
@@ -506,6 +536,7 @@
       <button id="btn-next" class="primary-btn hidden">다음 ▶</button>
     </div>
   </div>
+  <div id="arcade-pane" class="arcade-pane hidden"></div>
 </div>
 
 <!-- ===== 결과 화면 ===== -->
@@ -526,12 +557,12 @@
   </div>
 </div>
 
-<script src="map-data.js?v=20260616s"></script>
-<script src="stats-data.js?v=20260616s"></script>
-<script src="freq-data.js?v=20260616s"></script>
-<script src="match-sets.js?v=20260616s"></script>
-<script src="questions.js?v=20260616s"></script>
-<script src="mascots-data.js?v=20260616s"></script>
-<script src="game.js?v=20260616s"></script>
+<script src="map-data.js?v=20260617a"></script>
+<script src="stats-data.js?v=20260617a"></script>
+<script src="freq-data.js?v=20260617a"></script>
+<script src="match-sets.js?v=20260617a"></script>
+<script src="questions.js?v=20260617a"></script>
+<script src="mascots-data.js?v=20260617a"></script>
+<script src="game.js?v=20260617a"></script>
 </body>
 </html>

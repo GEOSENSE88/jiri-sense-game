@@ -999,3 +999,83 @@ button { font-family:inherit; }
 @media (prefers-reduced-motion:reduce){
   *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
 }
+
+/* ============================================================
+   아케이드 모드 (🌧️ 지역 산성비 / 🏃 지리 러너)
+   ============================================================ */
+.arcade-pane{ display:flex; flex-direction:column; gap:8px; width:100%; max-width:640px;
+  margin:0 auto; padding:8px 12px 14px; min-height:calc(100dvh - 96px); }
+.arcade-pane.hidden{ display:none; }
+
+/* 공통 HUD */
+.acid-hud,.run-hud{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.acid-stat{ display:flex; gap:7px; align-items:center; }
+.acid-chip{ font-size:.82rem; font-weight:800; color:var(--navy,#13355e); background:#fff;
+  border:1.6px solid #cfe0ee; border-radius:99px; padding:3px 11px; box-shadow:0 1px 3px rgba(20,50,90,.08); }
+.acid-lives{ font-size:1rem; letter-spacing:1px; min-width:54px; text-align:right; }
+
+/* ── 산성비 ── */
+.acid-theme{ font-size:.98rem; font-weight:900; color:var(--navy,#13355e); line-height:1.25; }
+.acid-theme small{ display:block; font-size:.7rem; font-weight:700; color:#7c93ab; margin-bottom:1px; }
+.acid-theme b{ color:#3a6fd8; font-size:1.12rem; }
+.acid-theme.flash{ animation:acidFlash .55s ease-out; }
+@keyframes acidFlash{ 0%{transform:scale(1.18); filter:brightness(1.35)} 100%{transform:scale(1)} }
+
+.acid-field{ position:relative; flex:1; min-height:360px;
+  background:linear-gradient(180deg,#eaf4ff 0%,#dbeaff 60%,#cfe1fb 100%);
+  border:2px solid #b9d3f2; border-radius:18px; overflow:hidden;
+  box-shadow:inset 0 2px 14px rgba(80,130,200,.14); touch-action:manipulation; }
+.acid-field::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:repeating-linear-gradient(105deg,rgba(120,170,230,.18) 0 1px,transparent 1px 9px); }
+.acid-field.shake{ animation:acidShake .32s; }
+@keyframes acidShake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 80%{transform:translateX(-4px)} }
+
+.acid-card{ position:absolute; top:-44px; display:flex; align-items:center; justify-content:center;
+  min-width:62px; padding:9px 14px; border-radius:13px; font-size:.92rem; font-weight:800;
+  color:var(--navy,#13355e); background:#fff; border:2px solid #c2d3e6; white-space:nowrap;
+  box-shadow:0 4px 10px rgba(40,70,120,.22); cursor:pointer; user-select:none; will-change:transform; }
+.acid-card::after{ content:""; position:absolute; top:-10px; left:50%; width:3px; height:10px;
+  background:#9fb8d6; transform:translateX(-50%); border-radius:2px; }
+.acid-card:active{ transform:scale(.94); }
+.acid-card.pop-ok{ background:#bdf3c6; border-color:#54c96a; color:#157a2c;
+  transform:scale(1.22); transition:transform .14s; }
+.acid-card.pop-bad{ background:#ffd2cc; border-color:#e6584c; color:#a32016;
+  transform:scale(.66) rotate(9deg); transition:transform .14s; }
+
+.acid-pop{ position:absolute; font-weight:900; font-size:1.05rem; color:#1f9c46;
+  text-shadow:0 1px 2px rgba(255,255,255,.8); pointer-events:none; z-index:5;
+  animation:acidPop .75s ease-out forwards; }
+.acid-pop.bad{ color:#e6584c; }
+@keyframes acidPop{ 0%{transform:translateY(0) scale(.8); opacity:0} 18%{opacity:1; transform:translateY(-6px) scale(1.1)} 100%{transform:translateY(-40px) scale(1); opacity:0} }
+
+.acid-tip{ font-size:.74rem; color:#7c93ab; text-align:center; line-height:1.4; }
+.acid-tip b{ color:#3a6fd8; }
+
+/* ── 러너 ── */
+.run-stage{ position:relative; flex:1; min-height:380px; border-radius:18px; overflow:hidden;
+  border:2px solid #2f8a4e; box-shadow:0 4px 16px rgba(20,90,45,.2); }
+#run-canvas{ display:block; width:100%; height:100%; touch-action:none; }
+.run-stage.hitflash{ animation:runHit .34s; }
+@keyframes runHit{ 0%,100%{box-shadow:0 4px 16px rgba(20,90,45,.2)} 35%{box-shadow:inset 0 0 0 7px rgba(230,87,76,.72),0 4px 16px rgba(20,90,45,.2)} }
+
+.run-q{ position:absolute; left:0; right:0; top:0; padding:11px 14px; text-align:center;
+  font-size:1rem; font-weight:800; color:#fff; background:rgba(16,38,26,.82);
+  border-bottom:2px solid rgba(255,255,255,.18); backdrop-filter:blur(2px); }
+.run-q small{ display:block; font-size:.72rem; font-weight:600; opacity:.85; margin-top:2px; }
+.run-q.hidden{ display:none; }
+
+.run-banner{ position:absolute; left:50%; top:42%; transform:translate(-50%,-50%);
+  font-weight:900; font-size:1.22rem; padding:9px 20px; border-radius:14px; color:#fff;
+  box-shadow:0 6px 18px rgba(0,0,0,.28); pointer-events:none; z-index:6;
+  animation:runBan .95s ease-out forwards; }
+.run-banner.ok{ background:rgba(34,160,80,.94); }
+.run-banner.bad{ background:rgba(230,87,76,.95); }
+@keyframes runBan{ 0%{opacity:0; transform:translate(-50%,-30%) scale(.65)} 22%{opacity:1; transform:translate(-50%,-50%) scale(1.12)} 78%{opacity:1; transform:translate(-50%,-54%) scale(1)} 100%{opacity:0; transform:translate(-50%,-64%) scale(1)} }
+
+.run-ctrl{ display:flex; gap:12px; }
+.run-btn{ flex:1; min-height:56px; font-size:1.6rem; font-weight:900; border-radius:16px;
+  border:2px solid #cfe0ee; background:#fff; color:var(--navy,#13355e); cursor:pointer;
+  user-select:none; box-shadow:0 3px 8px rgba(20,50,90,.12); transition:transform .08s,background .12s; }
+.run-btn:active{ background:#eaf6ee; transform:scale(.96); }
+.run-tip{ font-size:.74rem; color:#7c93ab; text-align:center; line-height:1.4; }
+.run-tip b{ color:#16a34a; }
