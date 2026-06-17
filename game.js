@@ -3033,14 +3033,24 @@ function acidThemes(){
   const SHIP =['울산','거제','영암'];                                   // 조선
   const CEMENT=['동해','삼척','단양','제천'];                           // 시멘트(석회암 산지)
   const MACH =['창원','천안','대구'];                                   // 기계
+  const NUKE =['경주','울진','영광','부산'];                            // 원자력(월성·한울·한빛·고리)
+  const KTX  =['대전','천안','청주','김천','대구','부산','울산','익산','광주광역시','목포','평창','강릉','경주']; // KTX 정차
+  const f=l=>l.fact||'';
   const mk=(label,test)=>{ const members=CITY.filter(test); return {label, members, set:new Set(members.map(l=>l.name))}; };
   ACID_THEMES={ pool:CITY, themes:[
+    // ── 행정·도시 ──
     mk('🏙️ 수도권 도시', l=>l.region==='수도권'),
-    mk('🏛️ 도청 소재지', l=>/도청/.test(l.fact||'')),
-    mk('🏢 혁신·기업도시', l=>/혁신도시|기업도시/.test(l.fact||'')),
-    mk('🏯 유네스코 세계유산', l=>UNESCO_CITY.includes(baseName(l))),
-    mk('👥 인구 100만 이상 도시', l=>popOf(l)>=1000000),
+    mk('🌲 강원권 도시', l=>l.region==='강원'),
+    mk('🌾 충청권 도시', l=>l.region==='충청'),
+    mk('🌻 호남권 도시', l=>l.region==='호남'),
+    mk('🏔️ 영남권 도시', l=>l.region==='영남'),
+    mk('🏢 광역시', l=>/광역시/.test(l.accept&&l.accept[0]||'')),
+    mk('🏛️ 도청 소재지', l=>/도청/.test(f(l))),
     mk('⭐ 특례시', l=>TEUKRYE.includes(baseName(l))),
+    mk('👥 인구 100만 이상 도시', l=>popOf(l)>=1000000),
+    mk('🏢 혁신·기업도시', l=>/혁신도시|기업도시/.test(f(l))),
+    mk('🛡️ 접경 지역 도시', l=>/접경|비무장|DMZ|분단/.test(f(l))),
+    // ── 공업 (수능특강·수능완성 제조업) ──
     mk('🚗 자동차 공업 도시', l=>CAR.includes(baseName(l))),
     mk('💻 전자·반도체 도시', l=>ELEC.includes(baseName(l))),
     mk('🏭 제철 공업 도시', l=>STEEL.includes(baseName(l))),
@@ -3048,6 +3058,24 @@ function acidThemes(){
     mk('🚢 조선 공업 도시', l=>SHIP.includes(baseName(l))),
     mk('🧱 시멘트 공업 도시', l=>CEMENT.includes(baseName(l))),
     mk('⚙️ 기계 공업 도시', l=>MACH.includes(baseName(l))),
+    mk('🏗️ 국가 산업 단지 도시', l=>/국가 ?산업 ?단지/.test(f(l))),
+    // ── 자원·발전·교통 ──
+    mk('⚡ 원자력 발전 도시', l=>NUKE.includes(baseName(l))),
+    mk('⛏️ 석탄·폐광 도시', l=>/폐광|석탄|탄광|광산/.test(f(l))),
+    mk('⚓ 항구·무역항 도시', l=>/무역항|항만|항구/.test(f(l))),
+    mk('✈️ 공항이 있는 도시', l=>/공항/.test(f(l))),
+    mk('🚄 KTX 정차 도시', l=>KTX.includes(baseName(l))),
+    // ── 지형·자연 ──
+    mk('🌊 간척지가 있는 도시', l=>/간척/.test(f(l))),
+    mk('🌋 화산·용암 지형', l=>/화산|용암|칼데라|주상 ?절리|순상|현무암/.test(f(l)) || ['제주시'].includes(baseName(l))),
+    mk('🪨 석회암·카르스트 지형', l=>/석회암|카르스트|돌리네|석회 ?동굴|고수동굴/.test(f(l))),
+    mk('🦆 갯벌·습지 도시', l=>/갯벌|람사르|습지|우포/.test(f(l))),
+    mk('🏞️ 국립공원 도시', l=>/국립 ?공원/.test(f(l))),
+    mk('🌄 고원·고위평탄면 도시', l=>/고원|고위 ?평탄면|고랭지/.test(f(l))),
+    mk('⛷️ 동계 스포츠·올림픽 도시', l=>/스키|리조트|동계|올림픽/.test(f(l))),
+    // ── 문화·관광 ──
+    mk('🏯 유네스코 세계유산', l=>UNESCO_CITY.includes(baseName(l))),
+    mk('🎏 축제로 유명한 도시', l=>/축제|문화제|예술제|나비|머드|불꽃/.test(f(l))),
   ].filter(t=>t.members.length>=3 && t.members.length<=CITY.length*0.7) };
   return ACID_THEMES;
 }
