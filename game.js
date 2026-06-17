@@ -3098,7 +3098,7 @@ function startAcidRain(){
       '<span class="acid-big time">⏱️ <b id="acid-time">60</b>초</span>'+
     '</div>'+
     '<div class="acid-field" id="acid-field"><div class="acid-sky" id="acid-sky"><div class="acid-sun"></div><div class="acid-clouds"></div></div></div>'+
-    '<div class="acid-tip">주제에 <b>맞는</b> 지역만 콕콕! · 60초 동안 점수를 최대한 모으세요 <b>(틀리면 −5점)</b></div>';
+    '<div class="acid-tip">지금 <b>주제</b>에 맞는 지역만 콕콕! · 주제가 바뀌면 화면의 카드도 <b>새 주제 기준</b>으로 판정 · 60초 누적 <b>(틀리면 −5점)</b></div>';
   const field=$('acid-field');
   const {themes, pool}=acidThemes();
   // ⚠️ score·combo 반드시 0으로 초기화(미초기화 시 undefined+N=NaN → 점수 NaN·코인 NaN 전파)
@@ -3117,16 +3117,17 @@ function startAcidRain(){
     const useMember = Math.random()<0.5 && st.theme.members.length>0;
     const src = useMember ? st.theme.members : pool;
     const l = src[Math.floor(Math.random()*src.length)];
-    const isMatch = st.theme.set.has(l.name);
     const w=84; const x=Math.random()*(Math.max(60,field.clientWidth-w));
     const el=document.createElement('button');
-    el.className='acid-card'+(isMatch?' is-match':'');
+    el.className='acid-card';
     el.textContent=l.name;
     el.style.left=x+'px'; el.style.top='-46px';
-    const card={el, x, y:-46, match:isMatch, dead:false, id:st.idc++};
+    const card={el, x, y:-46, name:l.name, dead:false, id:st.idc++};
     // pointerdown: 움직이는 카드는 click이 모바일에서 취소될 수 있어 즉시 반응
+    // 정답 여부는 '탭하는 순간의 현재 주제'로 판정 → 주제가 바뀌면 화면의 기존 카드도 새 주제 기준으로 맞히면 정답
     const tap=(e)=>{ e.preventDefault(); e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
-      if(card.match){ const add=Math.round(10+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; setScore(); el.classList.add('pop-ok'); popText(el,'+'+add,true); }
+      const isMatch = st.theme.set.has(card.name);
+      if(isMatch){ const add=Math.round(10+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; setScore(); el.classList.add('pop-ok'); popText(el,'+'+add,true); }
       else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-5); setScore(); el.classList.add('pop-bad'); popText(el,'−5',false); field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); }
       setTimeout(()=>el.remove(),200);
     };
