@@ -3092,16 +3092,19 @@ function startAcidRain(){
   ap.innerHTML=
     '<div class="acid-hud">'+
       '<div class="acid-theme" id="acid-theme"></div>'+
-      '<div class="acid-stat"><span id="acid-lives" class="acid-lives"></span>'+
-        '<span class="acid-chip score">⭐ <b id="acid-score">0</b></span>'+
-        '<span class="acid-chip">⏱️ <b id="acid-time">60</b></span></div>'+
+    '</div>'+
+    '<div class="acid-bar">'+
+      '<span class="acid-big score">⭐ 점수 <b id="acid-score">0</b></span>'+
+      '<span class="acid-big time">⏱️ <b id="acid-time">60</b>초</span>'+
     '</div>'+
     '<div class="acid-field" id="acid-field"><div class="acid-sky" id="acid-sky"><div class="acid-sun"></div><div class="acid-clouds"></div></div></div>'+
-    '<div class="acid-tip">주제에 <b>맞는</b> 지역만 콕! · 맞는 걸 놓치거나 틀린 걸 누르면 ❤️ 감소</div>';
+    '<div class="acid-tip">주제에 <b>맞는</b> 지역만 콕콕! · 60초 동안 점수를 최대한 모으세요 <b>(틀리면 −5점)</b></div>';
   const field=$('acid-field');
   const {themes, pool}=acidThemes();
-  const st={lives:3, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.25, fall:52, last:0, started:0, over:false, sinceTheme:0, idc:0};
+  // ⚠️ score·combo 반드시 0으로 초기화(미초기화 시 undefined+N=NaN → 점수 NaN·코인 NaN 전파)
+  const st={score:0, combo:0, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.2, fall:50, last:0, over:false, sinceTheme:0, idc:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{ st.cards.forEach(c=>c.el&&c.el.remove()); }};
+  const setScore=()=>{ $('acid-score').textContent=st.score; };
   const newTheme=()=>{
     let t; do{ t=themes[Math.floor(Math.random()*themes.length)]; }while(themes.length>1 && t===st.theme);
     st.theme=t; st.sinceTheme=0;
@@ -3110,8 +3113,6 @@ function startAcidRain(){
     // 날씨 모션: 주제가 바뀌면 화창 → 흐림 → 다시 화창
     const sky=$('acid-sky'); if(sky){ sky.classList.add('cloudy'); G.arcade.timers.push(setTimeout(()=>sky.classList.remove('cloudy'),1200)); }
   };
-  const lives=()=>{ $('acid-lives').textContent='❤️'.repeat(st.lives)+'🤍'.repeat(Math.max(0,3-st.lives)); };
-  const hit=ok=>{ if(ok){ st.lives=Math.min(3,st.lives); } else { st.lives--; field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); } lives(); if(st.lives<=0) finish(); };
   const spawn=()=>{
     const useMember = Math.random()<0.5 && st.theme.members.length>0;
     const src = useMember ? st.theme.members : pool;
@@ -3123,10 +3124,10 @@ function startAcidRain(){
     el.textContent=l.name;
     el.style.left=x+'px'; el.style.top='-46px';
     const card={el, x, y:-46, match:isMatch, dead:false, id:st.idc++};
-    // pointerdown: 움직이는 카드는 click이 모바일에서 취소될 수 있어 즉시 반응하는 pointerdown 사용
+    // pointerdown: 움직이는 카드는 click이 모바일에서 취소될 수 있어 즉시 반응
     const tap=(e)=>{ e.preventDefault(); e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
-      if(card.match){ const add=Math.round(12+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; $('acid-score').textContent=st.score; el.classList.add('pop-ok'); popText(el,'+'+add,true); }
-      else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-8); $('acid-score').textContent=st.score; el.classList.add('pop-bad'); popText(el,'X',false); hit(false); }
+      if(card.match){ const add=Math.round(10+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; setScore(); el.classList.add('pop-ok'); popText(el,'+'+add,true); }
+      else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-5); setScore(); el.classList.add('pop-bad'); popText(el,'−5',false); field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); }
       setTimeout(()=>el.remove(),200);
     };
     el.addEventListener('pointerdown', tap, {passive:false});
@@ -3140,21 +3141,21 @@ function startAcidRain(){
     let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
     st.time-=dt; if(st.time<=0){ st.time=0; $('acid-time').textContent='0'; return finish(); }
     $('acid-time').textContent=Math.ceil(st.time);
-    // 난이도 상승
+    // 난이도 완만 상승(하트 없음 — 60초 점수 누적)
     const prog=Math.min(1,(60-st.time)/55);
-    const fall=st.fall+prog*52, gap=st.spawnGap-prog*0.32;
+    const fall=st.fall+prog*45, gap=st.spawnGap-prog*0.3;
     st.sinceTheme+=dt; if(st.sinceTheme>=12) newTheme();
     st.spawnAcc+=dt; if(st.spawnAcc>=gap){ st.spawnAcc=0; spawn(); }
     const H=field.clientHeight;
     for(const c of st.cards){
       if(c.dead) continue;
       c.y+=fall*dt; c.el.style.top=c.y+'px';
-      if(c.y>H-10){ c.dead=true; c.el.remove(); if(c.match){ hit(false); } }
+      if(c.y>H-10){ c.dead=true; c.el.remove(); }   // 놓쳐도 감점 없음
     }
     st.cards=st.cards.filter(c=>!c.dead);
     if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
   };
-  newTheme(); lives();
+  newTheme(); setScore();
   G.arcade.raf=requestAnimationFrame(loop);
 }
 
@@ -3192,7 +3193,7 @@ function startRunner(){
     '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
   const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d');
   const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
-  const st={lives:3, lane:1, leanX:0, dist:0, items:[], spawnAcc:0, last:0, over:false, score:0,
+  const st={lives:3, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false,
             gate:null, gateTimer:4.5, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
   const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height); st.hz=Math.round(st.H*0.33); };
@@ -3216,9 +3217,15 @@ function startRunner(){
   const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
     st.items=[];                                   // 갈림길 앞은 깨끗하게(장애물 제거 → 답 고르기 공정)
     const okLane = q.a[0].ok ? 0 : 2; const badLane = okLane===0?2:0;
-    st.gate={t:0, q, okLane, badLane, passed:false,
-      okName:q.a.find(a=>a.ok).name, badName:q.a.find(a=>!a.ok).name};
-    const box=$('run-q'); box.classList.remove('hidden'); box.innerHTML='<b>'+q.q+'</b><small>정답이라고 생각하는 도시 차선으로 달리세요!</small>';
+    const okName=q.a.find(a=>a.ok).name, badName=q.a.find(a=>!a.ok).name;
+    st.gate={t:0, q, okLane, badLane, passed:false, okName, badName};
+    // 상단에 문제 + 양쪽 선지를 모두 표시(달려오는 표지판은 잘 안 보여서)
+    const leftCity = okLane===0 ? okName : badName;
+    const rightCity = okLane===2 ? okName : badName;
+    const box=$('run-q'); box.classList.remove('hidden');
+    box.innerHTML='<b>'+q.q+'</b>'+
+      '<div class="run-choices"><span class="run-ch left">◀ '+leftCity+'</span>'+
+      '<span class="run-ch right">'+rightCity+' ▶</span></div>';
   };
   lives();
   const loop=(ts)=>{

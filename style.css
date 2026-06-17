@@ -1099,3 +1099,19 @@ button { font-family:inherit; }
 .acid-sky.cloudy .acid-clouds{ opacity:1; }
 /* 카드·팝업이 하늘 위에 오도록 */
 .acid-card{ z-index:2; } .acid-pop{ z-index:3; }
+
+/* 산성비 점수·시간 바(크게·잘 보이게) */
+.acid-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px;
+  padding:7px 14px; border-radius:13px; background:#fff;
+  border:2px solid #cfe0ee; box-shadow:0 2px 6px rgba(20,50,90,.1); }
+.acid-big{ font-size:1rem; font-weight:800; color:var(--navy,#13355e); }
+.acid-big b{ font-size:1.5rem; line-height:1; }
+.acid-big.score b{ color:#E8890C; }
+.acid-big.time b{ color:#3a6fd8; }
+
+/* 러너 상단 문제·선지 */
+.run-choices{ display:flex; justify-content:space-between; gap:8px; margin-top:7px; }
+.run-ch{ flex:1; font-size:1.02rem; font-weight:900; color:#fff; padding:7px 6px; border-radius:10px;
+  background:rgba(44,123,229,.95); border:2px solid rgba(255,255,255,.55);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.run-ch.left{ text-align:left; } .run-ch.right{ text-align:right; }
