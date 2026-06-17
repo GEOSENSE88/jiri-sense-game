@@ -13,8 +13,10 @@ const store = {
   save(key, v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch(e){ /* 저장 불가 환경에서도 게임은 계속 */ } },
   remove(key){ try { localStorage.removeItem(key); } catch(e){} }
 };
+// 숫자 정화: NaN/Infinity/문자열 → 안전한 숫자(코인·XP 손상 방지)
+const num = (v,d=0)=>{ v=+v; return Number.isFinite(v)?v:d; };
 let stats = store.load('geo_stats', {});
-let xp    = store.load('geo_xp', 0);
+let xp    = num(store.load('geo_xp', 0));
 let board = store.load('geo_board', {});
 let wanted = store.load('geo_wanted', {});   // 오답 지역 수배서 {accept키: {miss, streak}}
 let titles = store.load('geo_titles', {});   // 권역 보스전 클리어 칭호 {권역: true}
@@ -55,8 +57,8 @@ let account = store.load('geo_account', null);   // {cls, nickname, token}
 function gatherState(){ return { v:1, xp, coins, stats, cards, wanted, mission, titles, ach, cardLv }; }
 function applyState(s){
   if(!s) return;
-  if(typeof s.xp==='number') xp=s.xp;
-  if(typeof s.coins==='number') coins=s.coins;
+  if(Number.isFinite(+s.xp)) xp=+s.xp;
+  if(Number.isFinite(+s.coins)) coins=+s.coins;
   if(s.stats) stats=s.stats;
   if(s.cards) cards=s.cards;
   if(s.wanted) wanted=s.wanted;
@@ -1400,8 +1402,8 @@ function claimMission(id){
   if(!it || !it.done || it.claimed) return;
   const d=missionDef(id); if(!d) return;
   it.claimed=true; store.save('geo_mission', mission);
-  coins+=d.reward.c; store.save('geo_coins', coins);
-  xp+=d.reward.x; store.save('geo_xp', xp);
+  coins=num(coins)+num(d.reward&&d.reward.c); store.save('geo_coins', coins);
+  xp=num(xp)+num(d.reward&&d.reward.x); store.save('geo_xp', xp);
   updateGachaUI();
   renderMission();
   scheduleSync();
@@ -2521,7 +2523,7 @@ function positionTip(e,tip){
 // ============================================================
 // 📖 지역 카드 컬렉션 (뽑기/수집)
 // ============================================================
-let coins = store.load('geo_coins', 0);
+let coins = num(store.load('geo_coins', 0));
 let cards = store.load('geo_cards', {});          // {지역명: 보유 수}
 const DRAW_COST = 5;
 
@@ -2821,6 +2823,9 @@ function conquestMapSVG(){
           owned:ownedMuni.size, total};
 }
 function updateGachaUI(){
+  // 자가복구: 어떤 경로로든 coins가 NaN/Infinity가 되면 무한 뽑기·표시 깨짐 → 즉시 정화
+  if(!Number.isFinite(coins)){ coins=0; store.save('geo_coins',coins); }
+  if(!Number.isFinite(xp)) xp=0;
   if($('coin-cnt')) $('coin-cnt').innerHTML=`<span class="coin-ico"></span> <b>${coins}</b>`;
   if($('coll-progress')) $('coll-progress').textContent=`카드 ${Object.keys(cards).length}/${LOCATIONS.length}장 수집 — 지점 카드 모으기`;
   if($('btn-draw')) $('btn-draw').disabled = coins<DRAW_COST;
@@ -2828,6 +2833,7 @@ function updateGachaUI(){
 }
 const coinIco='<span class="coin-ico"></span>';
 function drawCard(){
+  coins=num(coins);                       // NaN이면 무한 뽑기 방지
   if(coins<DRAW_COST) return null;
   coins-=DRAW_COST; store.save('geo_coins',coins);
   const loc=LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];   // 균등 뽑기
@@ -2872,6 +2878,7 @@ function openGacha(){
 }
 // 🎁 10연속 뽑기 — 한 번에 N장
 function openGachaMulti(n){
+  coins=num(coins);
   if(coins < DRAW_COST*n) return;
   const results=[];
   for(let i=0;i<n;i++){ const r=drawCard(); if(r) results.push(r); }
@@ -3086,20 +3093,22 @@ function startAcidRain(){
     '<div class="acid-hud">'+
       '<div class="acid-theme" id="acid-theme"></div>'+
       '<div class="acid-stat"><span id="acid-lives" class="acid-lives"></span>'+
-        '<span class="acid-chip">⭐ <b id="acid-score">0</b></span>'+
+        '<span class="acid-chip score">⭐ <b id="acid-score">0</b></span>'+
         '<span class="acid-chip">⏱️ <b id="acid-time">60</b></span></div>'+
     '</div>'+
-    '<div class="acid-field" id="acid-field"></div>'+
+    '<div class="acid-field" id="acid-field"><div class="acid-sky" id="acid-sky"><div class="acid-sun"></div><div class="acid-clouds"></div></div></div>'+
     '<div class="acid-tip">주제에 <b>맞는</b> 지역만 콕! · 맞는 걸 놓치거나 틀린 걸 누르면 ❤️ 감소</div>';
   const field=$('acid-field');
   const {themes, pool}=acidThemes();
-  const st={lives:3, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:0.95, fall:90, last:0, started:0, over:false, sinceTheme:0, idc:0};
+  const st={lives:3, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.25, fall:52, last:0, started:0, over:false, sinceTheme:0, idc:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{ st.cards.forEach(c=>c.el&&c.el.remove()); }};
   const newTheme=()=>{
     let t; do{ t=themes[Math.floor(Math.random()*themes.length)]; }while(themes.length>1 && t===st.theme);
     st.theme=t; st.sinceTheme=0;
     const el=$('acid-theme'); el.innerHTML='주제 <b>'+t.label+'</b>';
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    // 날씨 모션: 주제가 바뀌면 화창 → 흐림 → 다시 화창
+    const sky=$('acid-sky'); if(sky){ sky.classList.add('cloudy'); G.arcade.timers.push(setTimeout(()=>sky.classList.remove('cloudy'),1200)); }
   };
   const lives=()=>{ $('acid-lives').textContent='❤️'.repeat(st.lives)+'🤍'.repeat(Math.max(0,3-st.lives)); };
   const hit=ok=>{ if(ok){ st.lives=Math.min(3,st.lives); } else { st.lives--; field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); } lives(); if(st.lives<=0) finish(); };
@@ -3114,11 +3123,13 @@ function startAcidRain(){
     el.textContent=l.name;
     el.style.left=x+'px'; el.style.top='-46px';
     const card={el, x, y:-46, match:isMatch, dead:false, id:st.idc++};
-    el.onclick=(e)=>{ e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
+    // pointerdown: 움직이는 카드는 click이 모바일에서 취소될 수 있어 즉시 반응하는 pointerdown 사용
+    const tap=(e)=>{ e.preventDefault(); e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
       if(card.match){ const add=Math.round(12+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; $('acid-score').textContent=st.score; el.classList.add('pop-ok'); popText(el,'+'+add,true); }
       else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-8); $('acid-score').textContent=st.score; el.classList.add('pop-bad'); popText(el,'X',false); hit(false); }
       setTimeout(()=>el.remove(),200);
     };
+    el.addEventListener('pointerdown', tap, {passive:false});
     field.appendChild(el); st.cards.push(card);
   };
   const popText=(near,txt,ok)=>{ const p=document.createElement('span'); p.className='acid-pop'+(ok?'':' bad'); p.textContent=txt; p.style.left=near.style.left; p.style.top=near.style.top; field.appendChild(p); setTimeout(()=>p.remove(),700); };
@@ -3131,7 +3142,7 @@ function startAcidRain(){
     $('acid-time').textContent=Math.ceil(st.time);
     // 난이도 상승
     const prog=Math.min(1,(60-st.time)/55);
-    const fall=st.fall+prog*120, gap=st.spawnGap-prog*0.5;
+    const fall=st.fall+prog*52, gap=st.spawnGap-prog*0.32;
     st.sinceTheme+=dt; if(st.sinceTheme>=12) newTheme();
     st.spawnAcc+=dt; if(st.spawnAcc>=gap){ st.spawnAcc=0; spawn(); }
     const H=field.clientHeight;
@@ -3180,58 +3191,66 @@ function startRunner(){
     '<div class="run-ctrl"><button class="run-btn" id="run-left">◀</button><button class="run-btn" id="run-right">▶</button></div>'+
     '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
   const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d');
-  const LANES=3;
-  const st={lives:3, lane:1, laneX:[], px:0, py:0, dist:0, speed:240, items:[], spawnAcc:0, last:0, over:false, score:0,
-            gate:null, gateTimer:6, invuln:0, qs:runnerQuestions(60), qi:0, W:0, H:0, scroll:0};
+  const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
+  const st={lives:3, lane:1, leanX:0, dist:0, items:[], spawnAcc:0, last:0, over:false, score:0,
+            gate:null, gateTimer:4.5, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
-  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height);
-    st.laneX=[]; for(let i=0;i<LANES;i++) st.laneX.push(Math.round(st.W*(i+0.5)/LANES)); st.py=st.H-70; };
+  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height); st.hz=Math.round(st.H*0.33); };
   resize(); window.addEventListener('resize', resize); G.arcade.cleanup=()=>window.removeEventListener('resize',resize);
+  // ── 3D 원근 투영 ──
+  const roadHalf=t=>{ const top=st.W*0.05, bot=st.W*0.47; return top+(bot-top)*t*t; };
+  const projY=t=> st.hz + (st.H-st.hz)*t*t;
+  const laneX=(lane,t)=> st.W/2 + (lane-1)*(roadHalf(t)*2/3);
+  const scaleAt=t=> 0.22+0.95*t*t;
+
   const lives=()=>{ $('run-lives').textContent='❤️'.repeat(Math.max(0,st.lives))+'🤍'.repeat(Math.max(0,3-st.lives)); };
-  const move=(d)=>{ if(st.over) return; st.lane=Math.max(0,Math.min(LANES-1,st.lane+d)); };
+  const move=(d)=>{ if(st.over) return; const nl=Math.max(0,Math.min(LANES-1,st.lane+d));
+    if(nl===st.lane && (st.lane===0||st.lane===LANES-1)) st.bump=d*0.6;   // 끝 차선: 더 못 감 → 벽에 살짝 걸림(하트 안 깎임)
+    st.lane=nl; };
   $('run-left').onclick=()=>move(-1); $('run-right').onclick=()=>move(1);
   const tapMove=(e)=>{ const r=stage.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; move(x< r.width/2 ? -1 : 1); };
   stage.addEventListener('pointerdown', tapMove);
   const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); };
   const finish=()=>{ if(st.over)return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
-  const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, y:-40}); };
+  const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, t:0}); };
   const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
-    // 정답을 좌/우 차선 중 하나에 배치(가운데 차선은 막힘)
+    st.items=[];                                   // 갈림길 앞은 깨끗하게(장애물 제거 → 답 고르기 공정)
     const okLane = q.a[0].ok ? 0 : 2; const badLane = okLane===0?2:0;
-    st.gate={y:-60, q, okLane, badLane, passed:false};
-    const box=$('run-q'); box.classList.remove('hidden'); box.innerHTML='<b>'+q.q+'</b>';
+    st.gate={t:0, q, okLane, badLane, passed:false,
+      okName:q.a.find(a=>a.ok).name, badName:q.a.find(a=>!a.ok).name};
+    const box=$('run-q'); box.classList.remove('hidden'); box.innerHTML='<b>'+q.q+'</b><small>정답이라고 생각하는 도시 차선으로 달리세요!</small>';
   };
   lives();
   const loop=(ts)=>{
     if(st.over) return;
     if(!st.last) st.last=ts; let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
-    st.speed=240+Math.min(220, st.dist*0.08);
-    st.dist+=st.speed*dt/12; $('run-dist').textContent=Math.floor(st.dist);
-    st.scroll=(st.scroll+st.speed*dt)% 80;
+    const sp=0.30 + Math.min(0.20, st.dist*0.00016);          // 깊이 단위 속도(천천히, 완만한 가속)
+    st.dist+=sp*62*dt; $('run-dist').textContent=Math.floor(st.dist);
+    st.scroll=(st.scroll+sp*dt)%1;
     if(st.invuln>0) st.invuln-=dt;
-    // 플레이어 차선 보간
-    const tx=st.laneX[st.lane]; st.px+= (tx-st.px)*Math.min(1,dt*14);
+    if(st.bump) st.bump*=Math.max(0,1-dt*6);
+    // 플레이어 차선 보간(부드럽게)
+    st.leanX += ((st.lane-1)-st.leanX)*Math.min(1,dt*9);
     // 스폰
-    if(!st.gate){ st.gateTimer-=dt; }
+    if(!st.gate) st.gateTimer-=dt;
     st.spawnAcc+=dt;
-    if(st.gate){ /* 게이트 진행 중엔 장애물 스폰 안 함 */ }
-    else if(st.spawnAcc>0.85){ st.spawnAcc=0; if(st.gateTimer<=0){ spawnGate(); st.gateTimer=6+Math.random()*3; } else if(Math.random()<0.8) spawnObstacle(); }
-    // 이동/충돌
-    for(const it of st.items){ it.y+=st.speed*dt; }
+    if(!st.gate && st.spawnAcc>1.25){ st.spawnAcc=0;
+      if(st.gateTimer<=0){ spawnGate(); st.gateTimer=7+Math.random()*3; }
+      else if(Math.random()<0.65) spawnObstacle(); }
+    // 진행
+    for(const it of st.items){ it.t+=sp*dt; }
     for(const it of st.items){ if(it.dead) continue;
-      if(Math.abs(it.y-st.py)<30 && it.lane===st.lane && st.invuln<=0){ it.dead=true; st.invuln=1.0; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); }
-    }
-    st.items=st.items.filter(it=>!it.dead && it.y<st.H+50);
-    // 게이트 진행
-    if(st.gate){ st.gate.y+=st.speed*dt;
-      const box=$('run-q'); box.style.transform='translateY('+Math.min(0,st.gate.y-70)+'px)';
-      if(!st.gate.passed && st.gate.y>=st.py-6){ st.gate.passed=true;
+      if(it.t>0.86 && it.t<1.03 && it.lane===st.lane && st.invuln<=0){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
+    st.items=st.items.filter(it=>!it.dead && it.t<1.12);
+    // 갈림길(게이트) — 오답은 점수만 감점, 하트는 안 깎음
+    if(st.gate){ st.gate.t+=sp*dt;
+      if(!st.gate.passed && st.gate.t>=0.9){ st.gate.passed=true;
         const ok = st.lane===st.gate.okLane;
-        if(ok){ st.combo++; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; st.score+=30; banner('정답! +30',true); }
-        else { st.combo=0; st.lives-- ; st.score=Math.max(0,st.score-5); lives(); flash(); banner('오답! '+st.gate.q.a.find(a=>a.ok).name,false); }
+        if(ok){ st.combo++; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; st.score+=40; banner('정답! +40',true); }
+        else { st.combo=0; st.score=Math.max(0,st.score-10); banner('오답! 정답은 '+st.gate.okName,false); }
         G.idx++; $('run-score').textContent=st.score;
       }
-      if(st.gate.y>st.H+40){ st.gate=null; $('run-q').classList.add('hidden'); if(st.lives<=0) return finish(); }
+      if(st.gate.t>1.06){ st.gate=null; $('run-q').classList.add('hidden'); }
     }
     st.score=Math.max(st.score, Math.floor(st.dist)); $('run-score').textContent=st.score;
     draw();
@@ -3239,36 +3258,79 @@ function startRunner(){
   };
   const flash=()=>{ stage.classList.remove('hitflash'); void stage.offsetWidth; stage.classList.add('hitflash'); };
   const banner=(txt,ok)=>{ const b=document.createElement('div'); b.className='run-banner'+(ok?' ok':' bad'); b.textContent=txt; stage.appendChild(b); setTimeout(()=>b.remove(),900); };
+  // ── 그리기(원근 3D) ──
+  const drawCone=(lane,t)=>{ const x=laneX(lane,t), y=projY(t), s=scaleAt(t);
+    ctx.fillStyle='rgba(20,40,25,.22)'; ctx.beginPath(); ctx.ellipse(x,y+10*s,20*s,6*s,0,0,7); ctx.fill();   // 그림자
+    ctx.fillStyle='#F4581F'; ctx.beginPath(); ctx.moveTo(x,y-30*s); ctx.lineTo(x-17*s,y+12*s); ctx.lineTo(x+17*s,y+12*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.fillRect(x-13*s,y-6*s,26*s,6*s); ctx.fillRect(x-9*s,y-18*s,18*s,5*s);
+    ctx.fillStyle='#C8400F'; ctx.fillRect(x-20*s,y+12*s,40*s,5*s); };
+  const drawSign=(name,lane,t,side)=>{ const x=laneX(lane,t), y=projY(t), s=scaleAt(t);
+    const w=78*s, h=40*s, py=y-46*s;
+    ctx.strokeStyle='#9aa7b3'; ctx.lineWidth=4*s; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,py+h); ctx.stroke();   // 기둥
+    ctx.fillStyle='rgba(20,40,60,.18)'; roundRect(ctx,x-w/2+3*s,py+4*s,w,h,9*s); ctx.fill();
+    const g=ctx.createLinearGradient(0,py,0,py+h); g.addColorStop(0,'#2C7BE5'); g.addColorStop(1,'#1A5FC4');
+    ctx.fillStyle=g; roundRect(ctx,x-w/2,py,w,h,9*s); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2.5*s; roundRect(ctx,x-w/2,py,w,h,9*s); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='800 '+Math.round(17*s)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(name, x, py+h/2);
+    ctx.font='700 '+Math.round(11*s)+'px sans-serif'; ctx.fillStyle='#FFE173'; ctx.fillText(side, x, py-7*s); };
   const draw=()=>{
-    const W=st.W,H=st.H; ctx.clearRect(0,0,W,H);
-    // 도로 배경
-    ctx.fillStyle='#1f6b3a'; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='#2f8a4e'; const rw=W*0.82, rx=(W-rw)/2; ctx.fillRect(rx,0,rw,H);
-    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=3; ctx.setLineDash([22,20]); ctx.lineDashOffset=-st.scroll;
-    for(let i=1;i<LANES;i++){ const x=rx+rw*i/LANES; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    ctx.setLineDash([]);
-    // 게이트(정답/오답 차선 표시)
-    if(st.gate){ const g=st.gate; const gy=g.y; [g.okLane,g.badLane].forEach((ln,k)=>{ const x=st.laneX[ln]; const ok=k===0;
-      ctx.fillStyle=ok?'rgba(95,208,111,.92)':'rgba(226,87,76,.92)'; roundRect(ctx,x-46,gy-26,92,52,12); ctx.fill();
-      ctx.fillStyle='#fff'; ctx.font='700 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(g.q.a[ln===g.okLane?(g.q.a[0].ok?0:1):(g.q.a[0].ok?1:0)].name, x, gy); }); }
-    // 장애물
-    for(const it of st.items){ if(it.dead) continue; const x=st.laneX[it.lane];
-      ctx.fillStyle='#9b5a2b'; ctx.beginPath(); ctx.moveTo(x,it.y-18); ctx.lineTo(x-16,it.y+16); ctx.lineTo(x+16,it.y+16); ctx.closePath(); ctx.fill();
-      ctx.fillStyle='#ffd23f'; ctx.fillRect(x-13,it.y+2,26,5); }
-    // 캐릭터(귀여운 초록 블롭)
-    const px=st.px, py=st.py; const blink=st.invuln>0 && Math.floor(st.invuln*10)%2===0;
-    if(!blink){ ctx.fillStyle='#3E7C2A55'; ctx.beginPath(); ctx.ellipse(px,py+22,20,7,0,0,7); ctx.fill();
-      ctx.fillStyle='#A8D158'; ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(px,py,20,0,7); ctx.fill(); ctx.stroke();
-      ctx.fillStyle='#4A3426'; ctx.beginPath(); ctx.arc(px-7,py-3,2.6,0,7); ctx.arc(px+7,py-3,2.6,0,7); ctx.fill();
-      ctx.strokeStyle='#4A3426'; ctx.lineWidth=2.2; ctx.beginPath(); ctx.arc(px,py+3,5,0.15*Math.PI,0.85*Math.PI); ctx.stroke(); }
+    const W=st.W,H=st.H,hz=st.hz; ctx.clearRect(0,0,W,H);
+    // 하늘
+    let sky=ctx.createLinearGradient(0,0,0,hz); sky.addColorStop(0,'#7CC9FF'); sky.addColorStop(1,'#D7F0FF');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,W,hz);
+    ctx.fillStyle='#FFE173'; ctx.beginPath(); ctx.arc(W*0.80,hz*0.46,Math.min(24,W*0.066),0,7); ctx.fill();
+    ctx.globalAlpha=.5; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(W*0.26,hz*0.5,30,11,0,0,7); ctx.ellipse(W*0.34,hz*0.45,22,9,0,0,7); ctx.fill(); ctx.globalAlpha=1;
+    // 잔디
+    let gr=ctx.createLinearGradient(0,hz,0,H); gr.addColorStop(0,'#5FB544'); gr.addColorStop(1,'#93D85F');
+    ctx.fillStyle=gr; ctx.fillRect(0,hz,W,H-hz);
+    // 도로(원근 사다리꼴)
+    const rh0=roadHalf(0), rh1=roadHalf(1);
+    ctx.fillStyle='#46505A'; ctx.beginPath();
+    ctx.moveTo(W/2-rh0,hz); ctx.lineTo(W/2+rh0,hz); ctx.lineTo(W/2+rh1,H); ctx.lineTo(W/2-rh1,H); ctx.closePath(); ctx.fill();
+    // 갓길 럼블 스트립(빨강·흰색, 스크롤)
+    const N=16;
+    for(let k=0;k<N;k++){ const t0=k/N,t1=(k+1)/N; if(((k+Math.floor(st.scroll*N))%2)) continue;
+      [[-1],[1]].forEach(([sgn])=>{ ctx.fillStyle='#E04B3C';
+        const xa=W/2+sgn*roadHalf(t0), xb=W/2+sgn*roadHalf(t1), wa=6*scaleAt(t0), wb=6*scaleAt(t1);
+        ctx.beginPath(); ctx.moveTo(xa-sgn*wa,projY(t0)); ctx.lineTo(xa+sgn*wa,projY(t0)); ctx.lineTo(xb+sgn*wb,projY(t1)); ctx.lineTo(xb-sgn*wb,projY(t1)); ctx.closePath(); ctx.fill(); }); }
+    // 차선 점선(원근, 스크롤)
+    [0.5,1.5].forEach(b=>{ for(let k=0;k<N;k++){ if(((k+Math.floor(st.scroll*N))%2)) continue;
+      const t0=k/N,t1=(k+0.62)/N; const x0=W/2+(b-1)*(roadHalf(t0)*2/3), x1=W/2+(b-1)*(roadHalf(t1)*2/3);
+      const w0=Math.max(1,2*scaleAt(t0)), w1=Math.max(1.4,2*scaleAt(t1));
+      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.beginPath();
+      ctx.moveTo(x0-w0,projY(t0)); ctx.lineTo(x0+w0,projY(t0)); ctx.lineTo(x1+w1,projY(t1)); ctx.lineTo(x1-w1,projY(t1)); ctx.closePath(); ctx.fill(); } });
+    // 깊은 것부터: 장애물(t 오름차순)
+    const obs=st.items.filter(it=>!it.dead).sort((a,b)=>a.t-b.t);
+    for(const it of obs) drawCone(it.lane,it.t);
+    // 갈림길 표지판(정답 비노출 — 둘 다 파란색)
+    if(st.gate){ const g=st.gate;
+      drawSign(g.okName, g.okLane, g.t, g.okLane===0?'◀ 왼쪽':'오른쪽 ▶');
+      drawSign(g.badName, g.badLane, g.t, g.badLane===0?'◀ 왼쪽':'오른쪽 ▶'); }
+    // 캐릭터(초록 레이서)
+    const blink=st.invuln>0 && Math.floor(st.invuln*10)%2===0;
+    if(!blink){ const s=scaleAt(PT); const px=W/2+(st.leanX+st.bump)*(roadHalf(PT)*2/3), py=projY(PT);
+      const tilt=(st.leanX)*0.12;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(tilt);
+      ctx.fillStyle='rgba(20,40,25,.28)'; ctx.beginPath(); ctx.ellipse(0,26*s,26*s,8*s,0,0,7); ctx.fill();   // 그림자
+      // 차체
+      const bg=ctx.createLinearGradient(0,-26*s,0,22*s); bg.addColorStop(0,'#BCE36A'); bg.addColorStop(1,'#6FB23A');
+      ctx.fillStyle=bg; ctx.strokeStyle='#fff'; ctx.lineWidth=3*s; roundRect(ctx,-24*s,-24*s,48*s,48*s,15*s); ctx.fill(); ctx.stroke();
+      // 앞유리
+      ctx.fillStyle='#2A3B16'; roundRect(ctx,-15*s,-16*s,30*s,15*s,7*s); ctx.fill();
+      // 헤드라이트
+      ctx.fillStyle='#FFF3B0'; ctx.beginPath(); ctx.arc(-13*s,16*s,4*s,0,7); ctx.arc(13*s,16*s,4*s,0,7); ctx.fill();
+      // 얼굴(마스코트 느낌)
+      ctx.fillStyle='#2A3B16'; ctx.beginPath(); ctx.arc(-8*s,4*s,3*s,0,7); ctx.arc(8*s,4*s,3*s,0,7); ctx.fill();
+      ctx.strokeStyle='#2A3B16'; ctx.lineWidth=2.4*s; ctx.beginPath(); ctx.arc(0,8*s,6*s,0.12*Math.PI,0.88*Math.PI); ctx.stroke();
+      ctx.restore(); }
   };
-  st.px=st.laneX[st.lane];
   G.arcade.raf=requestAnimationFrame(loop);
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
 function endGame(){
+  if(!Number.isFinite(G.score)) G.score=0;   // 점수 손상 시 코인/XP NaN 전파 차단
   stopArcade();
   stopTimer();
   clearMapTap();

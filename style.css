@@ -1079,3 +1079,23 @@ button { font-family:inherit; }
 .run-btn:active{ background:#eaf6ee; transform:scale(.96); }
 .run-tip{ font-size:.74rem; color:#7c93ab; text-align:center; line-height:1.4; }
 .run-tip b{ color:#16a34a; }
+
+/* 산성비 점수칩 강조 + 날씨(화창↔흐림) 모션 */
+.acid-chip.score{ background:#fff7df; border-color:#FFCF4A; }
+.acid-chip.score b{ color:#E8890C; font-size:1.05rem; }
+.acid-sky{ position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+  background:linear-gradient(180deg, rgba(255,250,225,.45), rgba(255,255,255,0) 55%); transition:background .7s ease; }
+.acid-sun{ position:absolute; top:12px; right:16px; width:42px; height:42px; border-radius:50%;
+  background:radial-gradient(circle at 40% 40%, #FFF0A8, #FFC93C); box-shadow:0 0 22px 6px rgba(255,206,74,.6);
+  transition:opacity .7s ease, transform .7s ease; }
+.acid-clouds{ position:absolute; inset:0; opacity:0; transition:opacity .7s ease;
+  background:
+    radial-gradient(60px 26px at 22% 24%, rgba(120,132,148,.9), transparent 70%),
+    radial-gradient(80px 32px at 40% 18%, rgba(150,160,175,.85), transparent 72%),
+    radial-gradient(70px 30px at 70% 26%, rgba(120,132,148,.88), transparent 72%),
+    radial-gradient(90px 34px at 88% 16%, rgba(150,160,175,.8), transparent 72%); }
+.acid-sky.cloudy{ background:linear-gradient(180deg, rgba(96,110,126,.42), rgba(120,132,148,.14)); }
+.acid-sky.cloudy .acid-sun{ opacity:0; transform:translateY(-10px) scale(.55); }
+.acid-sky.cloudy .acid-clouds{ opacity:1; }
+/* 카드·팝업이 하늘 위에 오도록 */
+.acid-card{ z-index:2; } .acid-pop{ z-index:3; }
