@@ -842,7 +842,9 @@ function initMapGestures(){
     } else if(ptrs.size===1 && panStart){
       const scale=panStart.vw!==undefined?panStart.vw/rect.width:view.w/rect.width;
       const dx=(e.clientX-panStart.x), dy=(e.clientY-panStart.y);
-      if(Math.abs(dx)+Math.abs(dy)>10){ moved=true; suppressTap=true; }
+      // 탭 슬롭 24px: 손가락이 살짝 흔들려도(보스전 급탭 등) 팬으로 오인하지 않음.
+      // (10px로는 미세 이동에 moved=true→preventDefault로 탭(click)이 통째로 사라지는 문제가 잦았음)
+      if(Math.abs(dx)+Math.abs(dy)>24){ moved=true; suppressTap=true; }
       if(moved){                          // 확대 여부와 무관하게 항상 팬 (페이지 스크롤과 분리)
         view.x=panStart.vx-dx*scale; view.y=panStart.vy-dy*scale;
         clampView(); applyView();
