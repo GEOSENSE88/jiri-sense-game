@@ -3184,8 +3184,8 @@ function startRunner(){
   const ap=enterArcade('🏃 지리 러너','#16A34A');
   ap.innerHTML=
     '<div class="run-hud"><span id="run-lives" class="acid-lives"></span>'+
-      '<span class="acid-chip">⭐ <b id="run-score">0</b></span>'+
-      '<span class="acid-chip">🏁 <b id="run-dist">0</b>m</span></div>'+
+      '<span class="acid-chip"><span class="run-label">SCORE</span>⭐ <b id="run-score">0</b></span>'+
+      '<span class="acid-chip"><span class="run-label">DIST</span>🏁 <b id="run-dist">0</b>m</span></div>'+
     '<div class="run-stage" id="run-stage">'+
       '<canvas id="run-canvas"></canvas>'+
       '<div class="run-q hidden" id="run-q"></div>'+
@@ -3194,7 +3194,15 @@ function startRunner(){
     '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
   const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d');
   const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
-  const st={lives:3, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
+  const GATE_SPEED=0.58;         // 문제 갈림길은 읽고 판단할 시간을 주기 위해 일반 장애물보다 천천히 접근
+  const RUNNER_SCENES=[
+    {label:'수도권 도시', src:'runner-bg/runner-bg-seoul.jpg'},
+    {label:'부산 해안', src:'runner-bg/runner-bg-busan.jpg'},
+    {label:'제주 화산섬', src:'runner-bg/runner-bg-jeju.jpg'},
+    {label:'경주 역사길', src:'runner-bg/runner-bg-gyeongju.jpg'}
+  ];
+  const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.src=s.src; return img; });
+  const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
             gate:null, gateTimer:4.5, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
   const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height); st.hz=Math.round(st.H*0.33); };
@@ -3205,7 +3213,7 @@ function startRunner(){
   const laneX=(lane,t)=> st.W/2 + (lane-1)*(roadHalf(t)*2/3);
   const scaleAt=t=> 0.22+0.95*t*t;
 
-  const lives=()=>{ $('run-lives').textContent='❤️'.repeat(Math.max(0,st.lives))+'🤍'.repeat(Math.max(0,3-st.lives)); };
+  const lives=()=>{ $('run-lives').innerHTML='<span class="life-on">'+'♥'.repeat(Math.max(0,st.lives))+'</span><span class="life-off">'+'♡'.repeat(Math.max(0,st.maxLives-st.lives))+'</span>'; };
   const move=(d)=>{ if(st.over) return; const nl=Math.max(0,Math.min(LANES-1,st.lane+d));
     if(nl===st.lane && (st.lane===0||st.lane===LANES-1)) st.bump=d*0.6;   // 끝 차선: 더 못 감 → 벽에 살짝 걸림(하트 안 깎임)
     st.lane=nl; };
@@ -3250,13 +3258,14 @@ function startRunner(){
     for(const it of st.items){ if(it.dead) continue;
       if(it.t>0.86 && it.t<1.03 && it.lane===st.lane && st.invuln<=0){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
     st.items=st.items.filter(it=>!it.dead && it.t<1.12);
-    // 갈림길(게이트) — 오답은 점수만 감점, 하트는 안 깎음
-    if(st.gate){ st.gate.t+=sp*dt;
+    // 갈림길(게이트) — 오답도 하트를 깎아 5번 실수하면 종료
+    if(st.gate){ st.gate.t+=sp*GATE_SPEED*dt;
       if(!st.gate.passed && st.gate.t>=0.9){ st.gate.passed=true;
         const ok = st.lane===st.gate.okLane;
         if(ok){ st.combo++; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; st.score+=40; banner('정답! +40',true); }
-        else { st.combo=0; st.score=Math.max(0,st.score-10); banner('오답! 정답은 '+st.gate.okName,false); }
+        else { st.combo=0; st.score=Math.max(0,st.score-10); st.lives--; lives(); flash(); banner('오답! 정답은 '+st.gate.okName,false); }
         G.idx++; $('run-score').textContent=st.score;
+        if(st.lives<=0) return finish();
       }
       if(st.gate.t>1.06){ st.gate=null; $('run-q').classList.add('hidden'); }
     }
@@ -3268,6 +3277,12 @@ function startRunner(){
   const banner=(txt,ok)=>{ const b=document.createElement('div'); b.className='run-banner'+(ok?' ok':' bad'); b.textContent=txt; stage.appendChild(b); setTimeout(()=>b.remove(),900); };
   // ── 그리기(원근 3D · 일러스트 스타일) ──
   const groundShadow=(x,y,rx,ry,a)=>{ ctx.fillStyle='rgba(22,38,22,'+a+')'; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.fill(); };
+  const fitCanvasText=(txt,x,y,maxW,size,weight='900',color='#fff')=>{
+    ctx.fillStyle=color; ctx.textAlign='center'; ctx.textBaseline='middle';
+    let fs=size; ctx.font=weight+' '+Math.round(fs)+'px sans-serif';
+    while(fs>9 && ctx.measureText(txt).width>maxW){ fs-=1; ctx.font=weight+' '+Math.round(fs)+'px sans-serif'; }
+    ctx.fillText(txt,x,y);
+  };
   const drawTree=(side,t)=>{ const s=scaleAt(t); if(s<0.12) return; const y=projY(t);
     const x=st.W/2 + side*(roadHalf(t) + (30+18*s)*s);
     if(x<-30||x>st.W+30) return;
@@ -3294,46 +3309,81 @@ function startRunner(){
     ctx.strokeStyle='#fff'; ctx.lineWidth=2.5*s; roundRect(ctx,x-bw/2,by,bw,bh,7*s); ctx.stroke();
     ctx.fillStyle='#3A2A10'; ctx.font='800 '+Math.round(16*s)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚠',x,by+bh/2+1*s); };
   const drawSign=(name,lane,t)=>{ const x=laneX(lane,t), y=projY(t), s=scaleAt(t); if(s<0.12) return;
-    const w=84*s, h=38*s, py=y-60*s;
+    ctx.font='900 '+Math.round(18*s)+'px sans-serif';
+    const w=Math.min(118*s, Math.max(84*s, ctx.measureText(name).width+26*s)), h=40*s, py=y-62*s;
     groundShadow(x,y+2*s,9*s,3.5*s,.14);
-    ctx.strokeStyle='#B8C2CC'; ctx.lineWidth=4*s; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,py+h); ctx.stroke();
-    ctx.fillStyle='rgba(20,40,30,.18)'; roundRect(ctx,x-w/2+3*s,py+4*s,w,h,8*s); ctx.fill();
-    const g=ctx.createLinearGradient(0,py,0,py+h); g.addColorStop(0,'#1B9D4C'); g.addColorStop(1,'#147A39');
-    ctx.fillStyle=g; roundRect(ctx,x-w/2,py,w,h,8*s); ctx.fill();
-    ctx.strokeStyle='#fff'; ctx.lineWidth=2.5*s; roundRect(ctx,x-w/2,py,w,h,8*s); ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font='800 '+Math.round(18*s)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(name,x,py+h/2); };
+    ctx.strokeStyle='#DCE5EC'; ctx.lineWidth=4*s; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,py+h); ctx.stroke();
+    ctx.fillStyle='rgba(5,30,18,.24)'; roundRect(ctx,x-w/2+4*s,py+5*s,w,h,10*s); ctx.fill();
+    const g=ctx.createLinearGradient(0,py,0,py+h); g.addColorStop(0,'#2DD86D'); g.addColorStop(.55,'#169C4A'); g.addColorStop(1,'#0D6937');
+    ctx.fillStyle=g; roundRect(ctx,x-w/2,py,w,h,10*s); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=2.7*s; roundRect(ctx,x-w/2,py,w,h,10*s); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.22)'; roundRect(ctx,x-w/2+5*s,py+5*s,w-10*s,8*s,4*s); ctx.fill();
+    fitCanvasText(name,x,py+h/2,w-12*s,18*s,'900','#fff'); };
   const drawChar=()=>{
     const s=scaleAt(PT), px=st.W/2+(st.leanX+st.bump)*(roadHalf(PT)*2/3);
     const bob=(0.5+0.5*Math.sin(st.anim*11))*8*s, cy=projY(PT)-bob;
     const shS=1-bob/(8*s)*0.35;
-    groundShadow(px, projY(PT)+22*s, 22*s*shS, 6*s*shS, .26);
+    groundShadow(px, projY(PT)+24*s, 24*s*shS, 7*s*shS, .28);
     if(st.invuln>0 && Math.floor(st.invuln*12)%2===0) return;
     const lp=Math.sin(st.anim*13);
     ctx.save(); ctx.translate(px,cy); ctx.rotate(st.leanX*0.13);
-    // 다리·신발(달리기)
-    ctx.fillStyle='#4E8E2A'; roundRect(ctx,-11*s,15*s+Math.max(0,lp)*4*s,9*s,12*s,4*s); ctx.fill();
-    roundRect(ctx,2*s,15*s+Math.max(0,-lp)*4*s,9*s,12*s,4*s); ctx.fill();
-    ctx.fillStyle='#fff'; roundRect(ctx,-12*s,24*s+Math.max(0,lp)*4*s,11*s,6*s,3*s); ctx.fill();
-    roundRect(ctx,1*s,24*s+Math.max(0,-lp)*4*s,11*s,6*s,3*s); ctx.fill();
-    // 잎 귀
-    ctx.fillStyle='#57B23A'; ctx.beginPath(); ctx.ellipse(-7*s,-25*s,5*s,9*s,-0.5,0,7); ctx.ellipse(7*s,-25*s,5*s,9*s,0.5,0,7); ctx.fill();
-    // 팔(흔들)
-    ctx.strokeStyle='#74BE3C'; ctx.lineWidth=6*s; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(-17*s,-2*s); ctx.lineTo(-23*s,-2*s+lp*6*s); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(17*s,-2*s); ctx.lineTo(23*s,-2*s-lp*6*s); ctx.stroke();
-    // 몸통
-    const bg=ctx.createLinearGradient(0,-24*s,0,20*s); bg.addColorStop(0,'#B0DD64'); bg.addColorStop(1,'#79C23F');
-    ctx.fillStyle=bg; ctx.strokeStyle='#fff'; ctx.lineWidth=3*s; ctx.beginPath(); ctx.ellipse(0,-2*s,21*s,23*s,0,0,7); ctx.fill(); ctx.stroke();
-    // 배
-    ctx.fillStyle='#EAF7CB'; ctx.beginPath(); ctx.ellipse(0,4*s,12*s,13*s,0,0,7); ctx.fill();
-    // 눈
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-7*s,-7*s,5*s,0,7); ctx.arc(7*s,-7*s,5*s,0,7); ctx.fill();
-    ctx.fillStyle='#2E3F1A'; ctx.beginPath(); ctx.arc(-6*s,-7*s,2.6*s,0,7); ctx.arc(8*s,-7*s,2.6*s,0,7); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-5*s,-8.5*s,1.1*s,0,7); ctx.arc(9*s,-8.5*s,1.1*s,0,7); ctx.fill();
-    // 볼터치·입
-    ctx.fillStyle='rgba(255,140,160,.7)'; ctx.beginPath(); ctx.arc(-12*s,0,3.2*s,0,7); ctx.arc(12*s,0,3.2*s,0,7); ctx.fill();
-    ctx.strokeStyle='#2E3F1A'; ctx.lineWidth=2.2*s; ctx.beginPath(); ctx.arc(0,0,4.5*s,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+    // 다리·운동화
+    ctx.strokeStyle='#115B3A'; ctx.lineWidth=6*s; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-8*s,13*s); ctx.lineTo(-14*s,23*s+Math.max(0,lp)*5*s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8*s,13*s); ctx.lineTo(14*s,23*s+Math.max(0,-lp)*5*s); ctx.stroke();
+    ctx.fillStyle='#FFFFFF'; roundRect(ctx,-21*s,24*s+Math.max(0,lp)*5*s,15*s,6*s,3*s); ctx.fill();
+    roundRect(ctx,6*s,24*s+Math.max(0,-lp)*5*s,15*s,6*s,3*s); ctx.fill();
+    ctx.fillStyle='#FFD23F'; roundRect(ctx,-20*s,27*s+Math.max(0,lp)*5*s,14*s,2*s,1*s); ctx.fill();
+    roundRect(ctx,7*s,27*s+Math.max(0,-lp)*5*s,14*s,2*s,1*s); ctx.fill();
+    // 팔: 지도를 들고 뛰는 느낌
+    ctx.strokeStyle='#12834B'; ctx.lineWidth=6*s; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-17*s,-4*s); ctx.lineTo(-25*s,-10*s+lp*5*s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(17*s,-3*s); ctx.lineTo(25*s,-9*s-lp*5*s); ctx.stroke();
+    ctx.fillStyle='#FFF5C4'; ctx.strokeStyle='#2B7A52'; ctx.lineWidth=1.8*s;
+    ctx.save(); ctx.translate(-30*s,-15*s+lp*5*s); ctx.rotate(-0.18);
+    roundRect(ctx,-8*s,-6*s,16*s,12*s,2*s); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='#60A5FA'; ctx.lineWidth=1.1*s; ctx.beginPath(); ctx.moveTo(-5*s,-2*s); ctx.lineTo(1*s,2*s); ctx.lineTo(6*s,-3*s); ctx.stroke();
     ctx.restore();
+    // 지도 핀 몸통
+    const body=ctx.createLinearGradient(0,-31*s,0,20*s); body.addColorStop(0,'#2DD86D'); body.addColorStop(.58,'#16A34A'); body.addColorStop(1,'#0F6F3D');
+    ctx.fillStyle=body; ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*s;
+    ctx.beginPath();
+    ctx.moveTo(0,23*s);
+    ctx.bezierCurveTo(-21*s,4*s,-22*s,-18*s,-8*s,-28*s);
+    ctx.bezierCurveTo(0,-34*s,14*s,-31*s,20*s,-19*s);
+    ctx.bezierCurveTo(27*s,-4*s,14*s,11*s,0,23*s);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // 얼굴/나침반 렌즈
+    ctx.fillStyle='#EAF7CB'; ctx.beginPath(); ctx.ellipse(0,-10*s,13*s,12*s,0,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1.8*s; ctx.beginPath(); ctx.arc(0,-10*s,10*s,0,7); ctx.stroke();
+    ctx.fillStyle='#EF4444'; ctx.beginPath(); ctx.moveTo(0,-20*s); ctx.lineTo(4*s,-9*s); ctx.lineTo(0,-12*s); ctx.lineTo(-4*s,-9*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#2563EB'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(4*s,-9*s); ctx.lineTo(0,-6*s); ctx.lineTo(-4*s,-9*s); ctx.closePath(); ctx.fill();
+    // 표정
+    ctx.fillStyle='#143C2A'; ctx.beginPath(); ctx.arc(-6*s,-11*s,2.2*s,0,7); ctx.arc(6*s,-11*s,2.2*s,0,7); ctx.fill();
+    ctx.strokeStyle='#143C2A'; ctx.lineWidth=2*s; ctx.beginPath(); ctx.arc(0,-8*s,4*s,0.12*Math.PI,0.88*Math.PI); ctx.stroke();
+    // 가슴의 위치 마크
+    ctx.fillStyle='#FFFFFF'; ctx.font='900 '+Math.round(9*s)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('G',0,9*s);
+    ctx.restore();
+  };
+  const drawCoverImage=(img,alpha)=>{
+    const W=st.W,H=st.H;
+    if(!img || !img.complete || !img.naturalWidth) return false;
+    const iw=img.naturalWidth, ih=img.naturalHeight;
+    const sc=Math.max(W/iw,H/ih);
+    const sw=W/sc, sh=H/sc;
+    const pan=Math.sin(st.dist*0.0012)*0.08;
+    let sx=(iw-sw)*(0.5+pan), sy=(ih-sh)*0.5;
+    sx=Math.max(0,Math.min(iw-sw,sx)); sy=Math.max(0,Math.min(ih-sh,sy));
+    ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H); ctx.restore();
+    return true;
+  };
+  const drawSceneLabel=(label,alpha)=>{
+    if(alpha<=0) return; const W=st.W,k=Math.max(0.7,W/440);
+    ctx.save(); ctx.globalAlpha=alpha; const txt='🗺️ '+label;
+    ctx.font='900 '+Math.round(14*k)+'px sans-serif'; const w=ctx.measureText(txt).width+22*k, x=W/2-w/2, y=8*k;
+    ctx.fillStyle='rgba(8,37,28,.58)'; roundRect(ctx,x,y,w,24*k,12*k); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.28)'; ctx.lineWidth=1*k; roundRect(ctx,x,y,w,24*k,12*k); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(txt,W/2,y+12*k); ctx.restore();
   };
   // ── 우리나라 주요 도시 풍경(원경 스카이라인, 거리마다 순환) ──
   const CITY=['서울','부산','인천','대전','경주','제주'], CITYN=CITY.length;
@@ -3390,6 +3440,19 @@ function startRunner(){
     ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(txt,W/2,y+12*k); ctx.restore(); };
   const draw=()=>{
     const W=st.W,H=st.H,hz=st.hz; ctx.clearRect(0,0,W,H);
+    const bgSeg=820, bgCp=(st.dist%bgSeg)/bgSeg, bgCur=Math.floor(st.dist/bgSeg)%RUNNER_SCENES.length, bgNxt=(bgCur+1)%RUNNER_SCENES.length;
+    const bgFade = bgCp>0.86 ? (bgCp-0.86)/0.14 : 0;
+    const bgCurReady = drawCoverImage(runBgImgs[bgCur],1-bgFade);
+    const bgNxtReady = bgFade>0 ? drawCoverImage(runBgImgs[bgNxt],bgFade) : false;
+    const imageSceneReady = bgCurReady || bgNxtReady;
+    if(imageSceneReady){
+      ctx.fillStyle='rgba(255,255,255,.10)'; ctx.fillRect(0,0,W,H);
+      let groundTint=ctx.createLinearGradient(0,hz,0,H);
+      groundTint.addColorStop(0,'rgba(79,172,67,.10)');
+      groundTint.addColorStop(1,'rgba(69,150,55,.30)');
+      ctx.fillStyle=groundTint; ctx.fillRect(0,hz,W,H-hz);
+      drawSceneLabel(RUNNER_SCENES[bgFade<0.5?bgCur:bgNxt].label,1);
+    } else {
     // 하늘 + 해 글로우
     let sky=ctx.createLinearGradient(0,0,0,hz+20); sky.addColorStop(0,'#4FA8EE'); sky.addColorStop(1,'#CFEBFF');
     ctx.fillStyle=sky; ctx.fillRect(0,0,W,hz+1);
@@ -3411,9 +3474,12 @@ function startRunner(){
     const seg=700, cp=(st.dist%seg)/seg, cur=Math.floor(st.dist/seg)%CITYN, nxt=(cur+1)%CITYN;
     const aN = cp>0.86 ? (cp-0.86)/0.14 : 0;
     drawCity(cur,1-aN); drawCity(nxt,aN); cityLabel(aN<0.5?cur:nxt, 1);
+    }
     // 잔디
-    let gr=ctx.createLinearGradient(0,hz,0,H); gr.addColorStop(0,'#5FB544'); gr.addColorStop(1,'#92D85C');
-    ctx.fillStyle=gr; ctx.fillRect(0,hz,W,H-hz);
+    if(!imageSceneReady){
+      let gr=ctx.createLinearGradient(0,hz,0,H); gr.addColorStop(0,'#5FB544'); gr.addColorStop(1,'#92D85C');
+      ctx.fillStyle=gr; ctx.fillRect(0,hz,W,H-hz);
+    }
     // 잔디 속도 줄무늬
     const NB=12;
     for(let k=0;k<NB;k++){ if(((k+Math.floor(st.scroll*NB))%2)) continue; const t0=k/NB,t1=(k+1)/NB;
@@ -3422,6 +3488,15 @@ function startRunner(){
     const rh0=roadHalf(0), rh1=roadHalf(1);
     let rg=ctx.createLinearGradient(W/2-rh1,0,W/2+rh1,0); rg.addColorStop(0,'#3A424B'); rg.addColorStop(.5,'#535D67'); rg.addColorStop(1,'#3A424B');
     ctx.fillStyle=rg; ctx.beginPath(); ctx.moveTo(W/2-rh0,hz); ctx.lineTo(W/2+rh0,hz); ctx.lineTo(W/2+rh1,H); ctx.lineTo(W/2-rh1,H); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.08)'; ctx.beginPath();
+    ctx.moveTo(W/2-rh0*.28,hz); ctx.lineTo(W/2+rh0*.28,hz); ctx.lineTo(W/2+rh1*.42,H); ctx.lineTo(W/2-rh1*.42,H); ctx.closePath(); ctx.fill();
+    const speedN=9;
+    for(let k=0;k<speedN;k++){
+      const t=((k/speedN)+(st.scroll*0.7))%1; if(t<0.08) continue;
+      const y=projY(t), len=(16+34*t)*scaleAt(t), a=.08+.18*t;
+      ctx.strokeStyle='rgba(255,255,255,'+a+')'; ctx.lineWidth=Math.max(1,2.4*scaleAt(t));
+      [-0.72,0.72].forEach(side=>{ const x=W/2+side*roadHalf(t); ctx.beginPath(); ctx.moveTo(x,y-len); ctx.lineTo(x,y+len*.25); ctx.stroke(); });
+    }
     // 럼블 스트립
     const N=16;
     for(let k=0;k<N;k++){ if(((k+Math.floor(st.scroll*N))%2)) continue; const t0=k/N,t1=(k+1)/N;
