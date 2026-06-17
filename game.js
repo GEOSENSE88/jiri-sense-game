@@ -3009,7 +3009,7 @@ function enterArcade(title, color){
   $('timer-bar-wrap').style.display='none';
   $('game-body').style.display='none';
   ['hud-qnum','hud-combo','hud-score'].forEach(id=>{ const e=$(id); if(e&&e.parentElement) e.parentElement.style.visibility='hidden'; });
-  const ap=$('arcade-pane'); ap.classList.remove('hidden'); ap.innerHTML=''; return ap;
+  const ap=$('arcade-pane'); ap.className='arcade-pane'; ap.innerHTML=''; return ap;
 }
 function stopArcade(){
   if(G.arcade){
@@ -3214,6 +3214,7 @@ function runnerQuestions(n){
 function startRunner(){
   G.mode='runner'; G.score=0; G.combo=0; G.maxCombo=0; G.correctCnt=0; G.idx=0;
   const ap=enterArcade('🏃 지리 러너','#16A34A');
+  ap.classList.add('runner-pane');
   ap.innerHTML=
     '<div class="run-hud"><span id="run-lives" class="acid-lives"></span>'+
       '<span class="acid-chip"><span class="run-label">SCORE</span>⭐ <b id="run-score">0</b></span>'+
@@ -3228,10 +3229,10 @@ function startRunner(){
   const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
   const GATE_SPEED=0.58;         // 문제 갈림길은 읽고 판단할 시간을 주기 위해 일반 장애물보다 천천히 접근
   const RUNNER_SCENES=[
-    {label:'수도권 도시', src:'runner-bg/runner-bg-seoul.jpg'},
-    {label:'부산 해안', src:'runner-bg/runner-bg-busan.jpg'},
-    {label:'제주 화산섬', src:'runner-bg/runner-bg-jeju.jpg'},
-    {label:'경주 역사길', src:'runner-bg/runner-bg-gyeongju.jpg'}
+    {label:'수도권 도시', src:'runner-bg/runner-bg-seoul-v2.jpg'},
+    {label:'부산 해안', src:'runner-bg/runner-bg-busan-v2.jpg'},
+    {label:'제주 화산섬', src:'runner-bg/runner-bg-jeju-v2.jpg'},
+    {label:'경주 역사길', src:'runner-bg/runner-bg-gyeongju-v2.jpg'}
   ];
   const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.src=s.src; return img; });
   const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
@@ -3413,12 +3414,16 @@ function startRunner(){
   const bgCanvas=(idx)=>{ const img=runBgImgs[idx]; if(!img||!img.complete||!img.naturalWidth) return null;
     if(!st.bgCache) st.bgCache=[];
     if(st.bgCache[idx]) return st.bgCache[idx];
-    const oc=document.createElement('canvas'); oc.width=st.W; oc.height=st.H;
-    const o=oc.getContext('2d'); const iw=img.naturalWidth, ih=img.naturalHeight, sc=Math.max(st.W/iw,st.H/ih), sw=st.W/sc, sh=st.H/sc;
-    o.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,st.W,st.H);
+    const oc=document.createElement('canvas'); oc.width=Math.ceil(st.W*1.12); oc.height=Math.ceil(st.H*1.12);
+    const o=oc.getContext('2d'); const iw=img.naturalWidth, ih=img.naturalHeight, sc=Math.max(oc.width/iw,oc.height/ih), sw=oc.width/sc, sh=oc.height/sc;
+    o.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,oc.width,oc.height);
     st.bgCache[idx]=oc; return oc; };
   const drawCoverImage=(idx,alpha)=>{ const oc=bgCanvas(idx); if(!oc) return false;
-    if(alpha>=1){ ctx.drawImage(oc,0,0); } else { ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(oc,0,0); ctx.restore(); }
+    const maxX=Math.max(0,oc.width-st.W), maxY=Math.max(0,oc.height-st.H);
+    const ox=maxX*(0.5+Math.sin(st.dist*0.00125)*0.34);
+    const oy=maxY*(0.5+Math.sin(st.dist*0.0017)*0.30);
+    if(alpha>=1){ ctx.drawImage(oc,ox,oy,st.W,st.H,0,0,st.W,st.H); }
+    else { ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(oc,ox,oy,st.W,st.H,0,0,st.W,st.H); ctx.restore(); }
     return true; };
   const drawSceneLabel=(label,alpha)=>{
     if(alpha<=0) return; const W=st.W,k=Math.max(0.7,W/440);

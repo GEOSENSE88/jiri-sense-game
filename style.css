@@ -1014,39 +1014,85 @@ button { font-family:inherit; }
   border:1.6px solid #cfe0ee; border-radius:99px; padding:3px 11px; box-shadow:0 1px 3px rgba(20,50,90,.08); }
 .acid-lives{ font-size:1rem; letter-spacing:1px; min-width:54px; text-align:right; }
 
+.acid-hud{
+  padding:9px 12px; border-radius:18px; background:linear-gradient(135deg,#164476,#2487C8);
+  border:1.5px solid rgba(255,255,255,.38); box-shadow:0 8px 20px rgba(18,88,150,.18);
+}
 /* ── 산성비 ── */
-.acid-theme{ font-size:.98rem; font-weight:900; color:var(--navy,#13355e); line-height:1.25; }
-.acid-theme small{ display:block; font-size:.7rem; font-weight:700; color:#7c93ab; margin-bottom:1px; }
-.acid-theme b{ color:#3a6fd8; font-size:1.12rem; }
+.acid-theme{ width:100%; font-size:1.02rem; font-weight:900; color:#fff; line-height:1.25; text-shadow:0 1px 2px rgba(0,0,0,.16); }
+.acid-theme small{ display:block; font-size:.68rem; font-weight:800; color:rgba(255,255,255,.78); margin-bottom:2px; }
+.acid-theme span{ opacity:.84; margin-right:4px; }
+.acid-theme b{ color:#fff; font-size:1.15rem; }
 .acid-theme.flash{ animation:acidFlash .55s ease-out; }
 @keyframes acidFlash{ 0%{transform:scale(1.18); filter:brightness(1.35)} 100%{transform:scale(1)} }
 
 .acid-field{ position:relative; flex:1; min-height:360px;
   background:linear-gradient(180deg,#eaf4ff 0%,#dbeaff 60%,#cfe1fb 100%);
-  border:2px solid #b9d3f2; border-radius:18px; overflow:hidden;
-  box-shadow:inset 0 2px 14px rgba(80,130,200,.14); touch-action:manipulation; }
-.acid-field::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
-  background-image:repeating-linear-gradient(105deg,rgba(120,170,230,.18) 0 1px,transparent 1px 9px); }
+  border:3px solid #2D77B9; border-radius:22px; overflow:hidden;
+  box-shadow:0 16px 28px rgba(43,119,185,.18), inset 0 0 0 2px rgba(255,255,255,.38);
+  touch-action:manipulation; transition:background .45s ease, border-color .45s ease; }
+.acid-field::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.48; z-index:1;
+  background-image:repeating-linear-gradient(105deg,rgba(255,255,255,.26) 0 1px,transparent 1px 10px); }
+.acid-field::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:34%;
+  pointer-events:none; opacity:.9; z-index:1; transition:background .45s ease;
+  background:linear-gradient(180deg,transparent,rgba(102,178,93,.34)); }
 .acid-field.shake{ animation:acidShake .32s; }
 @keyframes acidShake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 80%{transform:translateX(-4px)} }
+.acid-field.changing{ animation:acidScenePulse .9s ease-out; }
+@keyframes acidScenePulse{ 0%{filter:saturate(1.45) brightness(1.12)} 100%{filter:none} }
+
+.acid-field.scene-city{ background:linear-gradient(180deg,#A9E4FF 0%,#EAF8FF 48%,#C8E8B8 100%); border-color:#2994D1; }
+.acid-field.scene-city::after{ background:
+  linear-gradient(180deg,transparent 0%,rgba(105,180,118,.22) 42%,rgba(74,155,76,.44) 100%),
+  repeating-linear-gradient(90deg,transparent 0 28px,rgba(73,116,157,.18) 28px 39px,transparent 39px 64px); }
+.acid-field.scene-industry{ background:linear-gradient(180deg,#D9E2EC 0%,#EEF3F7 45%,#D8E3CB 100%); border-color:#60758A; }
+.acid-field.scene-industry::after{ background:
+  radial-gradient(80px 28px at 18% 70%,rgba(120,132,148,.30),transparent 70%),
+  radial-gradient(100px 34px at 82% 78%,rgba(85,99,112,.28),transparent 72%),
+  linear-gradient(180deg,transparent,rgba(110,126,92,.36)); }
+.acid-field.scene-transport{ background:linear-gradient(180deg,#BFEFFF 0%,#E8FBFF 46%,#B9E4F1 100%); border-color:#238AB6; }
+.acid-field.scene-transport::after{ background:
+  linear-gradient(180deg,transparent 0%,rgba(65,156,200,.18) 48%,rgba(34,126,174,.34) 100%),
+  repeating-linear-gradient(8deg,transparent 0 18px,rgba(255,255,255,.22) 18px 21px,transparent 21px 48px); }
+.acid-field.scene-nature{ background:linear-gradient(180deg,#C9F5FF 0%,#F2FFF0 48%,#BDE89D 100%); border-color:#55A943; }
+.acid-field.scene-nature::after{ background:
+  radial-gradient(90px 42px at 18% 78%,rgba(54,139,65,.35),transparent 72%),
+  radial-gradient(130px 54px at 74% 76%,rgba(68,154,72,.30),transparent 72%),
+  linear-gradient(180deg,transparent,rgba(64,154,68,.35)); }
+.acid-field.scene-culture{ background:linear-gradient(180deg,#FFEAC0 0%,#FFF8DF 50%,#E8D4A5 100%); border-color:#C89132; }
+.acid-field.scene-culture::after{ background:
+  radial-gradient(90px 36px at 20% 78%,rgba(139,98,50,.26),transparent 72%),
+  radial-gradient(110px 42px at 80% 78%,rgba(173,126,57,.24),transparent 72%),
+  linear-gradient(180deg,transparent,rgba(188,143,65,.28)); }
 
 .acid-card{ position:absolute; top:-44px; display:flex; align-items:center; justify-content:center;
-  min-width:62px; padding:9px 14px; border-radius:13px; font-size:.92rem; font-weight:800;
-  color:var(--navy,#13355e); background:#fff; border:2px solid #c2d3e6; white-space:nowrap;
-  box-shadow:0 4px 10px rgba(40,70,120,.22); cursor:pointer; user-select:none; will-change:transform; }
+  min-width:68px; padding:10px 15px; border-radius:14px; font-size:.94rem; font-weight:900;
+  color:#153E63; background:linear-gradient(180deg,#fff,#F5FBFF); border:2.5px solid rgba(255,255,255,.94); white-space:nowrap;
+  box-shadow:0 7px 0 rgba(53,101,139,.18), 0 10px 18px rgba(40,70,120,.24);
+  cursor:pointer; user-select:none; will-change:transform; z-index:2; }
 .acid-card::after{ content:""; position:absolute; top:-10px; left:50%; width:3px; height:10px;
-  background:#9fb8d6; transform:translateX(-50%); border-radius:2px; }
+  background:#7EA5C7; transform:translateX(-50%); border-radius:2px; box-shadow:0 -3px 0 rgba(255,255,255,.45); }
 .acid-card:active{ transform:scale(.94); }
 .acid-card.pop-ok{ background:#bdf3c6; border-color:#54c96a; color:#157a2c;
   transform:scale(1.22); transition:transform .14s; }
 .acid-card.pop-bad{ background:#ffd2cc; border-color:#e6584c; color:#a32016;
   transform:scale(.66) rotate(9deg); transition:transform .14s; }
 
-.acid-pop{ position:absolute; font-weight:900; font-size:1.05rem; color:#1f9c46;
-  text-shadow:0 1px 2px rgba(255,255,255,.8); pointer-events:none; z-index:5;
+.acid-pop{ position:absolute; font-weight:900; font-size:1.08rem; color:#138A3D;
+  text-shadow:0 2px 0 #fff, 0 4px 10px rgba(0,0,0,.18); pointer-events:none; z-index:5;
   animation:acidPop .75s ease-out forwards; }
 .acid-pop.bad{ color:#e6584c; }
 @keyframes acidPop{ 0%{transform:translateY(0) scale(.8); opacity:0} 18%{opacity:1; transform:translateY(-6px) scale(1.1)} 100%{transform:translateY(-40px) scale(1); opacity:0} }
+
+.acid-theme-pop{ position:absolute; left:50%; top:43%; transform:translate(-50%,-50%);
+  width:min(88%, 390px); padding:20px 22px 18px; border-radius:22px; text-align:center; z-index:6;
+  color:#fff; background:linear-gradient(135deg,rgba(8,35,68,.94),rgba(34,126,174,.92));
+  border:2px solid rgba(255,255,255,.42); box-shadow:0 18px 38px rgba(0,0,0,.30);
+  pointer-events:none; animation:acidThemePop 1.5s ease-out forwards; }
+.acid-theme-pop small{ display:block; font-size:.82rem; font-weight:900; opacity:.82; letter-spacing:0; }
+.acid-theme-pop b{ display:block; margin-top:3px; font-size:1.42rem; font-weight:900; line-height:1.2; text-shadow:0 2px 8px rgba(0,0,0,.22); }
+.acid-theme-pop em{ display:block; margin-top:7px; font-style:normal; font-size:.82rem; font-weight:800; color:rgba(255,255,255,.82); }
+@keyframes acidThemePop{ 0%{opacity:0; transform:translate(-50%,-36%) scale(.76)} 18%,78%{opacity:1; transform:translate(-50%,-50%) scale(1)} 100%{opacity:0; transform:translate(-50%,-62%) scale(.96)} }
 
 .acid-tip{ font-size:.74rem; color:#7c93ab; text-align:center; line-height:1.4; }
 .acid-tip b{ color:#3a6fd8; }
@@ -1125,12 +1171,19 @@ button { font-family:inherit; }
 
 /* 산성비 점수·시간 바(크게·잘 보이게) */
 .acid-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px;
-  padding:7px 14px; border-radius:13px; background:#fff;
-  border:2px solid #cfe0ee; box-shadow:0 2px 6px rgba(20,50,90,.1); }
+  padding:8px 12px; border-radius:16px; background:#fff;
+  border:2px solid #cfe0ee; box-shadow:0 6px 16px rgba(20,50,90,.12); }
 .acid-big{ font-size:1rem; font-weight:800; color:var(--navy,#13355e); }
 .acid-big b{ font-size:1.5rem; line-height:1; }
 .acid-big.score b{ color:#E8890C; }
+.acid-big.combo b{ color:#E8590C; }
 .acid-big.time b{ color:#3a6fd8; }
+@media (max-width:520px){
+  .acid-bar{ gap:6px; padding:7px 9px; }
+  .acid-big{ font-size:.82rem; }
+  .acid-big b{ font-size:1.25rem; }
+  .acid-theme b{ font-size:1.05rem; }
+}
 
 /* 러너 상단 문제·선지 */
 .run-choices{ display:flex; justify-content:space-between; gap:9px; margin-top:9px; }
@@ -1143,4 +1196,11 @@ button { font-family:inherit; }
   .run-q{ left:9px; right:9px; top:9px; font-size:.92rem; padding:10px 11px; }
   .run-ch{ font-size:.9rem; padding:7px 8px; }
   .run-hud .acid-lives{ min-width:104px; }
+}
+@media (orientation:landscape) and (min-width:760px) and (max-height:900px){
+  .arcade-pane.runner-pane{ max-width:min(520px, 48vw); min-height:calc(100dvh - 74px); padding-top:6px; }
+  .runner-pane .run-stage{ min-height:0; aspect-ratio:9 / 13.5; flex:0 1 auto; }
+  .runner-pane .run-hud{ padding:6px 8px; }
+  .runner-pane .run-btn{ min-height:52px; }
+  .runner-pane .acid-tip{ font-size:.68rem; }
 }
