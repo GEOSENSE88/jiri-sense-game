@@ -3095,23 +3095,48 @@ function startAcidRain(){
     '</div>'+
     '<div class="acid-bar">'+
       '<span class="acid-big score">⭐ 점수 <b id="acid-score">0</b></span>'+
+      '<span class="acid-big combo">🔥 콤보 <b id="acid-combo">0</b></span>'+
       '<span class="acid-big time">⏱️ <b id="acid-time">60</b>초</span>'+
     '</div>'+
     '<div class="acid-field" id="acid-field"><div class="acid-sky" id="acid-sky"><div class="acid-sun"></div><div class="acid-clouds"></div></div></div>'+
-    '<div class="acid-tip">지금 <b>주제</b>에 맞는 지역만 콕콕! · 주제가 바뀌면 화면의 카드도 <b>새 주제 기준</b>으로 판정 · 60초 누적 <b>(틀리면 −5점)</b></div>';
+    '<div class="acid-tip"><b>주제에 맞는 지역만 터치!</b> · 배경이 바뀌면 새 주제 기준 · 오답 −5점</div>';
   const field=$('acid-field');
   const {themes, pool}=acidThemes();
   // ⚠️ score·combo 반드시 0으로 초기화(미초기화 시 undefined+N=NaN → 점수 NaN·코인 NaN 전파)
-  const st={score:0, combo:0, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.2, fall:50, last:0, over:false, sinceTheme:0, idc:0};
+  const st={score:0, combo:0, time:60.0, cards:[], theme:null, spawnAcc:0, spawnGap:1.2, fall:50, last:0, over:false, sinceTheme:0, transition:0, idc:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{ st.cards.forEach(c=>c.el&&c.el.remove()); }};
   const setScore=()=>{ $('acid-score').textContent=st.score; };
+  const setCombo=()=>{ $('acid-combo').textContent=st.combo; };
+  const themeScene=(label)=>{
+    if(/수도권|광역시|인구|특례|도청|혁신|기업/.test(label)) return 'city';
+    if(/자동차|전자|반도체|제철|석유|화학|조선|시멘트|기계|산업/.test(label)) return 'industry';
+    if(/항구|무역항|공항|KTX/.test(label)) return 'transport';
+    if(/화산|용암|석회암|카르스트|갯벌|습지|국립공원|고원|간척|동계|스포츠/.test(label)) return 'nature';
+    if(/유네스코|축제|문화|관광/.test(label)) return 'culture';
+    return 'default';
+  };
+  const themeNotice=(label)=>{
+    const b=document.createElement('div');
+    b.className='acid-theme-pop';
+    b.innerHTML='<small>주제 전환!</small><b>'+label+'</b><em>새 기준으로 다시 시작</em>';
+    field.appendChild(b);
+    setTimeout(()=>b.remove(),1500);
+  };
   const newTheme=()=>{
     let t; do{ t=themes[Math.floor(Math.random()*themes.length)]; }while(themes.length>1 && t===st.theme);
     st.theme=t; st.sinceTheme=0;
-    const el=$('acid-theme'); el.innerHTML='주제 <b>'+t.label+'</b>';
+    st.transition=1.35;
+    st.spawnAcc=0;
+    st.cards.forEach(c=>{ c.dead=true; c.el&&c.el.remove(); });
+    st.cards=[];
+    const el=$('acid-theme'); el.innerHTML='<small id="acid-next">주제 변경까지 12초</small><span>주제</span> <b>'+t.label+'</b>';
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-    // 날씨 모션: 주제가 바뀌면 화창 → 흐림 → 다시 화창
+    const scene=themeScene(t.label);
+    field.className='acid-field scene-'+scene+' changing';
+    G.arcade.timers.push(setTimeout(()=>field.classList.remove('changing'),900));
+    // 날씨 모션: 주제가 바뀌면 배경·하늘이 확 바뀌어 기준 변경을 눈으로 확인
     const sky=$('acid-sky'); if(sky){ sky.classList.add('cloudy'); G.arcade.timers.push(setTimeout(()=>sky.classList.remove('cloudy'),1200)); }
+    themeNotice(t.label);
   };
   const spawn=()=>{
     const useMember = Math.random()<0.5 && st.theme.members.length>0;
@@ -3125,10 +3150,10 @@ function startAcidRain(){
     const card={el, x, y:-46, name:l.name, dead:false, id:st.idc++};
     // pointerdown: 움직이는 카드는 click이 모바일에서 취소될 수 있어 즉시 반응
     // 정답 여부는 '탭하는 순간의 현재 주제'로 판정 → 주제가 바뀌면 화면의 기존 카드도 새 주제 기준으로 맞히면 정답
-    const tap=(e)=>{ e.preventDefault(); e.stopPropagation(); if(card.dead||st.over) return; card.dead=true;
+    const tap=(e)=>{ e.preventDefault(); e.stopPropagation(); if(card.dead||st.over||st.transition>0) return; card.dead=true;
       const isMatch = st.theme.set.has(card.name);
-      if(isMatch){ const add=Math.round(10+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; setScore(); el.classList.add('pop-ok'); popText(el,'+'+add,true); }
-      else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-5); setScore(); el.classList.add('pop-bad'); popText(el,'−5',false); field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); }
+      if(isMatch){ const add=Math.round(10+st.combo*2); st.combo++; G.combo=st.combo; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; G.idx++; st.score+=add; setScore(); setCombo(); el.classList.add('pop-ok'); popText(el,'+'+add+(st.combo>=3?' 콤보!':''),true); }
+      else { st.combo=0; G.combo=0; G.idx++; st.score=Math.max(0,st.score-5); setScore(); setCombo(); el.classList.add('pop-bad'); popText(el,'−5',false); field.classList.remove('shake'); void field.offsetWidth; field.classList.add('shake'); }
       setTimeout(()=>el.remove(),200);
     };
     el.addEventListener('pointerdown', tap, {passive:false});
@@ -3140,12 +3165,19 @@ function startAcidRain(){
     if(st.over) return;
     if(!st.last) st.last=ts;
     let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
+    if(st.transition>0){
+      st.transition=Math.max(0,st.transition-dt);
+      const next=$('acid-next'); if(next) next.textContent='새 주제 준비 중';
+      if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
+      return;
+    }
     st.time-=dt; if(st.time<=0){ st.time=0; $('acid-time').textContent='0'; return finish(); }
     $('acid-time').textContent=Math.ceil(st.time);
     // 난이도 완만 상승(하트 없음 — 60초 점수 누적)
     const prog=Math.min(1,(60-st.time)/55);
     const fall=st.fall+prog*45, gap=st.spawnGap-prog*0.3;
     st.sinceTheme+=dt; if(st.sinceTheme>=12) newTheme();
+    const next=$('acid-next'); if(next) next.textContent='주제 변경까지 '+Math.max(0,Math.ceil(12-st.sinceTheme))+'초';
     st.spawnAcc+=dt; if(st.spawnAcc>=gap){ st.spawnAcc=0; spawn(); }
     const H=field.clientHeight;
     for(const c of st.cards){
@@ -3156,7 +3188,7 @@ function startAcidRain(){
     st.cards=st.cards.filter(c=>!c.dead);
     if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
   };
-  newTheme(); setScore();
+  newTheme(); setScore(); setCombo();
   G.arcade.raf=requestAnimationFrame(loop);
 }
 
@@ -3192,7 +3224,7 @@ function startRunner(){
     '</div>'+
     '<div class="run-ctrl"><button class="run-btn" id="run-left">◀</button><button class="run-btn" id="run-right">▶</button></div>'+
     '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
-  const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d');
+  const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d',{alpha:false});
   const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
   const GATE_SPEED=0.58;         // 문제 갈림길은 읽고 판단할 시간을 주기 위해 일반 장애물보다 천천히 접근
   const RUNNER_SCENES=[
@@ -3205,7 +3237,13 @@ function startRunner(){
   const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
             gate:null, gateTimer:4.5, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
-  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.round(r.width); st.H=cv.height=Math.round(r.height); st.hz=Math.round(st.H*0.33); };
+  // 정적 그라데이션은 resize 때 1회만 생성(매 프레임 createGradient 방지)
+  const buildGrads=()=>{ const W=st.W,H=st.H,hz=st.hz,rh1=W*0.47;
+    let rg=ctx.createLinearGradient(W/2-rh1,0,W/2+rh1,0); rg.addColorStop(0,'#3A424B'); rg.addColorStop(.5,'#535D67'); rg.addColorStop(1,'#3A424B'); st.gRoad=rg;
+    let ti=ctx.createLinearGradient(0,hz,0,H); ti.addColorStop(0,'rgba(79,172,67,.10)'); ti.addColorStop(1,'rgba(69,150,55,.30)'); st.gTint=ti;
+    let sk=ctx.createLinearGradient(0,0,0,hz+20); sk.addColorStop(0,'#4FA8EE'); sk.addColorStop(1,'#CFEBFF'); st.gSky=sk;
+    let gs=ctx.createLinearGradient(0,hz,0,H); gs.addColorStop(0,'#5FB544'); gs.addColorStop(1,'#92D85C'); st.gGrass=gs; };
+  const resize=()=>{ const r=stage.getBoundingClientRect(); st.W=cv.width=Math.max(1,Math.round(r.width)); st.H=cv.height=Math.max(1,Math.round(r.height)); st.hz=Math.round(st.H*0.33); st.bgCache=[]; buildGrads(); };
   resize(); window.addEventListener('resize', resize); G.arcade.cleanup=()=>window.removeEventListener('resize',resize);
   // ── 3D 원근 투영 ──
   const roadHalf=t=>{ const top=st.W*0.05, bot=st.W*0.47; return top+(bot-top)*t*t; };
@@ -3217,10 +3255,13 @@ function startRunner(){
   const move=(d)=>{ if(st.over) return; const nl=Math.max(0,Math.min(LANES-1,st.lane+d));
     if(nl===st.lane && (st.lane===0||st.lane===LANES-1)) st.bump=d*0.6;   // 끝 차선: 더 못 감 → 벽에 살짝 걸림(하트 안 깎임)
     st.lane=nl; };
-  $('run-left').onclick=()=>move(-1); $('run-right').onclick=()=>move(1);
-  const tapMove=(e)=>{ const r=stage.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; move(x< r.width/2 ? -1 : 1); };
-  stage.addEventListener('pointerdown', tapMove);
-  const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); };
+  // 입력은 pointerdown으로 통일 + 기본동작 차단(클릭 지연·중복·스크롤 방지 → 터치 안정화)
+  const btnL=$('run-left'), btnR=$('run-right');
+  const onL=(e)=>{ e.preventDefault(); move(-1); }, onR=(e)=>{ e.preventDefault(); move(1); };
+  btnL.addEventListener('pointerdown', onL); btnR.addEventListener('pointerdown', onR);
+  const tapMove=(e)=>{ e.preventDefault(); const r=stage.getBoundingClientRect(); const cx=(e.clientX!=null?e.clientX:(e.touches&&e.touches[0]?e.touches[0].clientX:0)); move(cx-r.left < r.width/2 ? -1 : 1); };
+  stage.addEventListener('pointerdown', tapMove, {passive:false});
+  const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); btnL.removeEventListener('pointerdown',onL); btnR.removeEventListener('pointerdown',onR); };
   const finish=()=>{ if(st.over)return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
   const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, t:0}); };
   const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
@@ -3365,18 +3406,17 @@ function startRunner(){
     ctx.fillStyle='#FFFFFF'; ctx.font='900 '+Math.round(9*s)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('G',0,9*s);
     ctx.restore();
   };
-  const drawCoverImage=(img,alpha)=>{
-    const W=st.W,H=st.H;
-    if(!img || !img.complete || !img.naturalWidth) return false;
-    const iw=img.naturalWidth, ih=img.naturalHeight;
-    const sc=Math.max(W/iw,H/ih);
-    const sw=W/sc, sh=H/sc;
-    const pan=Math.sin(st.dist*0.0012)*0.08;
-    let sx=(iw-sw)*(0.5+pan), sy=(ih-sh)*0.5;
-    sx=Math.max(0,Math.min(iw-sw,sx)); sy=Math.max(0,Math.min(ih-sh,sy));
-    ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H); ctx.restore();
-    return true;
-  };
+  // 배경 이미지를 화면 크기에 맞춰 오프스크린에 1회만 리샘플 → 매 프레임은 1:1 블릿(저사양 끊김·떨림 방지)
+  const bgCanvas=(idx)=>{ const img=runBgImgs[idx]; if(!img||!img.complete||!img.naturalWidth) return null;
+    if(!st.bgCache) st.bgCache=[];
+    if(st.bgCache[idx]) return st.bgCache[idx];
+    const oc=document.createElement('canvas'); oc.width=st.W; oc.height=st.H;
+    const o=oc.getContext('2d'); const iw=img.naturalWidth, ih=img.naturalHeight, sc=Math.max(st.W/iw,st.H/ih), sw=st.W/sc, sh=st.H/sc;
+    o.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,st.W,st.H);
+    st.bgCache[idx]=oc; return oc; };
+  const drawCoverImage=(idx,alpha)=>{ const oc=bgCanvas(idx); if(!oc) return false;
+    if(alpha>=1){ ctx.drawImage(oc,0,0); } else { ctx.save(); ctx.globalAlpha=alpha; ctx.drawImage(oc,0,0); ctx.restore(); }
+    return true; };
   const drawSceneLabel=(label,alpha)=>{
     if(alpha<=0) return; const W=st.W,k=Math.max(0.7,W/440);
     ctx.save(); ctx.globalAlpha=alpha; const txt='🗺️ '+label;
@@ -3442,20 +3482,15 @@ function startRunner(){
     const W=st.W,H=st.H,hz=st.hz; ctx.clearRect(0,0,W,H);
     const bgSeg=820, bgCp=(st.dist%bgSeg)/bgSeg, bgCur=Math.floor(st.dist/bgSeg)%RUNNER_SCENES.length, bgNxt=(bgCur+1)%RUNNER_SCENES.length;
     const bgFade = bgCp>0.86 ? (bgCp-0.86)/0.14 : 0;
-    const bgCurReady = drawCoverImage(runBgImgs[bgCur],1-bgFade);
-    const bgNxtReady = bgFade>0 ? drawCoverImage(runBgImgs[bgNxt],bgFade) : false;
+    const bgCurReady = drawCoverImage(bgCur,1-bgFade);
+    const bgNxtReady = bgFade>0 ? drawCoverImage(bgNxt,bgFade) : false;
     const imageSceneReady = bgCurReady || bgNxtReady;
     if(imageSceneReady){
-      ctx.fillStyle='rgba(255,255,255,.10)'; ctx.fillRect(0,0,W,H);
-      let groundTint=ctx.createLinearGradient(0,hz,0,H);
-      groundTint.addColorStop(0,'rgba(79,172,67,.10)');
-      groundTint.addColorStop(1,'rgba(69,150,55,.30)');
-      ctx.fillStyle=groundTint; ctx.fillRect(0,hz,W,H-hz);
+      ctx.fillStyle=st.gTint; ctx.fillRect(0,hz,W,H-hz);
       drawSceneLabel(RUNNER_SCENES[bgFade<0.5?bgCur:bgNxt].label,1);
     } else {
     // 하늘 + 해 글로우
-    let sky=ctx.createLinearGradient(0,0,0,hz+20); sky.addColorStop(0,'#4FA8EE'); sky.addColorStop(1,'#CFEBFF');
-    ctx.fillStyle=sky; ctx.fillRect(0,0,W,hz+1);
+    ctx.fillStyle=st.gSky; ctx.fillRect(0,0,W,hz+1);
     const sx=W*0.80, sy=hz*0.40, sr=Math.min(22,W*0.06);
     let glow=ctx.createRadialGradient(sx,sy,sr*0.4,sx,sy,sr*4.2); glow.addColorStop(0,'rgba(255,236,150,.75)'); glow.addColorStop(1,'rgba(255,236,150,0)');
     ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(sx,sy,sr*4.2,0,7); ctx.fill();
@@ -3476,18 +3511,14 @@ function startRunner(){
     drawCity(cur,1-aN); drawCity(nxt,aN); cityLabel(aN<0.5?cur:nxt, 1);
     }
     // 잔디
-    if(!imageSceneReady){
-      let gr=ctx.createLinearGradient(0,hz,0,H); gr.addColorStop(0,'#5FB544'); gr.addColorStop(1,'#92D85C');
-      ctx.fillStyle=gr; ctx.fillRect(0,hz,W,H-hz);
-    }
+    if(!imageSceneReady){ ctx.fillStyle=st.gGrass; ctx.fillRect(0,hz,W,H-hz); }
     // 잔디 속도 줄무늬
     const NB=12;
     for(let k=0;k<NB;k++){ if(((k+Math.floor(st.scroll*NB))%2)) continue; const t0=k/NB,t1=(k+1)/NB;
       ctx.fillStyle='rgba(85,165,65,.22)'; ctx.fillRect(0,projY(t0),W,Math.max(1,projY(t1)-projY(t0))); }
     // 도로(가운데 밝은 그라데이션)
     const rh0=roadHalf(0), rh1=roadHalf(1);
-    let rg=ctx.createLinearGradient(W/2-rh1,0,W/2+rh1,0); rg.addColorStop(0,'#3A424B'); rg.addColorStop(.5,'#535D67'); rg.addColorStop(1,'#3A424B');
-    ctx.fillStyle=rg; ctx.beginPath(); ctx.moveTo(W/2-rh0,hz); ctx.lineTo(W/2+rh0,hz); ctx.lineTo(W/2+rh1,H); ctx.lineTo(W/2-rh1,H); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=st.gRoad; ctx.beginPath(); ctx.moveTo(W/2-rh0,hz); ctx.lineTo(W/2+rh0,hz); ctx.lineTo(W/2+rh1,H); ctx.lineTo(W/2-rh1,H); ctx.closePath(); ctx.fill();
     ctx.fillStyle='rgba(255,255,255,.08)'; ctx.beginPath();
     ctx.moveTo(W/2-rh0*.28,hz); ctx.lineTo(W/2+rh0*.28,hz); ctx.lineTo(W/2+rh1*.42,H); ctx.lineTo(W/2-rh1*.42,H); ctx.closePath(); ctx.fill();
     const speedN=9;
