@@ -921,16 +921,16 @@ button { font-family:inherit; }
 .rcard.tier1 .rc-enh { border-color:rgba(255,255,255,.22); }
 .rcard.tier1 .enh-stg { color:#aab2c4; }
 .rcard.tier2::before { background:linear-gradient(135deg,#f3f5fa,#aeb6c6 28%,#dfe4ee 50%,#9aa3b6 72%,#f3f5fa); }
-.rcard.tier2 .rcard-fx { background:linear-gradient(115deg,transparent 36%,rgba(255,255,255,.5) 47%,rgba(214,224,238,.32) 52%,transparent 60%);
-  background-size:280% 100%; animation:shine 3s infinite; mix-blend-mode:screen; }
+.gcard-front .rcard.tier2 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 36%,rgba(255,255,255,.5) 47%,rgba(214,224,238,.32) 52%,transparent 60%);
+  background-size:280% 100%; animation:shine 3.4s infinite; mix-blend-mode:screen; }
 .rcard.tier2 .art-window { border-color:#b9c0cf; }
 .rcard.tier2 .art-window.svgart { background:radial-gradient(120% 100% at 50% 32%, #eef7e6 0%, #c6dcb6 100%); }
 .rcard.tier2 .card-sil .land { fill:#A8D158; }
 .rcard.tier2 .enh-pins i.on { background:linear-gradient(180deg,#fff,#c4ccda); border-color:#fff; }
 .rcard.tier3::before { background:linear-gradient(135deg,#fff4c2,#e8b349 18%,#9d6a14 38%,#ffe9a3 52%,#b9842b 70%,#ffd87a 88%,#8a5d12); }
 .rcard.tier3 { box-shadow:0 12px 28px -12px rgba(245,166,35,.45), 0 0 0 1px rgba(255,255,255,.04) inset; }
-.rcard.tier3 .rcard-fx { background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.7) 44%,rgba(255,230,160,.8) 50%,rgba(255,255,255,.7) 56%,transparent 72%);
-  background-size:260% 100%; animation:shine 2.6s infinite; mix-blend-mode:screen; }
+.gcard-front .rcard.tier3 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.7) 44%,rgba(255,230,160,.8) 50%,rgba(255,255,255,.7) 56%,transparent 72%);
+  background-size:260% 100%; animation:shine 3.0s infinite; mix-blend-mode:screen; }
 .rcard.tier3 .art-window { border-color:#f0c976; }
 .rcard.tier3 .rcard-name .cname-t { background:linear-gradient(180deg,#fff,#ffe9b0 70%,#f4c862); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
@@ -949,12 +949,12 @@ button { font-family:inherit; }
 .rcard.tier5 .enh-pins i.on { background:linear-gradient(180deg,#dff,#caa3ff); border-color:#fff; box-shadow:0 0 5px rgba(180,140,255,.9); }
 .rcard.tier5 .rc-enh .enh-max { background:linear-gradient(135deg,#36d1dc,#a855f7); color:#fff; }
 
-/* ✨ 움직이는 홀로그램 액션(스윕·무지개 흐름·이름 반짝)은 카드를 클릭해 크게 띄운 상세에서만 */
-.rcard.tier4 .rcard-fx, .rcard.tier5 .rcard-fx { display:none; }
+/* ✨ 움직이는 스윕은 그리드에선 전 단계 끔(정적 프레임만) — 카드를 크게 띄운 상세에서만, 단계 높을수록 빠르게 */
+.rcard.tier2 .rcard-fx, .rcard.tier3 .rcard-fx, .rcard.tier4 .rcard-fx, .rcard.tier5 .rcard-fx { display:none; }
 .gcard-front .rcard.tier4 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 26%,rgba(255,255,255,.55) 40%,rgba(120,220,255,.5) 47%,rgba(220,140,255,.5) 53%,rgba(255,255,255,.55) 60%,transparent 74%);
-  background-size:260% 100%; animation:shine 2.4s infinite; mix-blend-mode:screen; }
+  background-size:260% 100%; animation:shine 2.6s infinite; mix-blend-mode:screen; }
 .gcard-front .rcard.tier5 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 22%,rgba(255,255,255,.8) 38%,rgba(140,230,255,.7) 46%,rgba(230,150,255,.7) 54%,rgba(255,255,255,.8) 62%,transparent 78%);
-  background-size:240% 100%; animation:shine 1.9s infinite; mix-blend-mode:screen; }
+  background-size:240% 100%; animation:shine 2.1s infinite; mix-blend-mode:screen; }
 .gcard-front .rcard.tier5::before { animation:prismflow 6s linear infinite; }
 .gcard-front .rcard.tier5 .rcard-name .cname-t { animation:prismtext 4s linear infinite; }
 @keyframes prismflow { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
