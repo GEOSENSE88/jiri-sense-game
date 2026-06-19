@@ -934,24 +934,29 @@ button { font-family:inherit; }
 .rcard.tier3 .art-window { border-color:#f0c976; }
 .rcard.tier3 .rcard-name .cname-t { background:linear-gradient(180deg,#fff,#ffe9b0 70%,#f4c862); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
-/* 4단계: 무지개 홀로그래픽(프리즘) — 골드 위 상위 등급 */
+/* 4단계: 무지개 홀로그래픽(프리즘) — 골드 위 상위 등급. 그리드는 정적 프레임만 */
 .rcard.tier4::before { background:linear-gradient(135deg,#ff5f6d,#ffc371 16%,#3cd3ad 34%,#36d1dc 50%,#5b86e5 66%,#a855f7 82%,#ff5f6d); }
 .rcard.tier4 { box-shadow:0 12px 30px -12px rgba(120,90,255,.5), 0 0 0 1px rgba(255,255,255,.05) inset; }
-.rcard.tier4 .rcard-fx { background:linear-gradient(115deg,transparent 26%,rgba(255,255,255,.55) 40%,rgba(120,220,255,.5) 47%,rgba(220,140,255,.5) 53%,rgba(255,255,255,.55) 60%,transparent 74%);
-  background-size:260% 100%; animation:shine 2.4s infinite; mix-blend-mode:screen; }
 .rcard.tier4 .art-window { border-color:#bfa9ff; }
 .rcard.tier4 .rcard-name .cname-t { background:linear-gradient(110deg,#fff,#bff5ff 40%,#e3c2ff 70%,#ffd6f0); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .rcard.tier4 .enh-pins i.on { background:linear-gradient(180deg,#bdf,#c4a0ff); border-color:#fff; }
 
-/* 5단계: 무지개 + 움직이는 반짝임(최종 MAX) */
-.rcard.tier5::before { background:linear-gradient(135deg,#ff5f6d,#ffc371,#3cd3ad,#36d1dc,#5b86e5,#a855f7,#ff5f6d); background-size:300% 300%; animation:prismflow 6s linear infinite; }
+/* 5단계: 무지개(최종 MAX). 프레임/이름 그라데이션은 정적 — 움직임은 상세에서만 */
+.rcard.tier5::before { background:linear-gradient(135deg,#ff5f6d,#ffc371,#3cd3ad,#36d1dc,#5b86e5,#a855f7,#ff5f6d); background-size:300% 300%; background-position:0% 50%; }
 .rcard.tier5 { box-shadow:0 14px 34px -12px rgba(170,85,247,.6), 0 0 0 1px rgba(255,255,255,.06) inset; }
-.rcard.tier5 .rcard-fx { background:linear-gradient(115deg,transparent 22%,rgba(255,255,255,.8) 38%,rgba(140,230,255,.7) 46%,rgba(230,150,255,.7) 54%,rgba(255,255,255,.8) 62%,transparent 78%);
-  background-size:240% 100%; animation:shine 1.9s infinite; mix-blend-mode:screen; }
 .rcard.tier5 .art-window { border-color:#d9b8ff; box-shadow:0 0 10px rgba(170,120,255,.5) inset; }
-.rcard.tier5 .rcard-name .cname-t { background:linear-gradient(110deg,#fff,#c9f9ff,#e7c6ff,#ffd6f0,#fff); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:prismtext 4s linear infinite; }
+.rcard.tier5 .rcard-name .cname-t { background:linear-gradient(110deg,#fff,#c9f9ff,#e7c6ff,#ffd6f0,#fff); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .rcard.tier5 .enh-pins i.on { background:linear-gradient(180deg,#dff,#caa3ff); border-color:#fff; box-shadow:0 0 5px rgba(180,140,255,.9); }
 .rcard.tier5 .rc-enh .enh-max { background:linear-gradient(135deg,#36d1dc,#a855f7); color:#fff; }
+
+/* ✨ 움직이는 홀로그램 액션(스윕·무지개 흐름·이름 반짝)은 카드를 클릭해 크게 띄운 상세에서만 */
+.rcard.tier4 .rcard-fx, .rcard.tier5 .rcard-fx { display:none; }
+.gcard-front .rcard.tier4 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 26%,rgba(255,255,255,.55) 40%,rgba(120,220,255,.5) 47%,rgba(220,140,255,.5) 53%,rgba(255,255,255,.55) 60%,transparent 74%);
+  background-size:260% 100%; animation:shine 2.4s infinite; mix-blend-mode:screen; }
+.gcard-front .rcard.tier5 .rcard-fx { display:block; background:linear-gradient(115deg,transparent 22%,rgba(255,255,255,.8) 38%,rgba(140,230,255,.7) 46%,rgba(230,150,255,.7) 54%,rgba(255,255,255,.8) 62%,transparent 78%);
+  background-size:240% 100%; animation:shine 1.9s infinite; mix-blend-mode:screen; }
+.gcard-front .rcard.tier5::before { animation:prismflow 6s linear infinite; }
+.gcard-front .rcard.tier5 .rcard-name .cname-t { animation:prismtext 4s linear infinite; }
 @keyframes prismflow { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
 @keyframes prismtext { 0%{background-position:0% 0} 100%{background-position:200% 0} }
 
