@@ -2744,7 +2744,9 @@ function cardHTML(loc, owned, count){
   let artHTML, winCls;
   if(lv>=ART_LV){
     winCls='art-window has-art';
-    artHTML=`<img class="card-art" src="card-art-webp/${encodeURIComponent(mu)}.webp?v=2" alt="" onerror="this.closest('.art-window').classList.add('no-art')">`+
+    const artDir = lv>=5 ? 'card-art-lv5-webp' : (lv>=4 ? 'card-art-lv4-webp' : 'card-art-webp');
+    const baseArtSrc = `card-art-webp/${encodeURIComponent(mu)}.webp?v=2`;
+    artHTML=`<img class="card-art" src="${artDir}/${encodeURIComponent(mu)}.webp?v=3" alt="" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${baseArtSrc}';}else{this.closest('.art-window').classList.add('no-art');}">`+
             `<div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc,'happy')}</div>`;
   }else{
     winCls='art-window svgart';
