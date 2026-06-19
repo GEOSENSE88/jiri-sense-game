@@ -934,6 +934,27 @@ button { font-family:inherit; }
 .rcard.tier3 .art-window { border-color:#f0c976; }
 .rcard.tier3 .rcard-name .cname-t { background:linear-gradient(180deg,#fff,#ffe9b0 70%,#f4c862); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 
+/* 4단계: 무지개 홀로그래픽(프리즘) — 골드 위 상위 등급 */
+.rcard.tier4::before { background:linear-gradient(135deg,#ff5f6d,#ffc371 16%,#3cd3ad 34%,#36d1dc 50%,#5b86e5 66%,#a855f7 82%,#ff5f6d); }
+.rcard.tier4 { box-shadow:0 12px 30px -12px rgba(120,90,255,.5), 0 0 0 1px rgba(255,255,255,.05) inset; }
+.rcard.tier4 .rcard-fx { background:linear-gradient(115deg,transparent 26%,rgba(255,255,255,.55) 40%,rgba(120,220,255,.5) 47%,rgba(220,140,255,.5) 53%,rgba(255,255,255,.55) 60%,transparent 74%);
+  background-size:260% 100%; animation:shine 2.4s infinite; mix-blend-mode:screen; }
+.rcard.tier4 .art-window { border-color:#bfa9ff; }
+.rcard.tier4 .rcard-name .cname-t { background:linear-gradient(110deg,#fff,#bff5ff 40%,#e3c2ff 70%,#ffd6f0); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.rcard.tier4 .enh-pins i.on { background:linear-gradient(180deg,#bdf,#c4a0ff); border-color:#fff; }
+
+/* 5단계: 무지개 + 움직이는 반짝임(최종 MAX) */
+.rcard.tier5::before { background:linear-gradient(135deg,#ff5f6d,#ffc371,#3cd3ad,#36d1dc,#5b86e5,#a855f7,#ff5f6d); background-size:300% 300%; animation:prismflow 6s linear infinite; }
+.rcard.tier5 { box-shadow:0 14px 34px -12px rgba(170,85,247,.6), 0 0 0 1px rgba(255,255,255,.06) inset; }
+.rcard.tier5 .rcard-fx { background:linear-gradient(115deg,transparent 22%,rgba(255,255,255,.8) 38%,rgba(140,230,255,.7) 46%,rgba(230,150,255,.7) 54%,rgba(255,255,255,.8) 62%,transparent 78%);
+  background-size:240% 100%; animation:shine 1.9s infinite; mix-blend-mode:screen; }
+.rcard.tier5 .art-window { border-color:#d9b8ff; box-shadow:0 0 10px rgba(170,120,255,.5) inset; }
+.rcard.tier5 .rcard-name .cname-t { background:linear-gradient(110deg,#fff,#c9f9ff,#e7c6ff,#ffd6f0,#fff); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:prismtext 4s linear infinite; }
+.rcard.tier5 .enh-pins i.on { background:linear-gradient(180deg,#dff,#caa3ff); border-color:#fff; box-shadow:0 0 5px rgba(180,140,255,.9); }
+.rcard.tier5 .rc-enh .enh-max { background:linear-gradient(135deg,#36d1dc,#a855f7); color:#fff; }
+@keyframes prismflow { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
+@keyframes prismtext { 0%{background-position:0% 0} 100%{background-position:200% 0} }
+
 /* 상세/뽑기(큰 카드): 확대 + 설명·뱃지·순위 노출, 그리드 타일은 콤팩트 */
 .gcard-front .rcard { --cs:1.7; }
 .gcard-front .artbadges { display:flex; }
@@ -977,6 +998,13 @@ button { font-family:inherit; }
 @keyframes cardPulse { from{transform:scale(1)} to{transform:scale(1.035)} }
 .gcard-front .rcard { width:100%; }
 .gcard.legend-glow .gcard-front .rcard { box-shadow:0 0 38px 8px rgba(245,166,35,.65); }
+.gcard.prism4 .gcard-front .rcard { box-shadow:0 0 40px 8px rgba(140,110,255,.6); }
+.gcard.prism5 .gcard-front .rcard { animation:prismglow 3.5s ease-in-out infinite; }
+@keyframes prismglow { 0%,100%{box-shadow:0 0 36px 6px rgba(90,200,255,.6)} 50%{box-shadow:0 0 54px 12px rgba(190,110,255,.78)} }
+@media (prefers-reduced-motion:reduce){
+  .rcard.tier5::before, .rcard.tier5 .rcard-name .cname-t, .gcard.prism5 .gcard-front .rcard,
+  .rcard.tier4 .rcard-fx, .rcard.tier5 .rcard-fx { animation:none; }
+}
 .gacha-msg { color:#fff; font-size:.92rem; margin-bottom:14px; min-height:1.4em; font-weight:600; }
 
 /* 컬렉션 화면 */

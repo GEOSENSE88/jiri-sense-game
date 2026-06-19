@@ -1091,9 +1091,10 @@ const ACHIEVEMENTS=[
   {id:'col50', icon:'📒', name:'수집가', desc:'지역 카드 50종 수집', reward:15, check:()=>Object.keys(cards).length>=50},
   {id:'col100',icon:'🏞️', name:'도감 마스터', desc:'지역 카드 100종 수집', reward:30, check:()=>Object.keys(cards).length>=100},
   {id:'legend',icon:'🏯', name:'세계유산 수집가', desc:'유네스코 도시 카드 획득', reward:15, check:()=>Object.keys(cards).some(n=>{const l=LOCATIONS.find(x=>x.name===n);return l&&hasUnesco(l);})},
-  {id:'enh3', icon:'✨', name:'강화 입문', desc:'카드 1장 최종 강화(3단계)', reward:15, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=CARD_MAX_LV)},
-  {id:'enh5', icon:'🌟', name:'연성 마스터', desc:'카드 5장 최종 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=CARD_MAX_LV).length>=5},
-  {id:'enh10',icon:'💫', name:'도감 연성가', desc:'카드 10장 최종 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=CARD_MAX_LV).length>=10},
+  {id:'enh3', icon:'✨', name:'강화 입문', desc:'카드 1장 3단계(그림) 강화', reward:15, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=ART_LV)},
+  {id:'enh5', icon:'🌟', name:'연성 마스터', desc:'카드 5장 3단계 이상 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=ART_LV).length>=5},
+  {id:'enh10',icon:'💫', name:'도감 연성가', desc:'카드 10장 3단계 이상 강화', reward:30, check:()=>Object.keys(cards).filter(n=>cardLevel(n)>=ART_LV).length>=10},
+  {id:'enh-prism', icon:'🌈', name:'무지개 연성', desc:'카드 1장 5단계(MAX) 달성', reward:40, check:()=>Object.keys(cards).some(n=>cardLevel(n)>=CARD_MAX_LV)},
   {id:'boss1', icon:'👹', name:'권역 정복자', desc:'권역 보스 1곳 격파', reward:15, check:()=>Object.keys(titles).length>=1},
   {id:'bossAll',icon:'👑',name:'국토 통일', desc:'모든 권역 보스 격파', reward:50, check:()=>BOSS_REGIONS.every(r=>titles[r])},
   {id:'attend7',icon:'📅',name:'개근상', desc:'7일 연속 출석', reward:20, check:()=>store.load('geo_streak',0)>=7},
@@ -2530,14 +2531,19 @@ const DRAW_COST = 5;
 // (등급 시스템 제거) — 모든 지역 균등 뽑기, 카드 외형은 강화 단계로만 구분
 // ⚡ 카드 강화 — 다 모은 뒤에도 카드를 키우는 코인 소비 시스템(공정성 위해 게임 능력엔 영향 없음)
 let cardLv = store.load('geo_cardlv', {});          // {지역명: 강화 레벨 1~5}
-const CARD_MAX_LV = 3;           // 1 최초 획득 · 2 강화 · 3 최종(MAX)
-const ENHANCE_NEED = 5;          // 같은 카드 5장을 합쳐 강화(4장 소모, 1장이 강화됨)
+const CARD_MAX_LV = 5;           // 1 획득 · 2 실버 · 3 골드(그림) · 4 무지개 홀로 · 5 최종(애니 반짝·MAX)
+const ART_LV = 3;                // 이 단계부터 실제 일러스트(card-art) 노출 + 골드 글로우
+const ENHANCE_NEED = 5;          // 기본 필요 장수(하위 단계·일반 안내 문구용)
+// 단계별 강화 비용(현재 레벨 → 다음 레벨에 필요한 같은 카드 장수): 상위 단계일수록 비쌈
+const ENHANCE_COST = {1:5, 2:5, 3:6, 4:8};   // 4단계=6장, 5단계=8장
+function enhanceNeed(lv){ return ENHANCE_COST[lv] || ENHANCE_NEED; }
 function cardLevel(name){ return cardLv[name] || 1; }
 function enhanceScore(){ return Object.keys(cards).reduce((s,n)=>s+(cardLevel(n)-1),0); }   // 도감 총 강화도
-function canEnhance(name){ return !!cards[name] && cardLevel(name)<CARD_MAX_LV && cards[name]>=ENHANCE_NEED; }
+function canEnhance(name){ return !!cards[name] && cardLevel(name)<CARD_MAX_LV && cards[name]>=enhanceNeed(cardLevel(name)); }
 function doEnhance(name){
   if(!canEnhance(name)) return false;
-  cards[name]-=(ENHANCE_NEED-1);                // 5장 → 강화된 1장(4장 소모)
+  const need=enhanceNeed(cardLevel(name));
+  cards[name]-=(need-1);                        // need장 → 강화된 1장(need-1장 소모)
   cardLv[name]=cardLevel(name)+1;
   store.save('geo_cards',cards); store.save('geo_cardlv',cardLv);
   updateGachaUI(); checkAchievements(); scheduleSync();
@@ -2730,13 +2736,13 @@ function cardHTML(loc, owned, count){
       <div class="art-window svgart"><div class="card-sil-wrap">${cuteLandSVG(mu,false)}</div></div>
       <div class="rcard-name">???</div><div class="rcard-meaning">${regionLabel(loc.region)} 지방</div></div>`;
   }
-  const lv=Math.min(cardLevel(loc.name), CARD_MAX_LV);   // 1 최초 · 2 강화 · 3 최종
+  const lv=Math.min(cardLevel(loc.name), CARD_MAX_LV);   // 1 획득 · 2 실버 · 3 골드(그림) · 4 무지개 · 5 MAX
   // 강화 단계 핀
   let pins=''; for(let i=0;i<CARD_MAX_LV;i++) pins+=`<i${i<lv?' class="on"':''}></i>`;
   const enhTag = lv>=CARD_MAX_LV ? `<span class="enh-max">MAX</span>` : `<span class="enh-stg">${lv}단계</span>`;
-  // 일러스트: 1단계 차분 실루엣 · 2단계 신난+스탬프 · 3단계 그림(card-art)
+  // 일러스트: 1단계 차분 실루엣 · 2단계 신난+스탬프 · 3단계+ 실제 그림(card-art)
   let artHTML, winCls;
-  if(lv>=CARD_MAX_LV){
+  if(lv>=ART_LV){
     winCls='art-window has-art';
     artHTML=`<img class="card-art" src="card-art-webp/${encodeURIComponent(mu)}.webp?v=2" alt="" onerror="this.closest('.art-window').classList.add('no-art')">`+
             `<div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc,'happy')}</div>`;
@@ -2780,18 +2786,21 @@ function openCardDetail(loc){
   modal.classList.remove('hidden');
   gachaSetMode(false);
   const card=$('gacha-card');
-  card.classList.add('flipped'); card.classList.remove('legend-glow');
-  if(cardLevel(loc.name)>=CARD_MAX_LV) card.classList.add('legend-glow');   // 최종 강화 카드 골드 글로우
+  card.classList.add('flipped'); card.classList.remove('legend-glow','prism4','prism5');
+  const _dlv=cardLevel(loc.name);
+  if(_dlv>=ART_LV) card.classList.add('legend-glow');   // 3단계+ 골드 글로우 베이스
+  if(_dlv===4) card.classList.add('prism4');            // 4단계 무지개 홀로 글로우
+  if(_dlv>=5) card.classList.add('prism5');             // 5단계 움직이는 반짝임
   $('gcard-front').innerHTML=cardHTML(loc,true,cards[loc.name]||1);
   const pop=MUNIS[loc.accept[0]]?.pop;
   const pr=pop?popRank(loc.accept[0]):null;
-  const lv=cardLevel(loc.name), copies=cards[loc.name]||1;
+  const lv=cardLevel(loc.name), copies=cards[loc.name]||1, need=enhanceNeed(lv);
   const enhHTML=`<div class="enh-box"><span class="enh-stars">${starHTML(lv)}</span> <span class="enh-lv">Lv.${lv}</span>`+
     (lv>=CARD_MAX_LV
       ? ` <span class="enh-max">✨ 최대 강화 달성</span>`
-      : ` <button class="enh-btn" id="enh-btn" ${copies<ENHANCE_NEED?'disabled':''}>⚡ 강화 (같은 카드 ${Math.min(copies,ENHANCE_NEED)}/${ENHANCE_NEED}장)</button>`)+
+      : ` <button class="enh-btn" id="enh-btn" ${copies<need?'disabled':''}>⚡ ${lv+1}단계 강화 (같은 카드 ${Math.min(copies,need)}/${need}장)</button>`)+
     `</div>`+
-    (lv<CARD_MAX_LV && copies<ENHANCE_NEED ? `<div class="enh-hint">같은 카드를 ${ENHANCE_NEED}장 모으면 강화할 수 있어요 (현재 ${copies}장)</div>` : '');
+    (lv<CARD_MAX_LV && copies<need ? `<div class="enh-hint">같은 카드를 ${need}장 모으면 ${lv+1}단계로 강화할 수 있어요 (현재 ${copies}장)</div>` : '');
   $('gacha-msg').innerHTML=
     `<div style="max-width:300px;margin:0 auto;line-height:1.6"><b>${cardDisplayName(loc)}</b>${pop?` · 인구 약 ${fmtPop(pop)} 명 (전국 ${pr.nat}위 · ${regionLabel(loc.region)} ${pr.reg}위)`:''}<br>${loc.fact}</div>`+
     enhHTML+
@@ -3308,11 +3317,16 @@ function startRunner(){
       '<span class="run-ch right">'+rightCity+' ▶</span></div>';
   };
   lives();
+  // HUD 텍스트는 정수값이 바뀔 때만 기록 — 매 프레임 textContent 변경(강제 리플로우) 방지
+  const elScore=$('run-score'), elDist=$('run-dist');
+  let lastScoreTxt=-1, lastDistTxt=-1;
+  const setScore=v=>{ if(v!==lastScoreTxt){ lastScoreTxt=v; elScore.textContent=v; } };
+  const setDist=v=>{ if(v!==lastDistTxt){ lastDistTxt=v; elDist.textContent=v; } };
   const loop=(ts)=>{
     if(st.over) return;
     if(!st.last) st.last=ts; let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
-    const sp=0.30 + Math.min(0.20, st.dist*0.00016);          // 깊이 단위 속도(천천히, 완만한 가속)
-    st.dist+=sp*62*dt; $('run-dist').textContent=Math.floor(st.dist);
+    const sp=0.30 + Math.min(0.50, st.dist*0.00026);          // 깊이 단위 속도(0.30→0.80, ~1900m까지 꾸준히 가속)
+    st.dist+=sp*62*dt; setDist(Math.floor(st.dist));
     st.scroll=(st.scroll+sp*dt)%1; st.anim+=dt;
     if(st.invuln>0) st.invuln-=dt;
     if(st.bump) st.bump*=Math.max(0,1-dt*6);
@@ -3333,19 +3347,20 @@ function startRunner(){
     for(const it of st.items){ if(it.dead) continue;
       // 충돌은 캐릭터가 '보이는 위치'(leanX) 기준 — 차선 이동 중 판정이 화면과 어긋나지 않게
       if(it.t>0.88 && it.t<1.0 && st.invuln<=0 && Math.abs(st.leanX-(it.lane-1))<0.5){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
-    st.items=st.items.filter(it=>!it.dead && it.t<1.12);
+    // 죽은/지나간 장애물 제자리 제거(매 프레임 새 배열 할당 방지 → GC 멈칫 감소)
+    { let w=0; for(let r=0;r<st.items.length;r++){ const it=st.items[r]; if(!it.dead && it.t<1.12) st.items[w++]=it; } st.items.length=w; }
     // 갈림길(게이트) — 오답도 하트를 깎아 5번 실수하면 종료
-    if(st.gate){ st.gate.t+=sp*GATE_SPEED*dt;
+    if(st.gate){ const gateSp=Math.min(sp,0.5); st.gate.t+=gateSp*GATE_SPEED*dt;   // 갈림길은 가속 영향을 줄여 읽을 시간 확보
       if(!st.gate.passed && st.gate.t>=0.9){ st.gate.passed=true;
         const ok = st.lane===st.gate.okLane;
         if(ok){ st.combo++; G.maxCombo=Math.max(G.maxCombo,st.combo); G.correctCnt++; st.score+=40; banner('정답! +40',true); }
         else { st.combo=0; st.score=Math.max(0,st.score-10); st.lives--; lives(); flash(); banner('오답! 정답은 '+st.gate.okName,false); }
-        G.idx++; $('run-score').textContent=st.score;
+        G.idx++; setScore(st.score);
         if(st.lives<=0) return finish();
       }
       if(st.gate.t>1.06){ st.gate=null; $('run-q').classList.add('hidden'); }
     }
-    st.score=Math.max(st.score, Math.floor(st.dist)); $('run-score').textContent=st.score;
+    st.score=Math.max(st.score, Math.floor(st.dist)); setScore(st.score);
     draw();
     if(!st.over) G.arcade.raf=requestAnimationFrame(loop);
   };
@@ -3583,8 +3598,8 @@ function startRunner(){
     const M=5, frac=(st.dist*0.05)%1, tts=[];
     for(let k=0;k<M;k++) tts.push(((k/M)+frac)%1);
     tts.sort((a,b)=>a-b).forEach(tt=>{ if(tt>0.05){ drawTree(-1,tt); drawTree(1,tt); } });
-    // 장애물(깊은 것부터)
-    st.items.filter(it=>!it.dead).sort((a,b)=>a.t-b.t).forEach(it=>drawObstacle(it.lane,it.t));
+    // 장애물(깊은 것부터) — loop에서 이미 죽은 항목 제거됨. 제자리 정렬로 배열 복사 없이 그림
+    st.items.sort((a,b)=>a.t-b.t); for(const it of st.items) drawObstacle(it.lane,it.t);
     // 갈림길 표지판(정답 비노출 — 둘 다 초록 / 위쪽 상단 박스에 문제·선지)
     if(st.gate){ const g=st.gate;
       if(g.okLane<g.badLane){ drawSign(g.okName,g.okLane,g.t); drawSign(g.badName,g.badLane,g.t); }
@@ -3768,7 +3783,7 @@ $('btn-draw10-again')?.addEventListener('click', ()=>openGachaMulti(10));
 $('btn-enhance-all')?.addEventListener('click', ()=>{
   const n=enhanceableCount();
   if(!n) return;
-  if(!confirm(`강화 가능한 카드 ${n}장을 한꺼번에 강화할까요?\n(같은 카드 ${ENHANCE_NEED}장당 1단계 상승)`)) return;
+  if(!confirm(`강화 가능한 카드 ${n}장을 한꺼번에 강화할까요?\n(단계별 필요 장수만큼 소모해 1단계씩 상승 · 4단계 ${ENHANCE_COST[3]}장 · 5단계 ${ENHANCE_COST[4]}장)`)) return;
   const done=doEnhanceAll();
   renderCollection(_collFilter);
   alert(done? `⚡ ${done}번 강화 완료!` : '강화할 카드가 없어요');
