@@ -3274,7 +3274,7 @@ function startRunner(){
       '<div class="run-q hidden" id="run-q"></div>'+
     '</div>'+
     '<div class="run-ctrl"><button class="run-btn" id="run-left">◀</button><button class="run-btn" id="run-right">▶</button></div>'+
-    '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로!</div>';
+    '<div class="acid-tip">◀▶(또는 화면 좌·우 터치)로 차선 이동 · 장애물 피하고, 갈림길에서 <b>정답 차선</b>으로! · <b>달릴수록 빨라진다 ⚡</b></div>';
   const stage=$('run-stage'), cv=$('run-canvas'), ctx=cv.getContext('2d',{alpha:false});
   const LANES=3, PT=0.94;        // PT: 플레이어가 위치한 깊이(0=지평선,1=화면 맨 앞)
   const GATE_SPEED=0.58;         // 문제 갈림길은 읽고 판단할 시간을 주기 위해 일반 장애물보다 천천히 접근
@@ -3286,7 +3286,8 @@ function startRunner(){
   ];
   const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.decoding='async'; img.src=s.src; return img; });
   const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
-            gate:null, gateTimer:4.5, gatePrep:0, gatePending:false, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0};
+            gate:null, gateTimer:4.5, gatePrep:0, gatePending:false, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0,
+            speedLevel:0, shake:0, flashT:0, sp:0.34, _shaking:false};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
   // 정적 그라데이션은 resize 때 1회만 생성(매 프레임 createGradient 방지)
   const buildGrads=()=>{ const W=st.W,H=st.H,hz=st.hz,rh1=W*0.47;
@@ -3320,6 +3321,9 @@ function startRunner(){
   const prevCleanup=G.arcade.cleanup; G.arcade.cleanup=()=>{ prevCleanup&&prevCleanup(); stage.removeEventListener('pointerdown',tapMove); btnL.removeEventListener('pointerdown',onL); btnR.removeEventListener('pointerdown',onR); };
   const finish=()=>{ if(st.over)return; st.over=true; G.score=st.score; setTimeout(()=>endGame(),350); };
   const spawnObstacle=()=>{ const lane=Math.floor(Math.random()*LANES); st.items.push({type:'ob', lane, t:0}); };
+  // 고속 구간 장애물 웨이브: 1~2개(최소 한 차선은 반드시 비워 회피 가능 보장)
+  const spawnWave=()=>{ const lanes=[0,1,2]; const count=(st.speedLevel>=4 && Math.random()<0.3)?2:1;
+    for(let i=0;i<count;i++){ const lane=lanes.splice(Math.floor(Math.random()*lanes.length),1)[0]; st.items.push({type:'ob', lane, t:0}); } };
   const startGatePrep=()=>{ if(st.gatePending||st.gate) return; st.gatePending=true; st.gatePrep=1.25; banner('갈림길 준비!',true); };
   const spawnGate=()=>{ if(st.qi>=st.qs.length) st.qi=0; const q=st.qs[st.qi++];
     st.gatePending=false; st.gatePrep=0; st.items=[];        // 준비 구간 뒤 남은 장애물만 정리
@@ -3343,10 +3347,18 @@ function startRunner(){
   const loop=(ts)=>{
     if(st.over) return;
     if(!st.last) st.last=ts; let dt=(ts-st.last)/1000; if(dt>0.05) dt=0.05; st.last=ts;
-    const sp=0.30 + Math.min(0.50, st.dist*0.00026);          // 깊이 단위 속도(0.30→0.80, ~1900m까지 꾸준히 가속)
+    const sp=0.34 + Math.min(0.76, st.dist*0.00040);          // 더 빠르고 오래 가속(0.34→1.10) — 속도 자체가 스릴
+    st.sp=sp;
     st.dist+=sp*62*dt; setDist(Math.floor(st.dist));
     st.scroll=(st.scroll+sp*dt)%1; st.anim+=dt;
+    // ⚡ 가속 단계: 350m마다 레벨업 → 흰 플래시 + 화면 흔들림 + 배너로 속도 상승을 체감
+    const lvl=Math.floor(st.dist/350);
+    if(lvl>st.speedLevel){ st.speedLevel=lvl; st.flashT=0.55; st.shake=Math.max(st.shake,5.5); banner('⚡ 가속 LV.'+(lvl+1),true); }
     if(st.invuln>0) st.invuln-=dt;
+    if(st.flashT>0) st.flashT=Math.max(0,st.flashT-dt*2.2);
+    if(st.shake>0) st.shake=Math.max(0,st.shake-dt*26);
+    if(st.shake>0.2){ const a=st.shake; cv.style.transform='translate('+((Math.random()*2-1)*a).toFixed(1)+'px,'+((Math.random()*2-1)*a).toFixed(1)+'px) scale(1.06)'; st._shaking=true; }
+    else if(st._shaking){ cv.style.transform=''; st._shaking=false; }
     if(st.bump) st.bump*=Math.max(0,1-dt*6);
     // 플레이어 차선 보간(즉각적이되 부드럽게)
     st.leanX += ((st.lane-1)-st.leanX)*Math.min(1,dt*16);
@@ -3358,13 +3370,14 @@ function startRunner(){
       if(st.gatePrep<=0 && st.items.length===0){ spawnGate(); st.gateTimer=7+Math.random()*3; }
     }
     st.spawnAcc+=dt;
-    if(!st.gate && !st.gatePending && st.spawnAcc>1.25){ st.spawnAcc=0;
-      if(Math.random()<0.65) spawnObstacle(); }
+    const spawnGap=Math.max(0.5, 1.2 - st.speedLevel*0.09);   // 레벨↑ → 장애물 더 촘촘(긴장 상승)
+    if(!st.gate && !st.gatePending && st.spawnAcc>spawnGap){ st.spawnAcc=0;
+      if(Math.random()<0.72) spawnWave(); }
     // 진행
     for(const it of st.items){ it.t+=sp*dt; }
     for(const it of st.items){ if(it.dead) continue;
       // 충돌은 캐릭터가 '보이는 위치'(leanX) 기준 — 차선 이동 중 판정이 화면과 어긋나지 않게
-      if(it.t>0.88 && it.t<1.0 && st.invuln<=0 && Math.abs(st.leanX-(it.lane-1))<0.5){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); if(st.lives<=0) return finish(); } }
+      if(it.t>0.88 && it.t<1.0 && st.invuln<=0 && Math.abs(st.leanX-(it.lane-1))<0.5){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); st.shake=Math.max(st.shake,9); if(st.lives<=0) return finish(); } }
     // 죽은/지나간 장애물 제자리 제거(매 프레임 새 배열 할당 방지 → GC 멈칫 감소)
     { let w=0; for(let r=0;r<st.items.length;r++){ const it=st.items[r]; if(!it.dead && it.t<1.12) st.items[w++]=it; } st.items.length=w; }
     // 갈림길(게이트) — 오답도 하트를 깎아 5번 실수하면 종료
@@ -3593,12 +3606,14 @@ function startRunner(){
     ctx.fillStyle=st.gRoad; ctx.beginPath(); ctx.moveTo(W/2-rh0,hz); ctx.lineTo(W/2+rh0,hz); ctx.lineTo(W/2+rh1,H); ctx.lineTo(W/2-rh1,H); ctx.closePath(); ctx.fill();
     ctx.fillStyle='rgba(255,255,255,.08)'; ctx.beginPath();
     ctx.moveTo(W/2-rh0*.28,hz); ctx.lineTo(W/2+rh0*.28,hz); ctx.lineTo(W/2+rh1*.42,H); ctx.lineTo(W/2-rh1*.42,H); ctx.closePath(); ctx.fill();
-    const speedN=9;
+    const spk=st.sp||0.34;
+    const speedN=9+Math.min(14, st.speedLevel*2);             // 레벨↑ → 속도선 촘촘
     for(let k=0;k<speedN;k++){
       const t=((k/speedN)+(st.scroll*0.7))%1; if(t<0.08) continue;
-      const y=projY(t), len=(16+34*t)*scaleAt(t), a=.08+.18*t;
-      ctx.strokeStyle='rgba(255,255,255,'+a+')'; ctx.lineWidth=Math.max(1,2.4*scaleAt(t));
+      const y=projY(t), len=(16+34*t)*scaleAt(t)*(0.85+spk*0.9), a=(.08+.18*t)*(0.8+spk*0.7);
+      ctx.strokeStyle='rgba(255,255,255,'+Math.min(.6,a)+')'; ctx.lineWidth=Math.max(1,2.4*scaleAt(t));
       [-0.72,0.72].forEach(side=>{ const x=W/2+side*roadHalf(t); ctx.beginPath(); ctx.moveTo(x,y-len); ctx.lineTo(x,y+len*.25); ctx.stroke(); });
+      if(spk>0.85){ [-0.4,0.4].forEach(side=>{ const x=W/2+side*roadHalf(t); ctx.beginPath(); ctx.moveTo(x,y-len*0.8); ctx.lineTo(x,y+len*.2); ctx.stroke(); }); }   // 최고속: 안쪽 속도선 추가
     }
     // 럼블 스트립
     const N=16;
@@ -3624,6 +3639,8 @@ function startRunner(){
       else { drawSign(g.badName,g.badLane,g.t); drawSign(g.okName,g.okLane,g.t); } }
     // 캐릭터
     drawChar();
+    // ⚡ 가속 순간 흰 플래시(카메라 플래시 느낌 · 전체 화면)
+    if(st.flashT>0){ ctx.fillStyle='rgba(255,255,255,'+(st.flashT*0.4).toFixed(3)+')'; ctx.fillRect(0,0,W,H); }
   };
   // 배경 오프스크린 미리 굽기(장면 전환 때 첫 프레임 끊김 방지) — 로드된 건 즉시, 나머지는 로드되면
   runBgImgs.forEach((img,i)=>{ const warm=()=>{ if(st.bgCache) st.bgCache[i]=null; if(st.W) bgCanvas(i); };
