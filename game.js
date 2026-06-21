@@ -923,7 +923,7 @@ function labelWrongMuni(name){
   if(m) addLabel(m.cx, m.cy+4, name.replace(/\(.+\)$/,''), 'bad');
 }
 // 권역 경계 박스 (문제 시작 시 자동 확대용)
-let REGION_BBOX=null;
+let REGION_BBOX=null, REGION_FIT_BBOX=null;
 function regionBBox(region){
   if(!REGION_BBOX){
     REGION_BBOX={};
@@ -936,9 +936,24 @@ function regionBBox(region){
   }
   return REGION_BBOX[region];
 }
+// 권역 자동 확대 시 섬이 많은 시·군은 서쪽 바다로 크게 뻗어 뷰가 치우침 → 확대 범위 산정에서만 제외(본토는 인접 시·군 범위 안에 들어와 그대로 보임)
+const FIT_BBOX_EXCLUDE={ '수도권':['인천광역시'] };   // 인천=서해5도·강화도 등 섬 포함
+function regionFitBBox(region){
+  if(!REGION_FIT_BBOX){
+    REGION_FIT_BBOX={};
+    for(const [n,m] of Object.entries(MUNIS)){
+      if((FIT_BBOX_EXCLUDE[m.region]||[]).includes(n)) continue;
+      const bb=muniBBox(n);
+      const r=REGION_FIT_BBOX[m.region]||(REGION_FIT_BBOX[m.region]={minx:1e9,miny:1e9,maxx:-1e9,maxy:-1e9});
+      r.minx=Math.min(r.minx,bb.x); r.miny=Math.min(r.miny,bb.y);
+      r.maxx=Math.max(r.maxx,bb.x+bb.w); r.maxy=Math.max(r.maxy,bb.y+bb.h);
+    }
+  }
+  return REGION_FIT_BBOX[region]||regionBBox(region);
+}
 // 출제 지역의 권역으로 부드럽게 확대 (정답 자체는 노출하지 않음)
 function fitRegion(region){
-  const r=regionBBox(region);
+  const r=regionFitBBox(region);
   if(!r) return;
   fitViewTo([{x:r.minx,y:r.miny},{x:r.maxx,y:r.maxy}], 26);
 }
