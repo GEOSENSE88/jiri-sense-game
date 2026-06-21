@@ -2744,9 +2744,10 @@ function cardHTML(loc, owned, count){
   let artHTML, winCls;
   if(lv>=ART_LV){
     winCls='art-window has-art';
-    const artDir = lv>=5 ? 'card-art-lv5-webp' : (lv>=4 ? 'card-art-lv4-webp' : 'card-art-webp');
+    const artDir = lv>=5 ? 'card-art-lv5-ai-webp' : (lv>=4 ? 'card-art-lv4-webp' : 'card-art-webp');
+    const lv5FallbackSrc = `card-art-lv5-webp/${encodeURIComponent(mu)}.webp?v=3`;
     const baseArtSrc = `card-art-webp/${encodeURIComponent(mu)}.webp?v=2`;
-    artHTML=`<img class="card-art" src="${artDir}/${encodeURIComponent(mu)}.webp?v=3" alt="" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${baseArtSrc}';}else{this.closest('.art-window').classList.add('no-art');}">`+
+    artHTML=`<img class="card-art" src="${artDir}/${encodeURIComponent(mu)}.webp?v=4" alt="" onerror="if(!this.dataset.fallback&&${lv>=5}){this.dataset.fallback='1';this.src='${lv5FallbackSrc}';}else if(this.dataset.fallback!=='base'){this.dataset.fallback='base';this.src='${baseArtSrc}';}else{this.closest('.art-window').classList.add('no-art');}">`+
             `<div class="card-sil-wrap card-art-fallback">${cuteLandSVG(mu,true,loc,'happy')}</div>`;
   }else{
     winCls='art-window svgart';
