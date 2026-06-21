@@ -3285,7 +3285,7 @@ function startRunner(){
     {label:'경주 역사길', src:'runner-bg/runner-bg-gyeongju-v2.jpg'}
   ];
   const runBgImgs=RUNNER_SCENES.map(s=>{ const img=new Image(); img.decoding='async'; img.src=s.src; return img; });
-  const st={lives:5, maxLives:5, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
+  const st={lives:3, maxLives:3, lane:1, leanX:0, dist:0, score:0, combo:0, items:[], spawnAcc:0, last:0, over:false, anim:0,
             gate:null, gateTimer:4.5, gatePrep:0, gatePending:false, invuln:0, bump:0, qs:runnerQuestions(80), qi:0, W:0, H:0, hz:0, scroll:0,
             speedLevel:0, shake:0, flashT:0, sp:0.34, _shaking:false};
   G.arcade={raf:0, timers:[], cleanup:()=>{}};
@@ -3380,7 +3380,7 @@ function startRunner(){
       if(it.t>0.88 && it.t<1.0 && st.invuln<=0 && Math.abs(st.leanX-(it.lane-1))<0.5){ it.dead=true; st.invuln=1.2; st.lives--; lives(); flash(); st.shake=Math.max(st.shake,9); if(st.lives<=0) return finish(); } }
     // 죽은/지나간 장애물 제자리 제거(매 프레임 새 배열 할당 방지 → GC 멈칫 감소)
     { let w=0; for(let r=0;r<st.items.length;r++){ const it=st.items[r]; if(!it.dead && it.t<1.12) st.items[w++]=it; } st.items.length=w; }
-    // 갈림길(게이트) — 오답도 하트를 깎아 5번 실수하면 종료
+    // 갈림길(게이트) — 오답도 하트를 깎아 3번 실수하면 종료
     if(st.gate){ const gateSp=Math.min(sp,0.5); st.gate.t+=gateSp*GATE_SPEED*dt;   // 갈림길은 가속 영향을 줄여 읽을 시간 확보
       if(!st.gate.passed && st.gate.t>=0.9){ st.gate.passed=true;
         const ok = st.lane===st.gate.okLane;
